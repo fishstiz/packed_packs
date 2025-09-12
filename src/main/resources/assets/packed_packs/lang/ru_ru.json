@@ -39,5 +39,6 @@
   "packed_packs.options.replace_screen": "Заменить экран наборов",
   "packed_packs.options.apply_on_close": "Применить наборы при закрытии",
   "packed_packs.options.hide_incompatible_warnings": "Скрыть предупреждения",
-  "packed_packs.options.hide_incompatible_warnings.info": "Скрывает красный фон на несовместимых наборах."
+  "packed_packs.options.hide_incompatible_warnings.info": "Скрывает красный фон на несовместимых наборах.",
+  "modmenu.descriptionTranslation.packed_packs": "Упаковывайте наборы в профили, имейте возможность множественного выбора, перетаскивания, а так же расширенного управления с помощью горячих клавиш."
 }
