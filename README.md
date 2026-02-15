@@ -27,7 +27,7 @@ controls.
 <summary><b>📂 Additional Folders</b></summary>
 
 - Add extra folders for pack discovery.
-- Configure in `config/packed_packs.json` by adding paths under the `additionalFolders` array inside `resourcepacks` or
+- Configure in `config/packed_packs/config.json` by adding paths under the `additionalFolders` array inside `resourcepacks` or
   `datapacks`.
 - If the array doesn’t exist, create it manually or open and close the Packed Packs screen to update the config.
 - Paths can be absolute or relative to the game directory.
