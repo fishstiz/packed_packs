@@ -1,0 +1,5 @@
+- Removed config migration from v1 to v2. 
+  - If you are updating to this version (and onwards) from v1, the previous config file will still remain but no longer used. 
+- Changed background texture of dialogs to `popup/background.png` sprite as `demo_background.png` is removed in Minecraft 26.1 update 
+- Removed hash at the end of profile IDs when creating new profiles
+- Fixed crash when using an illegal character in profile name ([#42](https://github.com/fishstiz/packed_packs/issues/42))
