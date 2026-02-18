@@ -82,6 +82,11 @@ public class ContextMenuItemBuilder {
         return this.self();
     }
 
+    public ContextMenuItemBuilder then(Consumer<ContextMenuItemBuilder> builderAction) {
+        builderAction.accept(this.self());
+        return this.self();
+    }
+
     public List<MenuItem> build() {
         return new ArrayList<>(this.items);
     }

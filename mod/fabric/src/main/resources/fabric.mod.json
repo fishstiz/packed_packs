@@ -22,10 +22,10 @@
       "io.github.fishstiz.packed_packs.compat.modmenu.PackedPacksModMenu"
     ],
     "packed_packs": [
-      "io.github.fishstiz.packed_packs.compat.etf.ETFModExtension",
-      "io.github.fishstiz.packed_packs.compat.resourcify.ResourcifyModExtension",
-      "io.github.fishstiz.packed_packs.compat.respackopts.RespackoptsModExtension",
-      "io.github.fishstiz.packed_packs.compat.vtdownloader.VTDModExtension"
+      "io.github.fishstiz.packed_packs.compat.etf.ETFIntegration",
+      "io.github.fishstiz.packed_packs.compat.resourcify.ResourcifyIntegration",
+      "io.github.fishstiz.packed_packs.compat.respackopts.RespackoptsIntegration",
+      "io.github.fishstiz.packed_packs.compat.vtdownloader.VTDIntegration"
     ]
   },
   "mixins": [

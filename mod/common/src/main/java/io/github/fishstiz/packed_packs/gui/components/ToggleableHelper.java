@@ -7,7 +7,6 @@ import io.github.fishstiz.fidgetz.gui.components.contextmenu.MenuItemBuilder;
 import io.github.fishstiz.fidgetz.gui.renderables.RenderableRect;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import io.github.fishstiz.fidgetz.util.DrawUtil;
-import io.github.fishstiz.packed_packs.compat.ModAdditions;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.config.Preferences;
 import io.github.fishstiz.packed_packs.util.ResourceUtil;
@@ -83,7 +82,7 @@ public record ToggleableHelper(
         return builder;
     }
 
-    public static List<MenuItem> preferences(PackType packType) {
+    public static List<MenuItem> preferences() {
         Preferences prefs = Preferences.INSTANCE;
         ContextMenuItemBuilder builder = new ContextMenuItemBuilder();
 
@@ -92,8 +91,6 @@ public record ToggleableHelper(
         builder.add(fromPref(prefs.actionBarWidget));
         builder.add(fromPref(prefs.toggleIncompatibleWidget));
         builder.add(fromPref(prefs.folderPackWidget));
-
-        ModAdditions.onCreatePreferencesMenu(packType, builder);
 
         return builder.build();
     }

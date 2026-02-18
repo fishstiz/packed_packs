@@ -1,8 +1,7 @@
 package io.github.fishstiz.packed_packs.config;
 
-import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.platform.Services;
+import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import org.jspecify.annotations.Nullable;
 
@@ -25,8 +24,10 @@ public class Preferences {
     public final Option<Boolean> folderPackWidget = new Option<>("folder_pack", true);
 
     private Preferences() {
-        CollectionsUtil.forEach(ModPreferences.values(), Option::new);
-        Services.PLATFORM.getPreferences().forEach(Option::new);
+    }
+
+    private void appendExtensions() {
+        PackedPacksApiImpl.getInstance().preferences().getPreferences().forEach(Option::new);
     }
 
     public interface Spec<T> {
@@ -72,6 +73,8 @@ public class Preferences {
 
     private static Preferences load() {
         Preferences prefs = new Preferences();
+        prefs.appendExtensions();
+
         File file = getFile();
         if (!file.exists()) {
             return prefs;

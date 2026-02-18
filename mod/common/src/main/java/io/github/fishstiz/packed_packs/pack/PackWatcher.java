@@ -3,9 +3,10 @@ package io.github.fishstiz.packed_packs.pack;
 import io.github.fishstiz.fidgetz.util.debounce.ConcurrentPollingDebouncer;
 import io.github.fishstiz.fidgetz.util.debounce.PollingDebouncer;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.compat.ModAdditions;
+import io.github.fishstiz.packed_packs.api.events.ScreenContext;
+import io.github.fishstiz.packed_packs.api.events.ScreenEvent;
+import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import net.minecraft.util.Util;
-import net.minecraft.server.packs.PackType;
 import org.apache.commons.io.IOCase;
 import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
 import org.apache.commons.io.monitor.FileAlterationMonitor;
@@ -38,13 +39,17 @@ public class PackWatcher implements AutoCloseable {
     private final DirectoryListener directoryListener = new DirectoryListener();
     private long lastPollTime;
 
-    public PackWatcher(PackType packType, Collection<Path> directories, Runnable onChangeCallback) {
+    public PackWatcher(ScreenContext context, Collection<Path> directories, Runnable onChangeCallback) {
         this.monitor.setThreadFactory(r -> {
             throw new IllegalStateException("PackWatcher monitor should not be creating a new thread.");
         });
         this.onChangeCallback = new ConcurrentPollingDebouncer<>(path -> {
-            if (!this.closed.get() && !ModAdditions.shouldIgnoreChange(packType, path)) {
-                onChangeCallback.run();
+            if (!this.closed.get()) {
+                ScreenEvent.FileWatch watchEvent = new ScreenEvent.FileWatch(context, path);
+                PackedPacksApiImpl.getInstance().eventBus().post(watchEvent);
+                if (!watchEvent.isCanceled()) {
+                    onChangeCallback.run();
+                }
             }
         }, DEBOUNCED_CHANGE_DELAY_MS);
         directories.forEach(this::addDirectory);
@@ -61,7 +66,7 @@ public class PackWatcher implements AutoCloseable {
                     .setFileFilter(new Filter(normalizedPath))
                     .setIOCase(IOCase.SENSITIVE).get();
         } catch (IOException e) {
-            PackedPacks.LOGGER.error("[packed_packs] Failed to create observer for directory: '{}' " , directory, e);
+            PackedPacks.LOGGER.error("[packed_packs] Failed to create observer for directory: '{}' ", directory, e);
             return;
         }
 

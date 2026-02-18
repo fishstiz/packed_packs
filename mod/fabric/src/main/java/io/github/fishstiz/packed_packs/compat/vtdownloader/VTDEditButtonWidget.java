@@ -4,12 +4,13 @@ import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import io.github.fishstiz.fidgetz.gui.components.Fidgetz;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuilder;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuProvider;
+import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
 import io.github.fishstiz.packed_packs.compat.ModScreenFactory;
 import io.github.fishstiz.packed_packs.compat.PackWrapperDelegatorAbstractionEpicModelEntry;
 import io.github.fishstiz.packed_packs.config.Config;
-import io.github.fishstiz.packed_packs.config.FabricPreferences;
-import io.github.fishstiz.packed_packs.gui.components.pack.PackList;
+import io.github.fishstiz.packed_packs.config.Preferences;
 import io.github.fishstiz.packed_packs.gui.components.ToggleableHelper;
+import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.layouts.LayoutElement;
@@ -21,6 +22,7 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -48,10 +50,12 @@ public class VTDEditButtonWidget extends AbstractButton implements ContextMenuPr
     private final boolean editable;
     private final @Nullable ToggleableHelper toggleable;
 
-    private VTDEditButtonWidget(LayoutElement container, Screen previous, PackSelectionModel.Entry pack, boolean editable) {
+    private VTDEditButtonWidget(PreferenceRegistry.Key<Boolean> prefKey, LayoutElement container, Screen previous, PackSelectionModel.Entry pack, boolean editable) {
         super(0, 0, PENCIL_SIZE, PENCIL_SIZE, CommonComponents.EMPTY);
 
-        this.toggleable = Config.get().isDevMode() ? new ToggleableHelper(FabricPreferences.VTD_EDIT_BUTTON.get()) : null;
+        this.toggleable = Config.get().isDevMode()
+                ? new ToggleableHelper(Preferences.INSTANCE.getOrThrow(PackedPacksApiImpl.getInstance().preferences().getSpec(prefKey)))
+                : null;
         this.container = container;
         this.previous = previous;
         this.pack = pack;
@@ -59,9 +63,9 @@ public class VTDEditButtonWidget extends AbstractButton implements ContextMenuPr
         this.active = this.editable;
     }
 
-    public static @Nullable VTDEditButtonWidget create(Screen previous, PackList.Entry entry) {
-        return entry.pack().getDescription().getString().contains(VT_DESCRIPTION_MARKER)
-                ? new VTDEditButtonWidget(entry, previous, new PackWrapperDelegatorAbstractionEpicModelEntry(entry.pack()), entry.canOperateFile())
+    public static @Nullable VTDEditButtonWidget create(PreferenceRegistry.Key<Boolean> prefKey, Screen previous, LayoutElement container, Pack pack, boolean editable) {
+        return pack.getDescription().getString().contains(VT_DESCRIPTION_MARKER)
+                ? new VTDEditButtonWidget(prefKey, container, previous, new PackWrapperDelegatorAbstractionEpicModelEntry(pack), editable)
                 : null;
     }
 

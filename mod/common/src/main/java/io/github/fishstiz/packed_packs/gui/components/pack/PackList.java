@@ -6,7 +6,7 @@ import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuil
 import io.github.fishstiz.fidgetz.gui.renderables.ColoredRect;
 import io.github.fishstiz.fidgetz.util.DrawUtil;
 import io.github.fishstiz.fidgetz.util.GuiUtil;
-import io.github.fishstiz.packed_packs.compat.ModAdditions;
+import io.github.fishstiz.packed_packs.api.events.ScreenEvent;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.config.Preferences;
 import io.github.fishstiz.packed_packs.gui.components.MouseSelectionHandler;
@@ -86,7 +86,9 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
 
         this.clearEntries();
         for (int i = 0; i < visiblePacks.size(); i++) {
-            this.addEntry(this.createEntry(new SelectionContext<>(selection, visiblePacks.get(i)), i));
+            Entry entry = this.createEntry(new SelectionContext<>(selection, visiblePacks.get(i)), i);
+            this.addEntry(entry);
+            listener.postApiEvent(new ScreenEvent.InitPackEntry(listener.ctx(), entry));
         }
 
         this.clampScrollAmount();
@@ -480,8 +482,6 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
             this.devMenu = devMode
                     ? new PackListDevMenu(PackList.this.minecraft, PackList.this.options, this.context, this::handleDevMenuEvent)
                     : null;
-
-            ModAdditions.onCreateEntry(PackList.this.options.getConfig().packType(), this);
         }
 
         public Pack pack() {
@@ -690,10 +690,20 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
         @Override
         public void buildItems(ContextMenuItemBuilder builder, int mouseX, int mouseY) {
             PackList.this.setFocused(this);
+
+            Map<ScreenEvent.OpenCtxMenu.PackEntry.Phase, ContextMenuItemBuilder> builders = new EnumMap<>(ScreenEvent.OpenCtxMenu.PackEntry.Phase.class);
+            listener.postApiEvent(new ScreenEvent.OpenCtxMenu.PackEntry(listener.ctx(), this, phase -> builders.computeIfAbsent(phase, p -> new ContextMenuItemBuilder())));
+
             ContextMenuContainer.super.buildItems(builder
+                            .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.PackEntry.Phase.BEFORE_ALL))
+                            .ifTrue((extraBuilder, b) -> b.addAll(extraBuilder.build()))
                             .add(new PackMenuHeader(this.pack(), this.packWidget.getSprite()))
+                            .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.PackEntry.Phase.AFTER_HEADER))
+                            .ifTrue((extraBuilder, b) -> b.addAll(extraBuilder.build()))
                             .whenNonNull(this.devMenu)
                             .ifTrue(PackListDevMenu::onBuildHeader)
+                            .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.PackEntry.Phase.AFTER_DEV))
+                            .ifTrue((extraBuilder, b) -> b.addAll(extraBuilder.build()))
                             .whenNonNull(this.folderWidget)
                             .ifTrue(b -> b
                                     .simpleItem(FolderPack.FOLDER_OPEN_TEXT, this::openFolder)
@@ -705,7 +715,9 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
                                     .simpleItem(DELETE_FILE_TEXT, this::canOperateFile, this::deletePack)
                                     .simpleItem(OPEN_FILE_TEXT, () -> PackUtil.openPack(this.pack()))
                                     .simpleItem(OPEN_PARENT_TEXT, () -> PackUtil.openParent(this.pack()))
-                            ),
+                            )
+                            .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.PackEntry.Phase.AFTER_ALL))
+                            .ifTrue((extraBuilder, b) -> b.addAll(extraBuilder.build())),
                     mouseX,
                     mouseY
             );

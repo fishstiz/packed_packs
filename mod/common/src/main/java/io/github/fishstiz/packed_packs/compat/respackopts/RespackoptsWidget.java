@@ -4,11 +4,13 @@ import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import io.github.fishstiz.fidgetz.gui.components.Fidgetz;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuilder;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuProvider;
+import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
 import io.github.fishstiz.packed_packs.compat.Mod;
 import io.github.fishstiz.packed_packs.compat.PackWrapperDelegatorAbstractionEpicModelEntry;
 import io.github.fishstiz.packed_packs.config.Config;
-import io.github.fishstiz.packed_packs.config.ModPreferences;
+import io.github.fishstiz.packed_packs.config.Preferences;
 import io.github.fishstiz.packed_packs.gui.components.ToggleableHelper;
+import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.gitlab.jfronny.libjf.entrywidgets.api.v0.ResourcePackEntryWidget;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractButton;
@@ -27,20 +29,22 @@ public class RespackoptsWidget extends AbstractButton implements ContextMenuProv
     private final LayoutElement container;
     private final @Nullable ToggleableHelper toggleable;
 
-    private RespackoptsWidget(LayoutElement container, ResourcePackEntryWidget wrapped, PackSelectionModel.Entry model) {
+    private RespackoptsWidget(PreferenceRegistry.Key<Boolean> prefKey, LayoutElement container, ResourcePackEntryWidget wrapped, PackSelectionModel.Entry model) {
         super(0, 0, 0, 0, Component.literal(Mod.RESPACKOPTS.getId()));
 
-        this.toggleable = Config.get().isDevMode() ? new ToggleableHelper(ModPreferences.RESPACKOPTS_BUTTON.get()) : null;
+        this.toggleable = Config.get().isDevMode()
+                ? new ToggleableHelper(Preferences.INSTANCE.getOrThrow(PackedPacksApiImpl.getInstance().preferences().getSpec(prefKey)))
+                : null;
         this.container = container;
         this.wrapped = wrapped;
         this.model = model;
     }
 
-    public static @Nullable RespackoptsWidget create(LayoutElement container, Pack pack) {
+    public static @Nullable RespackoptsWidget create(PreferenceRegistry.Key<Boolean> prefKey, LayoutElement container, Pack pack) {
         for (ResourcePackEntryWidget widget : ResourcePackEntryWidget.WIDGETS) {
             PackSelectionModel.Entry model = new PackWrapperDelegatorAbstractionEpicModelEntry(pack);
             if (widget.isVisible(model, isSelectable(pack))) {
-                return new RespackoptsWidget(container, widget, model);
+                return new RespackoptsWidget(prefKey, container, widget, model);
             }
         }
         return null;

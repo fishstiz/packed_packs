@@ -4,10 +4,12 @@ import io.github.fishstiz.fidgetz.gui.components.SpriteButton;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.ButtonSprites;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import io.github.fishstiz.fidgetz.gui.shapes.Size;
+import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
 import io.github.fishstiz.packed_packs.compat.Mod;
 import io.github.fishstiz.packed_packs.compat.ModScreenFactory;
-import io.github.fishstiz.packed_packs.config.ModPreferences;
+import io.github.fishstiz.packed_packs.config.Preferences;
 import io.github.fishstiz.packed_packs.gui.components.ToggleableHelper;
+import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.resources.Identifier;
 
@@ -21,9 +23,9 @@ public class ETFButtonFactory {
     private ETFButtonFactory() {
     }
 
-    public static SpriteButton<Void> create(Screen previous) {
+    public static SpriteButton<Void> create(PreferenceRegistry.Key<Boolean> prefKey, Screen previous) {
         return ToggleableHelper.applyPref(
-                        ModPreferences.ETF_BUTTON.get(),
+                        Preferences.INSTANCE.getOrThrow(PackedPacksApiImpl.getInstance().preferences().getSpec(prefKey)),
                         SpriteButton.<Void>builder(SpriteButton.Sprites.of(new ButtonSprites(FOCUSED, UNFOCUSED)))
                 )
                 .setMessage(Mod.ETF.getId())

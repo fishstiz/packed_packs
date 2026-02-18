@@ -2,9 +2,11 @@ package io.github.fishstiz.packed_packs.compat.vtdownloader;
 
 import io.github.fishstiz.fidgetz.gui.components.FidgetzButton;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
+import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
 import io.github.fishstiz.packed_packs.compat.ModScreenFactory;
-import io.github.fishstiz.packed_packs.config.FabricPreferences;
+import io.github.fishstiz.packed_packs.config.Preferences;
 import io.github.fishstiz.packed_packs.gui.components.ToggleableHelper;
+import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.util.constants.Theme;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
@@ -20,8 +22,11 @@ public class VTDButtonFactory {
     private VTDButtonFactory() {
     }
 
-    public static FidgetzButton<Void> create(Screen previous) {
-        return ToggleableHelper.applyPref(FabricPreferences.VTD_BUTTON.get(), FidgetzButton.<Void>builder())
+    public static FidgetzButton<Void> create(PreferenceRegistry.Key<Boolean> prefKey, Screen previous) {
+        return ToggleableHelper.applyPref(
+                        Preferences.INSTANCE.getOrThrow(PackedPacksApiImpl.getInstance().preferences().getSpec(prefKey)),
+                        FidgetzButton.<Void>builder()
+                )
                 .makeSquare()
                 .setTooltip(Tooltip.create(VTD_MESSAGE))
                 .setSprite(VTD_ICON)
