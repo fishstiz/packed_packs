@@ -11,7 +11,7 @@ import java.util.function.Supplier;
 /**
  * Provides access to the current screen state and environment details.
  */
-public class ScreenContext {
+public final class ScreenContext {
     private final Screen screen;
     private final Supplier<PackSelectionScreen> originalScreen;
     private final PackRepository repository;
@@ -48,6 +48,10 @@ public class ScreenContext {
     }
 
     /**
+     * <b>Note:</b> If the original screen is replaced,
+     * a new instance is created solely to satisfy contracts.
+     * Cache this value if a consistent reference is required.
+     *
      * @return the underlying vanilla pack selection screen.
      */
     public PackSelectionScreen getOriginalScreen() {

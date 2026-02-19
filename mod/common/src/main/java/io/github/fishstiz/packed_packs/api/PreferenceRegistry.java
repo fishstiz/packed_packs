@@ -7,7 +7,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.function.Function;
 
 /**
- * A registry for managing persistent configuration values.
+ * Registry for defining and accessing shared, persistent preference values.
  * <p>
  * Preferences must be registered during initialization before the registry is frozen.
  * Values are stored as strings and converted using the provided deserializers.
@@ -44,6 +44,8 @@ public interface PreferenceRegistry {
 
     /**
      * Registers a string-based preference.
+     *
+     * @throws IllegalStateException if called after the registry is frozen.
      */
     default Key<String> register(Identifier id, String defaultValue) {
         return this.register(id, String.class, defaultValue, String::valueOf);
@@ -51,6 +53,8 @@ public interface PreferenceRegistry {
 
     /**
      * Registers a boolean-based preference.
+     *
+     * @throws IllegalStateException if called after the registry is frozen.
      */
     default Key<Boolean> register(Identifier id, boolean defaultValue) {
         return this.register(id, Boolean.class, defaultValue, Boolean::parseBoolean);
@@ -58,6 +62,8 @@ public interface PreferenceRegistry {
 
     /**
      * Registers an integer-based preference.
+     *
+     * @throws IllegalStateException if called after the registry is frozen.
      */
     default Key<Integer> register(Identifier id, int defaultValue) {
         return this.register(id, Integer.class, defaultValue, Integer::parseInt);

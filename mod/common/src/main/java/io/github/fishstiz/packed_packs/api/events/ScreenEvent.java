@@ -16,7 +16,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.repository.Pack;
 import org.jetbrains.annotations.ApiStatus;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
 import java.util.function.BiConsumer;
@@ -43,23 +43,20 @@ public class ScreenEvent {
 
     /**
      * Fired during the screen's layout initialization.
-     * Used to inject custom UI elements into specific screen regions
      * <p>
-     * Elements added via this event are automatically positioned within the bounds
-     * and layout constraints of their respective target areas.
-     * The main functional buttons will automatically stretch or shrink to fill the remaining
+     * Used to inject custom elements into specific screen regions.
+     * <p>
+     * Elements added via this event are automatically positioned within their respective target areas.
+     * <p>
+     * The main elements will automatically stretch or shrink to fill the remaining
      * layout space around injected elements.
-     * <p>
-     * <b>Note:</b> Adding too many elements or excessively wide components to a
-     * single phase may shrink the main action buttons beyond usability and cause
-     * the layout to overflow.
      */
     public static class InitLayout extends ScreenEvent implements Event {
         private final BiConsumer<Phase, LayoutElement> add;
 
         public enum Phase {
             /**
-             * After the title in the header. Most common injection phase for mod extensions.
+             * After the title in the header. Recommended injection phase for injecting simple buttons.
              */
             AFTER_HEADER_TITLE,
             /**
@@ -91,7 +88,9 @@ public class ScreenEvent {
         }
 
         /**
-         * Injects an element into the layout at the specified phase.
+         * Adds an element into the layout at the specified phase.
+         * <p>
+         * Elements are automatically positioned within their respective target areas.
          */
         public void addElement(Phase phase, LayoutElement element) {
             this.add.accept(phase, element);
@@ -100,7 +99,8 @@ public class ScreenEvent {
 
     /**
      * Fired when a pack entry is created.
-     * Used to add custom widgets (like status icons or buttons) directly to entries.
+     * <p>
+     * Used to add custom widgets (like status icons or buttons) on top of entries.
      */
     public static class InitPackEntry extends ScreenEvent implements Event {
         private final PackList.Entry entry;
@@ -113,13 +113,16 @@ public class ScreenEvent {
 
         /**
          * Adds a widget to the top layer of the entry.
+         * <p>
+         * <b>Note:</b> Position must be managed manually relative
+         * to the {@link #getContainer()}.
          */
         public <T extends GuiEventListener & Renderable> void addWidget(T widget) {
             this.entry.addTopRenderableOnly(this.entry.prependWidget(widget));
         }
 
         /**
-         * Returns the entry container.
+         * The entry container.
          * <p>
          * Used to calculate relative positioning for added widgets.
          */
@@ -141,8 +144,9 @@ public class ScreenEvent {
     }
 
     /**
-     * Fired when a file change is detected in the pack folder.
-     * Can be used to prevent the pack repository from refreshing for specific paths.
+     * Fired when a file change is detected in the pack folder/s.
+     * <p>
+     * Used to prevent the pack repository from refreshing for specific paths.
      */
     public static class FileWatch extends ScreenEvent implements Event {
         private final Path path;
@@ -172,29 +176,37 @@ public class ScreenEvent {
 
     /**
      * Fired when the screen is closing.
-     * Allows performing logic or force committing changes before the screen is closed.
      */
     public static class Closing extends ScreenEvent implements Event {
-        private boolean commited = false;
+        private boolean committed = false;
 
+        @ApiStatus.Internal
         public Closing(ScreenContext context) {
             super(context);
         }
 
         /**
          * Marks that changes from this screen should be committed.
+         * <p>
+         * <b>Note:</b>
+         * <ul>
+         * <li>For <b>Data Packs</b>, this does not do anything as changes are always committed.</li>
+         * <li>For <b>Resource Packs</b>, the resource reload may still be skipped
+         * if Minecraft does not detect changes when updating the Resource Pack list.</li>
+         * </ul>
          */
         public void commit() {
-            this.commited = true;
+            this.committed = true;
         }
 
-        public boolean isCommited() {
-            return this.commited;
+        public boolean isCommitted() {
+            return this.committed;
         }
     }
 
     /**
      * Represents a context menu being built.
+     * <p>
      * Used to inject custom context menu items.
      */
     public static class CtxMenu extends ScreenEvent {
@@ -209,9 +221,9 @@ public class ScreenEvent {
          * Provides more granular customization of menu items not covered by the
          * standard helper methods.
          * <p>
-         * <b>Note:</b> Components under {@code fidgetz} (including
-         * {@link ContextMenuItemBuilder} and {@link MenuItem}) are currently unstable.
-         * While visible, they may undergo breaking changes in future updates.
+         * <b>Note:</b> The {@code fidgetz} API, which includes {@link ContextMenuItemBuilder}
+         * and {@link MenuItem}, is currently unstable. While visible for advanced use,
+         * it may undergo breaking changes without notice.
          *
          * @return the underlying builder
          */
@@ -245,18 +257,6 @@ public class ScreenEvent {
             builder.add(itemBuilder.build());
         }
 
-        private static void addToggle(
-                ContextMenuItemBuilder builder,
-                Component text,
-                BooleanSupplier valueSupplier,
-                BooleanConsumer onChange
-        ) {
-            builder.add(MenuItem.builder(text)
-                    .icon(() -> ToggleableHelper.getDefaultIcon(valueSupplier.getAsBoolean()))
-                    .action(() -> onChange.accept(!valueSupplier.getAsBoolean()))
-                    .build());
-        }
-
         public void add(Component text, Runnable onClick) {
             add(this.context, this.builder, text, null, onClick, null);
         }
@@ -274,11 +274,14 @@ public class ScreenEvent {
         }
 
         public void addToggle(Component text, BooleanSupplier valueSupplier, BooleanConsumer onChange) {
-            addToggle(this.builder, text, valueSupplier, onChange);
+            this.builder.add(MenuItem.builder(text)
+                    .icon(() -> ToggleableHelper.getDefaultIcon(valueSupplier.getAsBoolean()))
+                    .action(() -> onChange.accept(!valueSupplier.getAsBoolean()))
+                    .build());
         }
     }
 
-    abstract static class PhasedMenu<P extends Enum<P>> extends ScreenEvent {
+    private abstract static class PhasedMenu<P extends Enum<P>> extends ScreenEvent {
         final Function<P, ContextMenuItemBuilder> builderFactory;
 
         PhasedMenu(ScreenContext context, Function<P, ContextMenuItemBuilder> builderFactory) {
@@ -286,39 +289,8 @@ public class ScreenEvent {
             this.builderFactory = builderFactory;
         }
 
-        /**
-         * Provides more granular customization of menu items not covered by the
-         * standard helper methods.
-         * <p>
-         * <b>Note:</b> Components under {@code fidgetz} (including
-         * {@link ContextMenuItemBuilder} and {@link MenuItem}) are currently unstable.
-         * While visible, they may undergo breaking changes in future updates.
-         *
-         * @return the underlying builder for the given phase
-         */
-        @ApiStatus.Experimental
-        public final ContextMenuItemBuilder getBuilder(P phase) {
-            return builderFactory.apply(phase);
-        }
-
-        public void add(P phase, Component text, Runnable onClick) {
-            CtxMenu.add(this.context, this.builderFactory.apply(phase), text, null, onClick, null);
-        }
-
-        public void add(P phase, Component text, Identifier sprite, Runnable onClick) {
-            CtxMenu.add(this.context, this.builderFactory.apply(phase), text, sprite, onClick, null);
-        }
-
-        public void addParent(P phase, Component text, Consumer<CtxMenu> onCreateChildren) {
-            CtxMenu.add(this.context, this.builderFactory.apply(phase), text, null, null, onCreateChildren);
-        }
-
-        public void addParent(P phase, Component text, Identifier sprite, Consumer<CtxMenu> onCreateChildren) {
-            CtxMenu.add(this.context, this.builderFactory.apply(phase), text, sprite, null, onCreateChildren);
-        }
-
-        public void addToggle(P phase, Component text, BooleanSupplier valueSupplier, BooleanConsumer onChange) {
-            CtxMenu.addToggle(this.builderFactory.apply(phase), text, valueSupplier, onChange);
+        public CtxMenu phase(P phase) {
+            return new CtxMenu(this.context, this.builderFactory.apply(phase));
         }
     }
 
@@ -347,7 +319,7 @@ public class ScreenEvent {
         }
 
         /**
-         * Adds a toggleable menu item linked to a {@code boolean} preference key
+         * Adds a toggleable menu item linked to a {@link Boolean} {@link PreferenceRegistry.Key}
          * within the {@link OpenCtxMenu.Phase#PREFERENCES} phase.
          */
         public void addPreferenceToggle(PreferenceRegistry preferences, PreferenceRegistry.Key<Boolean> key, Component text) {

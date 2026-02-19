@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.api;
 
 /**
- * The main entry point for mod extensions.
+ * The entry point for initializing integration with Packed Packs.
  * </p>
  * <h3>Registration</h3>
  * <b>Fabric:</b> Register your implementation in {@code fabric.mod.json} under
@@ -22,13 +22,11 @@ package io.github.fishstiz.packed_packs.api;
  */
 public interface PackedPacksInitializer {
     /**
-     * Called when Minecraft loads.
+     * Runs the initializer.
      * <p>
-     * <b>Note:</b> This method may be called off the main (Render) thread.
-     * Implementations should ensure thread safety when interacting with external
-     * state and avoid calling thread-sensitive Minecraft methods.
+     * <b>Note:</b> This method may be called off the main thread.
      *
-     * @param api the API instance
+     * @param api the API instance to access Packed Packs services
      */
     void onInitialize(PackedPacksApi api);
 }

@@ -13,10 +13,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
-public class PreferenceRegistryImpl implements PreferenceRegistry {
+public final class PreferenceRegistryImpl implements PreferenceRegistry {
     private final Map<Identifier, Preferences.Spec<?>> preferences = new Object2ObjectOpenHashMap<>();
     private @Nullable Set<Key<?>> incorrectKeys;
     private boolean frozen;
+
+    PreferenceRegistryImpl() {
+    }
 
     @Override
     public <T> Key<T> register(Identifier id, Class<T> type, T defaultValue, Function<String, T> deserializer) {
@@ -37,7 +40,7 @@ public class PreferenceRegistryImpl implements PreferenceRegistry {
 
     @Override
     public <T> void set(Key<T> key, T value) {
-        if (this.isCorrectType(key, value)) {
+        if (isCorrectType(key, value)) {
             this.setUnsafe(key.id(), value);
         } else {
             if (this.addIncorrectKey(key)) {
@@ -51,7 +54,7 @@ public class PreferenceRegistryImpl implements PreferenceRegistry {
     public @Nullable <T> T get(Key<T> key) {
         Object value = this.getUnsafe(key.id());
 
-        if (!this.isCorrectType(key, value)) {
+        if (!isCorrectType(key, value)) {
             if (this.addIncorrectKey(key)) {
                 PackedPacks.LOGGER.warn("[packed_packs] Unexpected type found for preference '{}', unable to get value", key.id());
             }
@@ -107,14 +110,14 @@ public class PreferenceRegistryImpl implements PreferenceRegistry {
         return (Preferences.Spec<T>) this.preferences.get(key.id());
     }
 
-    private <T> boolean isCorrectType(Key<T> key, @Nullable Object value) {
+    static <T> boolean isCorrectType(Key<T> key, @Nullable Object value) {
         return value == null || key.type().isAssignableFrom(value.getClass());
     }
 
-    public void freeze() {
+    void freeze() {
         this.frozen = true;
     }
 
-    record KeyImpl<T>(Identifier id, Class<T> type) implements Key<T> {
+    private record KeyImpl<T>(Identifier id, Class<T> type) implements Key<T> {
     }
 }

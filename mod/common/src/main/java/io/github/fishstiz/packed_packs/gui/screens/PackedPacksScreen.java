@@ -425,7 +425,7 @@ public class PackedPacksScreen extends PackListEventHandler implements
     public void onClose() {
         var closingEvent = new ScreenEvent.Closing(this.context);
 
-        if (closingEvent.isCommited() || !(this.options.getUserConfig() instanceof Config.ResourcePacks resourceConfig) || resourceConfig.isApplyOnClose()) {
+        if (closingEvent.isCommitted() || !(this.options.getUserConfig() instanceof Config.ResourcePacks resourceConfig) || resourceConfig.isApplyOnClose()) {
             this.commit();
         }
 

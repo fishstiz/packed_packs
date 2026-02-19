@@ -14,27 +14,6 @@ public final class PackedPacksApiImpl implements PackedPacksApi {
     private PackedPacksApiImpl() {
     }
 
-    private static PackedPacksApiImpl initialize() {
-        PackedPacksApiImpl api = new PackedPacksApiImpl();
-
-        List<PackedPacksInitializer> extensions = Services.PLATFORM.getModExtensions();
-        for (PackedPacksInitializer extension : extensions) {
-            try {
-                extension.onInitialize(api);
-            } catch (Throwable e) {
-                PackedPacks.LOGGER.error(
-                        "[packed_packs] PackedPacksInitializer implementation '{}' failed to initialize.",
-                        extension.getClass().getSimpleName(), e
-                );
-            }
-        }
-
-        api.eventBus.freeze();
-        api.preferenceRegistry.freeze();
-
-        return api;
-    }
-
     public static PackedPacksApiImpl getInstance() {
         return Holder.INSTANCE;
     }
@@ -50,6 +29,30 @@ public final class PackedPacksApiImpl implements PackedPacksApi {
     }
 
     private static final class Holder {
-        private static final PackedPacksApiImpl INSTANCE = initialize();
+        private static final PackedPacksApiImpl INSTANCE;
+
+        private Holder() {
+        }
+
+        static {
+            PackedPacksApiImpl api = new PackedPacksApiImpl();
+
+            List<PackedPacksInitializer> extensions = Services.PLATFORM.getModExtensions();
+            for (PackedPacksInitializer extension : extensions) {
+                try {
+                    extension.onInitialize(api);
+                } catch (Throwable e) {
+                    PackedPacks.LOGGER.error(
+                            "[packed_packs] PackedPacksInitializer implementation '{}' failed to initialize.",
+                            extension.getClass().getSimpleName(), e
+                    );
+                }
+            }
+
+            api.eventBus.freeze();
+            api.preferenceRegistry.freeze();
+
+            INSTANCE = api;
+        }
     }
 }

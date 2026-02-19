@@ -5,16 +5,17 @@ import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
 import io.github.fishstiz.packed_packs.api.Event;
 import io.github.fishstiz.packed_packs.api.EventBus;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.minecraft.resources.Identifier;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 
-public class EventBusImpl implements EventBus {
+public final class EventBusImpl implements EventBus {
     private Delegate delegate = new Collector();
+
+    EventBusImpl() {
+    }
 
     @Override
     public <T extends Event> void register(Class<T> eventClass, Identifier id, Consumer<T> listener) {
@@ -36,10 +37,6 @@ public class EventBusImpl implements EventBus {
         this.delegate.post(event);
     }
 
-    void unfreeze() {
-        this.delegate = new Collector(this.delegate.getEventListeners());
-    }
-
     void freeze() {
         this.delegate = new Dispatcher(this.delegate.getEventListeners());
     }
@@ -48,16 +45,10 @@ public class EventBusImpl implements EventBus {
         Map<Class<? extends Event>, Consumer<Event>[]> getEventListeners();
     }
 
-    static class Collector implements Delegate {
-        final Map<Class<? extends Event>, List<Listener<Event>>> eventListeners = new IdentityHashMap<>();
-        private final Map<Class<? extends Event>, Consumer<Event>[]> bakedEventListeners;
+    private static class Collector implements Delegate {
+        private final Map<Class<? extends Event>, List<Listener<Event>>> eventListeners = new Reference2ReferenceOpenHashMap<>();
 
         Collector() {
-            this.bakedEventListeners = Collections.emptyMap();
-        }
-
-        Collector(Map<Class<? extends Event>, Consumer<Event>[]> eventListeners) {
-            this.bakedEventListeners = eventListeners;
         }
 
         @SuppressWarnings("unchecked")
@@ -82,25 +73,14 @@ public class EventBusImpl implements EventBus {
 
         @Override
         public void post(Event event) {
-            if (this.bakedEventListeners.isEmpty()) {
-                throw new IllegalStateException("Cannot post event while initializing EventBus.");
-            }
-
-            Consumer<Event>[] listeners = this.bakedEventListeners.get(event.getClass());
-            if (listeners != null) {
-                for (Consumer<Event> listener : listeners) {
-                    listener.accept(event);
-                }
-            }
+            throw new IllegalStateException("Cannot post event while initializing EventBus.");
         }
 
         @Override
         public Map<Class<? extends Event>, Consumer<Event>[]> getEventListeners() {
-            if (this.eventListeners.isEmpty()) {
-                return this.bakedEventListeners;
-            }
+            Reference2ReferenceOpenHashMap<Class<? extends Event>, Consumer<Event>[]> bakedMap =
+                    new Reference2ReferenceOpenHashMap<>(this.eventListeners.size());
 
-            Map<Class<? extends Event>, Consumer<Event>[]> bakedMap = new IdentityHashMap<>(this.eventListeners.size());
             for (var entry : this.eventListeners.entrySet()) {
                 Class<? extends Event> eventClass = entry.getKey();
                 List<Listener<Event>> raw = entry.getValue();
@@ -117,7 +97,8 @@ public class EventBusImpl implements EventBus {
                 bakedMap.put(eventClass, bakedArray);
             }
 
-            this.eventListeners.clear();
+            bakedMap.trim();
+
             return bakedMap;
         }
 
@@ -125,8 +106,8 @@ public class EventBusImpl implements EventBus {
         }
     }
 
-    static class Dispatcher implements Delegate {
-        final Map<Class<? extends Event>, Consumer<Event>[]> eventListeners;
+    private static class Dispatcher implements Delegate {
+        private final Map<Class<? extends Event>, Consumer<Event>[]> eventListeners;
 
         Dispatcher(Map<Class<? extends Event>, Consumer<Event>[]> eventListeners) {
             this.eventListeners = eventListeners;
