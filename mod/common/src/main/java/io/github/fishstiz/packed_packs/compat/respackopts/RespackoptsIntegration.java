@@ -34,7 +34,7 @@ public class RespackoptsIntegration implements ModIntegration {
         api.eventBus().register(ScreenEvent.OpenCtxMenu.class, this.id(), ModIntegration.id(Mod.ETF), event -> {
             if (event.ctx().getPackType() != PackType.CLIENT_RESOURCES) return;
 
-            ModIntegration.addPreferenceToggle(event, api.preferences(), respackOptsPrefKey);
+            event.addPreferenceToggle(api.preferences(), respackOptsPrefKey, ModIntegration.getWidgetPrefText(respackOptsPrefKey));
         });
 
         api.eventBus().register(ScreenEvent.Closing.class, this.id(), event -> {

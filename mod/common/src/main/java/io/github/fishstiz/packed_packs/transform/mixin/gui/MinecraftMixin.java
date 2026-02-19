@@ -2,6 +2,7 @@ package io.github.fishstiz.packed_packs.transform.mixin.gui;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import io.github.fishstiz.packed_packs.api.events.ApiInitializeEvent;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.gui.metadata.PackSelectionScreenArgs;
 import io.github.fishstiz.packed_packs.gui.screens.PackedPacksScreen;
@@ -19,8 +20,10 @@ import org.spongepowered.asm.mixin.injection.Coerce;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.concurrent.Executor;
+
 @Mixin(Minecraft.class)
-public abstract class MinecraftMixin {
+public abstract class MinecraftMixin implements Executor {
     @Shadow
     @Nullable
     public Screen screen;
@@ -43,6 +46,9 @@ public abstract class MinecraftMixin {
 
     @Inject(method = "onGameLoadFinished", at = @At("TAIL"))
     private void initializeEventBus(@Coerce Object gameLoadCookie, CallbackInfo ci) {
-        Util.backgroundExecutor().execute(PackedPacksApiImpl::load);
+        Util.backgroundExecutor().execute(() -> {
+            PackedPacksApiImpl api = PackedPacksApiImpl.getInstance();
+            this.execute(() -> api.eventBus().post(new ApiInitializeEvent(api)));
+        });
     }
 }

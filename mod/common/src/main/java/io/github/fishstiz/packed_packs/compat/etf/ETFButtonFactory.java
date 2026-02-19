@@ -24,10 +24,7 @@ public class ETFButtonFactory {
     }
 
     public static SpriteButton<Void> create(PreferenceRegistry.Key<Boolean> prefKey, Screen previous) {
-        return ToggleableHelper.applyPref(
-                        Preferences.INSTANCE.getOrThrow(PackedPacksApiImpl.getInstance().preferences().getSpec(prefKey)),
-                        SpriteButton.<Void>builder(SpriteButton.Sprites.of(new ButtonSprites(FOCUSED, UNFOCUSED)))
-                )
+        return ToggleableHelper.applyPref(prefKey, SpriteButton.<Void>builder(SpriteButton.Sprites.of(new ButtonSprites(FOCUSED, UNFOCUSED))))
                 .setMessage(Mod.ETF.getId())
                 .setDimensions(SIZE.width(), SIZE.height())
                 .setOnPress(ModScreenFactory.createScreenSetter(

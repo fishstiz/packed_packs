@@ -36,7 +36,7 @@ public class ETFIntegration implements ModIntegration {
         api.eventBus().register(ScreenEvent.OpenCtxMenu.class, this.id(), event -> {
             if (event.ctx().getPackType() != PackType.CLIENT_RESOURCES) return;
 
-            ModIntegration.addPreferenceToggle(event, api.preferences(), etfButtonPrefKey);
+            event.addPreferenceToggle(api.preferences(), etfButtonPrefKey, ModIntegration.getWidgetPrefText(etfButtonPrefKey));
         });
     }
 }

@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * A synchronous event dispatcher used to register and post {@link Event} instances.
+ * Event dispatcher used to register and post {@link Event} instances.
  * <p>
  * Listeners are sorted via topological sort based on their dependencies before the bus is frozen.
  * <p>

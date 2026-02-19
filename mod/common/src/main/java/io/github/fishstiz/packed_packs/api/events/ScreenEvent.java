@@ -5,9 +5,9 @@ import io.github.fishstiz.fidgetz.gui.components.contextmenu.MenuItem;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.MenuItemBuilder;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.GuiSprite;
 import io.github.fishstiz.packed_packs.api.Event;
+import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
 import io.github.fishstiz.packed_packs.gui.components.ToggleableHelper;
 import io.github.fishstiz.packed_packs.gui.components.pack.PackList;
-import io.github.fishstiz.packed_packs.util.constants.GuiConstants;
 import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -47,6 +47,12 @@ public class ScreenEvent {
      * <p>
      * Elements added via this event are automatically positioned within the bounds
      * and layout constraints of their respective target areas.
+     * The main functional buttons will automatically stretch or shrink to fill the remaining
+     * layout space around injected elements.
+     * <p>
+     * <b>Note:</b> Adding too many elements or excessively wide components to a
+     * single phase may shrink the main action buttons beyond usability and cause
+     * the layout to overflow.
      */
     public static class InitLayout extends ScreenEvent implements Event {
         private final BiConsumer<Phase, LayoutElement> add;
@@ -56,19 +62,24 @@ public class ScreenEvent {
              * After the title in the header. Most common injection phase for mod extensions.
              */
             AFTER_HEADER_TITLE,
-
             /**
-             * At the very start of the footer's left column.
+             * At the very start of the footer, contained within the left column.
              */
             BEFORE_FOOTER,
-
             /**
-             * After the 'Open Folder' button in the footer, constrained to the left column.
+             * After the 'Open Folder' button, contained within footer's left column.
              */
-            AFTER_FOOTER_OPEN_FOLDER,
-
+            AFTER_FOOTER_LEFT,
             /**
-             * At the very end of the footer's right column, after the 'Done' button.
+             * Before the 'Apply' button, contained within the footer's right column.
+             */
+            BEFORE_FOOTER_RIGHT,
+            /**
+             * Between the 'Apply' and 'Done' buttons, contained within the footer's right column.
+             */
+            BETWEEN_FOOTER_RIGHT,
+            /**
+             * At the very end of the footer, contained within the right column.
              */
             AFTER_FOOTER
         }
@@ -194,6 +205,16 @@ public class ScreenEvent {
             this.builder = builder;
         }
 
+        /**
+         * Provides more granular customization of menu items not covered by the
+         * standard helper methods.
+         * <p>
+         * <b>Note:</b> Components under {@code fidgetz} (including
+         * {@link ContextMenuItemBuilder} and {@link MenuItem}) are currently unstable.
+         * While visible, they may undergo breaking changes in future updates.
+         *
+         * @return the underlying builder
+         */
         @ApiStatus.Experimental
         public final ContextMenuItemBuilder getBuilder() {
             return this.builder;
@@ -219,10 +240,6 @@ public class ScreenEvent {
                 itemBuilder.addChildren(subMenuBuilder.build());
             } else if (onClick != null) {
                 itemBuilder.action(onClick);
-            }
-
-            if (context.isDevMode()) {
-                itemBuilder.background(GuiConstants.DEVELOPER_MODE_ITEM_BACKGROUND);
             }
 
             builder.add(itemBuilder.build());
@@ -262,13 +279,23 @@ public class ScreenEvent {
     }
 
     abstract static class PhasedMenu<P extends Enum<P>> extends ScreenEvent {
-        private final Function<P, ContextMenuItemBuilder> builderFactory;
+        final Function<P, ContextMenuItemBuilder> builderFactory;
 
         PhasedMenu(ScreenContext context, Function<P, ContextMenuItemBuilder> builderFactory) {
             super(context);
             this.builderFactory = builderFactory;
         }
 
+        /**
+         * Provides more granular customization of menu items not covered by the
+         * standard helper methods.
+         * <p>
+         * <b>Note:</b> Components under {@code fidgetz} (including
+         * {@link ContextMenuItemBuilder} and {@link MenuItem}) are currently unstable.
+         * While visible, they may undergo breaking changes in future updates.
+         *
+         * @return the underlying builder for the given phase
+         */
         @ApiStatus.Experimental
         public final ContextMenuItemBuilder getBuilder(P phase) {
             return builderFactory.apply(phase);
@@ -304,12 +331,10 @@ public class ScreenEvent {
              * Top of the menu.
              */
             BEFORE_ALL,
-
             /**
              * Within the preferences sub menu.
              */
             PREFERENCES,
-
             /**
              * Bottom of the menu.
              */
@@ -322,20 +347,30 @@ public class ScreenEvent {
         }
 
         /**
+         * Adds a toggleable menu item linked to a {@code boolean} preference key
+         * within the {@link OpenCtxMenu.Phase#PREFERENCES} phase.
+         */
+        public void addPreferenceToggle(PreferenceRegistry preferences, PreferenceRegistry.Key<Boolean> key, Component text) {
+            this.builderFactory.apply(ScreenEvent.OpenCtxMenu.Phase.PREFERENCES).add(ToggleableHelper.createMenuItem(preferences, key, text));
+        }
+
+        /**
          * Fired when a context menu is opened specifically for a pack entry.
          */
         public static class PackEntry extends PhasedMenu<PackEntry.Phase> implements Event {
             private final PackList.Entry entry;
 
             public enum Phase {
-                BEFORE_ALL,
+                BEFORE_HEADER,
                 AFTER_HEADER,
-
                 /**
                  * After developer-specific actions.
                  */
                 AFTER_DEV,
-                AFTER_ALL;
+                /**
+                 * After all pack actions.
+                 */
+                AFTER_PACK
             }
 
             @ApiStatus.Internal

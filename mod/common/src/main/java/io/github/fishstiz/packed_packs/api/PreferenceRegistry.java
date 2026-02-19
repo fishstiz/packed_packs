@@ -71,7 +71,7 @@ public interface PreferenceRegistry {
     <T> void set(Key<T> key, T value);
 
     /**
-     * Retrieves a preference value or the default if none is set.
+     * Retrieves a preference value or {@code null} if none is set.
      *
      * @throws IllegalStateException if called during initialization.
      */

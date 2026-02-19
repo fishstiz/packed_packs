@@ -14,9 +14,6 @@ public final class PackedPacksApiImpl implements PackedPacksApi {
     private PackedPacksApiImpl() {
     }
 
-    public static void load() {
-    }
-
     private static PackedPacksApiImpl initialize() {
         PackedPacksApiImpl api = new PackedPacksApiImpl();
 

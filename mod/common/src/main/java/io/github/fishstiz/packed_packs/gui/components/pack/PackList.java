@@ -695,7 +695,7 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
             listener.postApiEvent(new ScreenEvent.OpenCtxMenu.PackEntry(listener.ctx(), this, phase -> builders.computeIfAbsent(phase, p -> new ContextMenuItemBuilder())));
 
             ContextMenuContainer.super.buildItems(builder
-                            .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.PackEntry.Phase.BEFORE_ALL))
+                            .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.PackEntry.Phase.BEFORE_HEADER))
                             .ifTrue((extraBuilder, b) -> b.addAll(extraBuilder.build()))
                             .add(new PackMenuHeader(this.pack(), this.packWidget.getSprite()))
                             .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.PackEntry.Phase.AFTER_HEADER))
@@ -716,7 +716,7 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
                                     .simpleItem(OPEN_FILE_TEXT, () -> PackUtil.openPack(this.pack()))
                                     .simpleItem(OPEN_PARENT_TEXT, () -> PackUtil.openParent(this.pack()))
                             )
-                            .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.PackEntry.Phase.AFTER_ALL))
+                            .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.PackEntry.Phase.AFTER_PACK))
                             .ifTrue((extraBuilder, b) -> b.addAll(extraBuilder.build())),
                     mouseX,
                     mouseY

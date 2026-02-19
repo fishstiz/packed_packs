@@ -323,12 +323,20 @@ public class PackedPacksScreen extends PackListEventHandler implements
                         .build()
         );
 
-        for (var element : elements.getOrDefault(ScreenEvent.InitLayout.Phase.AFTER_FOOTER_OPEN_FOLDER, Collections.emptyList())) {
+        for (var element : elements.getOrDefault(ScreenEvent.InitLayout.Phase.AFTER_FOOTER_LEFT, Collections.emptyList())) {
             firstColumn.addChild(element);
+        }
+
+        for (var element : elements.getOrDefault(ScreenEvent.InitLayout.Phase.BEFORE_FOOTER_RIGHT, Collections.emptyList())) {
+            secondColumn.addChild(element);
         }
 
         if (this.original.packType() == PackType.CLIENT_RESOURCES) {
             secondColumn.addFlexChild(FidgetzButton.builder().setMessage(ResourceUtil.getText("apply")).setOnPress(this::commit).build());
+        }
+
+        for (var element : elements.getOrDefault(ScreenEvent.InitLayout.Phase.BETWEEN_FOOTER_RIGHT, Collections.emptyList())) {
+            secondColumn.addChild(element);
         }
 
         secondColumn.addFlexChild(FidgetzButton.builder().setMessage(CommonComponents.GUI_DONE).setOnPress(this::onClose).build());
@@ -339,6 +347,7 @@ public class PackedPacksScreen extends PackListEventHandler implements
 
         footer.addFlexChild(firstColumn);
         footer.addFlexChild(secondColumn);
+
         return footer;
     }
 

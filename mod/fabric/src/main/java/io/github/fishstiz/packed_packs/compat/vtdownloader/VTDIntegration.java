@@ -57,8 +57,8 @@ public class VTDIntegration implements ModIntegration {
                 this.id(),
                 List.of(ModIntegration.id(Mod.RESPACKOPTS), ModIntegration.id(Mod.ETF)),
                 event -> {
-                    ModIntegration.addPreferenceToggle(event, api.preferences(), vtdButtonPrefKey);
-                    ModIntegration.addPreferenceToggle(event, api.preferences(), vtdEditButtonPrefKey);
+                    event.addPreferenceToggle(api.preferences(), vtdButtonPrefKey, ModIntegration.getWidgetPrefText(vtdButtonPrefKey));
+                    event.addPreferenceToggle(api.preferences(), vtdEditButtonPrefKey, ModIntegration.getWidgetPrefText(vtdEditButtonPrefKey));
                 }
         );
     }
