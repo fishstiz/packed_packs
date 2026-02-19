@@ -6,7 +6,8 @@ public enum Mod implements ModContext {
     CURSORS_EXTENDED("cursors_extended"),
     RESOURCIFY("resourcify"),
     RESPACKOPTS("respackopts"),
-    ETF("entity_texture_features");
+    ETF("entity_texture_features"),
+    POLYTONE("polytone");
 
     private final String id;
     private final boolean loaded;

@@ -1,3 +1,4 @@
 io.github.fishstiz.packed_packs.compat.etf.ETFIntegration
 io.github.fishstiz.packed_packs.compat.resourcify.ResourcifyIntegration
 io.github.fishstiz.packed_packs.compat.respackopts.RespackoptsIntegration
+io.github.fishstiz.packed_packs.compat.polytone.PolytoneIntegration

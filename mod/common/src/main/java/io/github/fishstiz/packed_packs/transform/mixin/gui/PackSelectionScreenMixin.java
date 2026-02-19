@@ -42,9 +42,22 @@ public abstract class PackSelectionScreenMixin extends Screen implements PackSel
     @Unique
     private Screen packed_packs$previous;
 
+    @Unique
+    private Screen packed_packs$actualScreen;
+
     @Override
     public void packed_packs$setPrevious(Screen previous) {
         this.packed_packs$previous = previous;
+    }
+
+    @Override
+    public void packed_packs$setActualScreen(Screen screen) {
+        this.packed_packs$actualScreen = screen;
+    }
+
+    @Override
+    public @Nullable Screen packed_packs$getActualScreen() {
+        return this.packed_packs$actualScreen;
     }
 
     @Override

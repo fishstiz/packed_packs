@@ -13,6 +13,7 @@
     "UtilAccess",
     "aliases.OptionsMixin",
     "compat.cursors_extended.CursorTypeAccess",
+    "compat.polytone.OptionsSubScreenMixin",
     "folders.FolderRepositorySourceMixin",
     "folders.PackMixin",
     "folders.additional.CreateWorldScreenMixin",

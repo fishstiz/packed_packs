@@ -65,5 +65,6 @@
   "packed_packs.preferences.widgets.etf_button": "ETF Button",
   "packed_packs.preferences.widgets.respackopts_button": "Respackopts Buttons",
   "packed_packs.preferences.widgets.vtd_button": "VTD Button",
-  "packed_packs.preferences.widgets.vtd_edit_button": "VTD Edit Buttons"
+  "packed_packs.preferences.widgets.vtd_edit_button": "VTD Edit Buttons",
+  "packed_packs.preferences.widgets.polytone_button": "Polytone Button"
 }

@@ -7,4 +7,8 @@ public interface ChildScreen {
     void packed_packs$setPrevious(Screen previous);
 
     @Nullable Screen packed_packs$getPrevious();
+
+    void packed_packs$setActualScreen(Screen screen);
+
+    @Nullable Screen packed_packs$getActualScreen();
 }
