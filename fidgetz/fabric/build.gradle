@@ -1,6 +1,7 @@
 plugins {
     id 'multiloader-loader'
     id 'fabric-loom'
+    id 'publish-local'
 }
 
 loader {
