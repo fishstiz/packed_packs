@@ -1,0 +1,20 @@
+plugins {
+    id 'maven-publish'
+    id 'java'
+}
+
+publishing {
+    publications {
+        create("mavenJava", MavenPublication) {
+            artifactId = base.archivesName.get()
+            from components.java
+        }
+    }
+
+    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+    repositories {
+        maven {
+            url = uri(new File(project.gradle.gradleUserHomeDir.parent, 'maven').absolutePath)
+        }
+    }
+}
