@@ -26,27 +26,6 @@ versionRange = "${neoforge_version_range}" #mandatory
 ordering = "NONE" # The order that this dependency should load in relation to your mod, required to be either 'BEFORE' or 'AFTER' if the dependency is not mandatory
 side = "CLIENT" # Side this dependency is applied on - 'BOTH', 'CLIENT' or 'SERVER'
 
-[[dependencies.${mod_id}]]
-modId = "minecraft"
-type = "required" #mandatory (Can be one of "required", "optional", "incompatible" or "discouraged")
-versionRange = "${neoforge_minecraft_version_range}"
-ordering = "NONE"
-side = "CLIENT"
-
-[[dependencies.${mod_id}]]
-modId = "fidgetz"
-type = "required" #mandatory (Can be one of "required", "optional", "incompatible" or "discouraged")
-versionRange = "[0.0.1,)"
-ordering = "NONE"
-side = "CLIENT"
-
-[[dependencies.${mod_id}]]
-modId = "minecraft_cursor"
-type = "optional"
-versionRange = "[3.0.0,)"
-ordering = "BEFORE"
-side = "CLIENT"
-
 # Features are specific properties of the game environment, that you may want to declare you require. This example declares
 # that your mod requires GL version 3.2 or higher. Other features will be added. They are side aware so declaring this won't
 # stop your mod loading on the server for example.
