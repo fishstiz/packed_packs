@@ -1,0 +1,27 @@
+plugins {
+    id 'multiloader-common-provider'
+    id 'net.neoforged.moddev'
+    id 'publish-local'
+}
+
+neoForge {
+    neoFormVersion = neo_form_version
+
+    def at = file('src/main/resources/META-INF/accesstransformer.cfg')
+    if (at.exists()) {
+        accessTransformers.from(at.absolutePath)
+    }
+
+    parchment {
+        minecraftVersion = parchment_minecraft
+        mappingsVersion = parchment_version
+    }
+}
+
+dependencies {
+    compileOnly project(path: ":fidgetz:common")
+
+    compileOnly group: 'org.spongepowered', name: 'mixin', version: "$mixin_version"
+    compileOnly group: 'io.github.llamalad7', name: 'mixinextras-common', version: "$mixinextras_version"
+    annotationProcessor group: 'io.github.llamalad7', name: 'mixinextras-common', version: "$mixinextras_version"
+}

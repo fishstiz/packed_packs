@@ -18,7 +18,7 @@ import java.util.function.Supplier;
 
 public class MenuItemBuilder {
     private final List<MenuItem> children = new ObjectArrayList<>();
-    private final Component text;
+    private Component text;
     private Runnable action = FunctionsUtil.nop();
     private RenderableRect background;
     private Supplier<@Nullable Sprite> iconSupplier;
@@ -29,6 +29,10 @@ public class MenuItemBuilder {
     private IntSupplier textColorSupplier;
 
     MenuItemBuilder(Component text) {
+        this.text = text;
+    }
+
+    public void text(Component text) {
         this.text = text;
     }
 

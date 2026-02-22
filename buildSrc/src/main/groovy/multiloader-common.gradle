@@ -58,6 +58,7 @@ jar {
 
 processResources {
     var expandProps = [
+            'root_mod_id'                     : rootProject.property('mod_id'),
             'mod_version'                     : mod_version,
             'mod_id'                          : mod_id,
             'mod_name'                        : mod_name,
