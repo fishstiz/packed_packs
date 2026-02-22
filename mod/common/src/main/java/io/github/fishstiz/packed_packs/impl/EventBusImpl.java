@@ -1,6 +1,5 @@
 package io.github.fishstiz.packed_packs.impl;
 
-
 import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
 import io.github.fishstiz.packed_packs.api.Event;
 import io.github.fishstiz.packed_packs.api.EventBus;
@@ -33,8 +32,8 @@ public final class EventBusImpl implements EventBus {
     }
 
     @Override
-    public void post(Event event) {
-        this.delegate.post(event);
+    public <T extends Event> T post(T event) {
+        return this.delegate.post(event);
     }
 
     void freeze() {
@@ -72,14 +71,18 @@ public final class EventBusImpl implements EventBus {
         }
 
         @Override
-        public void post(Event event) {
+        public <T extends Event> T post(T event) {
             throw new IllegalStateException("Cannot post event while initializing EventBus.");
         }
 
         @Override
         public Map<Class<? extends Event>, Consumer<Event>[]> getEventListeners() {
+            if (this.eventListeners.isEmpty()) {
+                return Collections.emptyMap();
+            }
+
             Reference2ReferenceOpenHashMap<Class<? extends Event>, Consumer<Event>[]> bakedMap =
-                    new Reference2ReferenceOpenHashMap<>(this.eventListeners.size());
+                    new Reference2ReferenceOpenHashMap<>(this.eventListeners.size(), 0.99f);
 
             for (var entry : this.eventListeners.entrySet()) {
                 Class<? extends Event> eventClass = entry.getKey();
@@ -133,13 +136,14 @@ public final class EventBusImpl implements EventBus {
         }
 
         @Override
-        public void post(Event event) {
+        public <T extends Event> T post(T event) {
             Consumer<Event>[] listeners = this.eventListeners.get(event.getClass());
             if (listeners != null) {
                 for (Consumer<Event> listener : listeners) {
                     listener.accept(event);
                 }
             }
+            return event;
         }
 
         @Override

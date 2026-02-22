@@ -30,14 +30,15 @@ pluginManagement {
 }
 
 rootProject.name = 'packed_packs'
+
 include(':fidgetz', ':fidgetz:common', ':fidgetz:fabric', ':fidgetz:neoforge')
 
-include(':common')
+include(':common', ':fabric', ':neoforge')
 project(':common').projectDir = file('mod/common')
-include(':fabric')
 project(':fabric').projectDir = file('mod/fabric')
-include(':neoforge')
 project(':neoforge').projectDir = file('mod/neoforge')
+
+include('api', 'api:common', 'api:fabric', 'api:neoforge')
 
 // https://github.com/gradle/gradle/issues/24680 workaround
 gradle.beforeProject { project ->

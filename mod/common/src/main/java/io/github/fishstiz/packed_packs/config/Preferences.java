@@ -17,11 +17,11 @@ import static io.github.fishstiz.packed_packs.PackedPacks.LOGGER;
 public class Preferences {
     public static final Preferences INSTANCE = load();
     private final Map<Spec<?>, Option<?>> options = new Reference2ObjectOpenHashMap<>();
-    public final Option<Boolean> originalScreenWidget = new Option<>("original_screen", true);
-    public final Option<Boolean> optionsWidget = new Option<>("options", true);
-    public final Option<Boolean> actionBarWidget = new Option<>("action_bar", true);
-    public final Option<Boolean> toggleIncompatibleWidget = new Option<>("toggle_incompatible", true);
-    public final Option<Boolean> folderPackWidget = new Option<>("folder_pack", true);
+    public final Option<Boolean> originalScreenWidget = new Option<>("original_screen", boolean.class, true);
+    public final Option<Boolean> optionsWidget = new Option<>("options", boolean.class, true);
+    public final Option<Boolean> actionBarWidget = new Option<>("action_bar", boolean.class, true);
+    public final Option<Boolean> toggleIncompatibleWidget = new Option<>("toggle_incompatible", boolean.class, true);
+    public final Option<Boolean> folderPackWidget = new Option<>("folder_pack", boolean.class, true);
 
     private Preferences() {
     }
@@ -33,15 +33,22 @@ public class Preferences {
     public interface Spec<T> {
         String key();
 
+        Class<T> type();
+
         T defaultValue();
 
         T deserialize(String value);
 
-        static <T> Spec<T> create(String key, T defaultValue, Function<String, T> deserializer) {
+        static <T> Spec<T> create(String key, Class<T> type, T defaultValue, Function<String, T> deserializer) {
             return new Spec<>() {
                 @Override
                 public String key() {
                     return key;
+                }
+
+                @Override
+                public Class<T> type() {
+                    return type;
                 }
 
                 @Override
@@ -124,12 +131,12 @@ public class Preferences {
             Preferences.this.options.put(spec, this);
         }
 
-        private Option(String key, T defaultValue, @Nullable Function<String, T> deserializer) {
-            this(Spec.create(key, defaultValue, deserializer == null ? getDefaultDeserializer(defaultValue) : deserializer));
+        private Option(String key, Class<T> type, T defaultValue, @Nullable Function<String, T> deserializer) {
+            this(Spec.create(key, type, defaultValue, deserializer == null ? getDefaultDeserializer(type) : deserializer));
         }
 
-        private Option(String key, T defaultValue) {
-            this(key, defaultValue, null);
+        private Option(String key, Class<T> type, T defaultValue) {
+            this(key, type, defaultValue, null);
         }
 
         public void set(T value) {
@@ -167,15 +174,15 @@ public class Preferences {
         }
 
         @SuppressWarnings("unchecked")
-        static <T> Function<String, T> getDefaultDeserializer(T defaultValue) {
-            if (defaultValue instanceof Boolean) {
+        static <T> Function<String, T> getDefaultDeserializer(Class<T> type) {
+            if (type == boolean.class || type == Boolean.class) {
                 return value -> (T) Boolean.valueOf(Boolean.parseBoolean(value));
-            } else if (defaultValue instanceof Integer) {
+            } else if (type == int.class || type == Integer.class) {
                 return value -> (T) Integer.valueOf(Integer.parseInt(value));
-            } else if (defaultValue instanceof String) {
+            } else if (type == String.class) {
                 return value -> (T) value;
             }
-            throw new UnsupportedOperationException("No default deserializer for " + defaultValue);
+            throw new UnsupportedOperationException("No default deserializer for " + type);
         }
     }
 }
