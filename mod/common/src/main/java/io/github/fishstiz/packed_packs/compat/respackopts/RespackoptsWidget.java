@@ -37,10 +37,13 @@ public class RespackoptsWidget extends AbstractButton implements ContextMenuProv
     }
 
     public static @Nullable RespackoptsWidget create(PreferenceRegistry.Key<Boolean> prefKey, LayoutElement container, Pack pack) {
-        for (ResourcePackEntryWidget widget : ResourcePackEntryWidget.WIDGETS) {
+        var widgets = ResourcePackEntryWidget.WIDGETS;
+        if (!widgets.isEmpty()) {
             PackSelectionModel.Entry model = new PackWrapperDelegatorAbstractionEpicModelEntry(pack);
-            if (widget.isVisible(model, isSelectable(pack))) {
-                return new RespackoptsWidget(prefKey, container, widget, model);
+            for (ResourcePackEntryWidget widget : widgets) {
+                if (widget.isVisible(model, isSelectable(pack))) {
+                    return new RespackoptsWidget(prefKey, container, widget, model);
+                }
             }
         }
         return null;

@@ -3,8 +3,9 @@ package io.github.fishstiz.packed_packs.pack;
 import io.github.fishstiz.fidgetz.util.debounce.ConcurrentPollingDebouncer;
 import io.github.fishstiz.fidgetz.util.debounce.PollingDebouncer;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.api.events.ScreenContext;
+import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.ScreenEvent;
+import io.github.fishstiz.packed_packs.api.events.WatchEvent;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import net.minecraft.util.Util;
 import org.apache.commons.io.IOCase;
@@ -45,9 +46,8 @@ public class PackWatcher implements AutoCloseable {
         });
         this.onChangeCallback = new ConcurrentPollingDebouncer<>(path -> {
             if (!this.closed.get()) {
-                ScreenEvent.FileWatch watchEvent = new ScreenEvent.FileWatch(context, path);
-                PackedPacksApiImpl.getInstance().eventBus().post(watchEvent);
-                if (!watchEvent.isCanceled()) {
+                WatchEvent watchEvent = new WatchEvent(context, path);
+                if (!PackedPacksApiImpl.getInstance().eventBus().post(watchEvent).isCanceled()) {
                     onChangeCallback.run();
                 }
             }

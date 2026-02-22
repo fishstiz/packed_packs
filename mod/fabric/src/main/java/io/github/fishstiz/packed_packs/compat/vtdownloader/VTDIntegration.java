@@ -1,65 +1,94 @@
 package io.github.fishstiz.packed_packs.compat.vtdownloader;
 
+import io.github.fishstiz.fidgetz.gui.components.FidgetzButton;
+import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import io.github.fishstiz.packed_packs.api.PackedPacksApi;
 import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
-import io.github.fishstiz.packed_packs.api.events.ScreenEvent;
-import io.github.fishstiz.packed_packs.compat.FabricMod;
-import io.github.fishstiz.packed_packs.compat.Mod;
-import io.github.fishstiz.packed_packs.compat.ModContext;
-import io.github.fishstiz.packed_packs.compat.ModIntegration;
+import io.github.fishstiz.packed_packs.api.context.ScreenContext;
+import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
+import io.github.fishstiz.packed_packs.api.events.InitializeLayoutEvent;
+import io.github.fishstiz.packed_packs.api.events.InitializePackEntryEvent;
+import io.github.fishstiz.packed_packs.compat.*;
 import io.github.fishstiz.packed_packs.util.ResourceUtil;
-import net.minecraft.server.packs.PackType;
-import org.jspecify.annotations.NonNull;
+import io.github.fishstiz.packed_packs.util.constants.Theme;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.packs.PackSelectionModel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.repository.Pack;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
-public class VTDIntegration implements ModIntegration {
+public class VTDIntegration extends ModIntegration {
     @Override
     public ModContext mod() {
         return FabricMod.VTD;
     }
 
     @Override
-    public void onInitialize(@NonNull PackedPacksApi api) {
-        if (!this.mod().isLoaded()) return;
-
+    protected void onInitLoaded(PackedPacksApi api) {
         PreferenceRegistry.Key<Boolean> vtdButtonPrefKey = api.preferences().register(ResourceUtil.id("vtd_button"), true);
         PreferenceRegistry.Key<Boolean> vtdEditButtonPrefKey = api.preferences().register(ResourceUtil.id("vtd_edit_button"), true);
 
-        api.eventBus().register(ScreenEvent.InitLayout.class, this.id(), ModIntegration.id(Mod.ETF), event -> {
-            if (event.ctx().getPackType() != PackType.CLIENT_RESOURCES) return;
-
-            if (event.ctx().isDevMode() || Boolean.TRUE.equals(api.preferences().get(vtdButtonPrefKey))) {
-                event.addElement(
-                        ScreenEvent.InitLayout.Phase.AFTER_HEADER_TITLE,
-                        VTDButtonFactory.create(vtdButtonPrefKey, event.ctx().getScreen())
-                );
-            }
-        });
-
-        api.eventBus().register(ScreenEvent.InitPackEntry.class, this.id(), event -> {
-            if (event.ctx().getPackType() != PackType.CLIENT_RESOURCES) return;
-
-            if (event.ctx().isDevMode() || Boolean.TRUE.equals(api.preferences().get(vtdEditButtonPrefKey))) {
-                VTDEditButtonWidget widget = VTDEditButtonWidget.create(
-                        vtdEditButtonPrefKey,
-                        event.ctx().getScreen(),
-                        event.getContainer(),
-                        event.getPack(),
-                        !event.isFileLocked()
-                );
-                if (widget != null) event.addWidget(widget);
-            }
-        });
-
-        api.eventBus().register(
-                ScreenEvent.OpenCtxMenu.class,
-                this.id(),
-                List.of(ModIntegration.id(Mod.RESPACKOPTS), ModIntegration.id(Mod.ETF)),
-                event -> {
-                    event.addPreferenceToggle(api.preferences(), vtdButtonPrefKey, ModIntegration.getWidgetPrefText(vtdButtonPrefKey));
-                    event.addPreferenceToggle(api.preferences(), vtdEditButtonPrefKey, ModIntegration.getWidgetPrefText(vtdEditButtonPrefKey));
+        api.eventBus().register(InitializeLayoutEvent.class, this.id(), ModIntegration.id(Mod.ETF), event -> {
+            ScreenContext ctx = event.screenContext();
+            if (ctx.isClientResources()) {
+                var button = ctx.bindPreference(api.preferences(), vtdButtonPrefKey, this.createButton(ctx.screen()));
+                if (button != null) {
+                    event.addWidget(InitializeLayoutEvent.Pos.AFTER_TITLE, button);
                 }
-        );
+            }
+        });
+
+        api.eventBus().register(InitializePackEntryEvent.class, this.id(), event -> {
+            ScreenContext ctx = event.screenContext();
+            if (ctx.isClientResources()) {
+                var button = ctx.bindPreference(api.preferences(), vtdEditButtonPrefKey, VTDEditButtonWidget.create(
+                        vtdEditButtonPrefKey,
+                        ctx.screen(),
+                        event.packContext().pack(),
+                        event.packContext().fileModifiable()
+                ));
+
+                if (button != null) {
+                    event.addBottomRight(1, button);
+                }
+            }
+        });
+
+        api.eventBus().register(ContextMenuEvent.Preferences.class, this.id(), List.of(id(Mod.RESPACKOPTS), id(Mod.ETF)), event -> {
+            if (event.screenContext().isClientResources()) {
+                event.addToggle(api.preferences(), vtdButtonPrefKey, getWidgetPrefText(vtdButtonPrefKey));
+                event.addToggle(api.preferences(), vtdEditButtonPrefKey, getWidgetPrefText(vtdEditButtonPrefKey));
+            }
+        });
+    }
+
+    private Button createButton(Screen parent) {
+        return FidgetzButton.<Void>builder()
+                .makeSquare()
+                .setTooltip(Tooltip.create(Component.translatable("vtd.resourcePack.button")))
+                .setSprite(Sprite.of32(Identifier.fromNamespaceAndPath("vt_downloader", "icon.png")))
+                .setFocusedBorder(Theme.WHITE.getARGB())
+                .setOnPress(createVTDScreenSetter(parent, null))
+                .build();
+    }
+
+    static Runnable createVTDScreenSetter(Screen parent, @Nullable Pack pack) {
+        String screenName = "me.bymartrixx.vtd.gui.VTDownloadScreen";
+        ScreenArg<Screen> parentArg = ScreenArg.parent(parent);
+        ScreenArg<Component> subtitleArg = new ScreenArg<>(Component.class, Component.translatable("vtd.resourcePack.subtitle"));
+
+        if (pack == null) {
+            return createScreenSetter(screenName, parentArg, subtitleArg);
+        }
+
+        return createScreenSetter(screenName, parentArg, subtitleArg, new ScreenArg<>(
+                PackSelectionModel.Entry.class,
+                new PackWrapperDelegatorAbstractionEpicModelEntry(pack)
+        ));
     }
 }

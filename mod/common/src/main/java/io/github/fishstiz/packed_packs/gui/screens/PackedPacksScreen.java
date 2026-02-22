@@ -8,9 +8,10 @@ import io.github.fishstiz.fidgetz.gui.renderables.ColoredRect;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import io.github.fishstiz.fidgetz.util.lang.FunctionsUtil;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.api.Event;
-import io.github.fishstiz.packed_packs.api.events.ScreenContext;
-import io.github.fishstiz.packed_packs.api.events.ScreenEvent;
+import io.github.fishstiz.packed_packs.api.context.ScreenContext;
+import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
+import io.github.fishstiz.packed_packs.api.events.InitializeLayoutEvent;
+import io.github.fishstiz.packed_packs.api.events.ScreenClosingEvent;
 import io.github.fishstiz.packed_packs.config.*;
 import io.github.fishstiz.packed_packs.gui.components.contextmenu.DirectoryMenuItem;
 import io.github.fishstiz.packed_packs.gui.components.contextmenu.PackMenuHeader;
@@ -21,6 +22,8 @@ import io.github.fishstiz.packed_packs.gui.layouts.pack.PackAliasLayout;
 import io.github.fishstiz.packed_packs.gui.layouts.pack.PackLayout;
 import io.github.fishstiz.packed_packs.gui.components.ToggleableHelper;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
+import io.github.fishstiz.packed_packs.impl.context.ScreenContextImpl;
+import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
 import io.github.fishstiz.packed_packs.pack.*;
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionModelAccessor;
 import io.github.fishstiz.packed_packs.util.AsyncUtil;
@@ -39,7 +42,7 @@ import io.github.fishstiz.fidgetz.util.lang.ObjectsUtil;
 import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import net.minecraft.client.gui.layouts.LayoutElement;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.util.Util;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphics;
@@ -48,7 +51,6 @@ import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.AlertScreen;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.NoticeWithLinkScreen;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -109,13 +111,7 @@ public class PackedPacksScreen extends PackListEventHandler implements
         Config.Packs userConfig = Config.get().get(original.packType());
         DevConfig.Packs config = DevConfig.get().get(original.packType());
 
-        this.context = new ScreenContext(
-                this,
-                () -> this.previous instanceof PackSelectionScreen originalScreen ? originalScreen : this.original.createDummy(),
-                original.repository(),
-                original.packType(),
-                Config.get().isDevMode()
-        );
+        this.context = new ScreenContextImpl(previous, this, original, Config.get().isDevMode());
 
         this.history = new HistoryManager<>();
         this.layout = new LayoutWrapper<>(FlexLayout.vertical(this::getMaxHeight).spacing(SPACING));
@@ -218,14 +214,10 @@ public class PackedPacksScreen extends PackListEventHandler implements
 
         this.profiles.init(this::setInitialFocus);
 
-        Map<ScreenEvent.InitLayout.Phase, List<LayoutElement>> elements = new EnumMap<>(ScreenEvent.InitLayout.Phase.class);
-        this.postApiEvent(new ScreenEvent.InitLayout(this.context, (phase, element) ->
-                elements.computeIfAbsent(phase, p -> new ArrayList<>()).add(element)
-        ));
-
-        this.layout.layout().addChild(this.createHeader(elements));
+//        InitializeLayoutEvent event = PackedPacksApiImpl.getInstance().eventBus().post(new InitializeLayoutEvent(this.context));
+        this.layout.layout().addChild(this.createHeader(null));
         this.layout.layout().addFlexChild(this.createContents());
-        this.layout.layout().addChild(this.createFooter(elements));
+        this.layout.layout().addChild(this.createFooter(null));
 
         this.dialogs.forEach(this::addWidget);
         this.layout.visitWidgets(this::addRenderableWidget);
@@ -240,7 +232,11 @@ public class PackedPacksScreen extends PackListEventHandler implements
         this.initialized = true;
     }
 
-    private FlexLayout createHeader(Map<ScreenEvent.InitLayout.Phase, List<LayoutElement>> elements) {
+    private void addExtensions(FlexLayout layout, InitializeLayoutEvent.Pos pos, InitializeLayoutEvent extensions) {
+//        extensions.getPendingWidgets(pos).forEach(layout::addChild);
+    }
+
+    private FlexLayout createHeader(InitializeLayoutEvent extensions) {
         FlexLayout header = FlexLayout.horizontal(this::getMaxWidth).spacing(SPACING);
         final boolean devMode = Config.get().isDevMode();
 
@@ -267,9 +263,7 @@ public class PackedPacksScreen extends PackListEventHandler implements
         header.addChild(this.profiles.getToggleNameButton());
         header.addFlexChild(this.profiles.getNameField());
 
-        for (var element : elements.getOrDefault(ScreenEvent.InitLayout.Phase.AFTER_HEADER_TITLE, Collections.emptyList())) {
-            header.addChild(element);
-        }
+        this.addExtensions(header, InitializeLayoutEvent.Pos.AFTER_TITLE, extensions);
 
         if (devMode || Preferences.INSTANCE.optionsWidget.get()) {
             header.addChild(
@@ -306,14 +300,12 @@ public class PackedPacksScreen extends PackListEventHandler implements
         return contents;
     }
 
-    private FlexLayout createFooter(Map<ScreenEvent.InitLayout.Phase, List<LayoutElement>> elements) {
+    private FlexLayout createFooter(InitializeLayoutEvent extensions) {
         final FlexLayout footer = FlexLayout.horizontal(this::getMaxWidth).spacing(SPACING);
         FlexLayout firstColumn = FlexLayout.horizontal().spacing(SPACING);
         FlexLayout secondColumn = firstColumn.copyLayout();
 
-        for (var element : elements.getOrDefault(ScreenEvent.InitLayout.Phase.BEFORE_FOOTER, Collections.emptyList())) {
-            firstColumn.addChild(element);
-        }
+        this.addExtensions(firstColumn, InitializeLayoutEvent.Pos.BEFORE_FOOTER, extensions);
 
         firstColumn.addFlexChild(
                 FidgetzButton.builder()
@@ -323,27 +315,17 @@ public class PackedPacksScreen extends PackListEventHandler implements
                         .build()
         );
 
-        for (var element : elements.getOrDefault(ScreenEvent.InitLayout.Phase.AFTER_FOOTER_LEFT, Collections.emptyList())) {
-            firstColumn.addChild(element);
-        }
-
-        for (var element : elements.getOrDefault(ScreenEvent.InitLayout.Phase.BEFORE_FOOTER_RIGHT, Collections.emptyList())) {
-            secondColumn.addChild(element);
-        }
+        this.addExtensions(firstColumn, InitializeLayoutEvent.Pos.AFTER_LEFT_FOOTER, extensions);
 
         if (this.original.packType() == PackType.CLIENT_RESOURCES) {
             secondColumn.addFlexChild(FidgetzButton.builder().setMessage(ResourceUtil.getText("apply")).setOnPress(this::commit).build());
         }
 
-        for (var element : elements.getOrDefault(ScreenEvent.InitLayout.Phase.BETWEEN_FOOTER_RIGHT, Collections.emptyList())) {
-            secondColumn.addChild(element);
-        }
+        this.addExtensions(secondColumn, InitializeLayoutEvent.Pos.BEFORE_RIGHT_FOOTER, extensions);
 
         secondColumn.addFlexChild(FidgetzButton.builder().setMessage(CommonComponents.GUI_DONE).setOnPress(this::onClose).build());
 
-        for (var element : elements.getOrDefault(ScreenEvent.InitLayout.Phase.AFTER_FOOTER, Collections.emptyList())) {
-            secondColumn.addChild(element);
-        }
+        this.addExtensions(secondColumn, InitializeLayoutEvent.Pos.AFTER_FOOTER, extensions);
 
         footer.addFlexChild(firstColumn);
         footer.addFlexChild(secondColumn);
@@ -423,7 +405,7 @@ public class PackedPacksScreen extends PackListEventHandler implements
 
     @Override
     public void onClose() {
-        var closingEvent = new ScreenEvent.Closing(this.context);
+        var closingEvent = PackedPacksApiImpl.getInstance().eventBus().post(new ScreenClosingEvent(this.context));
 
         if (closingEvent.isCommitted() || !(this.options.getUserConfig() instanceof Config.ResourcePacks resourceConfig) || resourceConfig.isApplyOnClose()) {
             this.commit();
@@ -612,6 +594,14 @@ public class PackedPacksScreen extends PackListEventHandler implements
         return this.packLists;
     }
 
+    public List<Pack> getAvailablePacks() {
+        return this.availablePacks.list().copyPacks();
+    }
+
+    public List<Pack> getCurrentPacks() {
+        return this.currentPacks.list().copyPacks();
+    }
+
     @Override
     public @Nullable PackList getDestination(PackList source) {
         if (source == this.availablePacks.list()) {
@@ -715,11 +705,6 @@ public class PackedPacksScreen extends PackListEventHandler implements
     @Override
     public ScreenContext ctx() {
         return this.context;
-    }
-
-    @Override
-    public <T extends ScreenEvent & Event> void postApiEvent(T event) {
-        PackedPacksApiImpl.getInstance().eventBus().post(event);
     }
 
     public @Nullable PackLayout getLayoutFromSelectedList() {
@@ -826,12 +811,12 @@ public class PackedPacksScreen extends PackListEventHandler implements
     private void openContextMenu(int mouseX, int mouseY) {
         if (this.contextMenu.isMouseOver(mouseX, mouseY)) return;
 
-        Map<ScreenEvent.OpenCtxMenu.Phase, ContextMenuItemBuilder> builders = new EnumMap<>(ScreenEvent.OpenCtxMenu.Phase.class);
-        this.postApiEvent(new ScreenEvent.OpenCtxMenu(this.context, phase -> builders.computeIfAbsent(phase, p -> new ContextMenuItemBuilder())));
+        var extensions = ContextMenuEventImpl.postScreen(this.context);
+        var prefExtensions = ContextMenuEventImpl.postPreferences(this.context);
 
         this.buildItems(mouseX, mouseY)
-                .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.Phase.BEFORE_ALL))
-                .ifTrue((extraBuilder, b) -> b.addAll(extraBuilder.build()))
+                .whenNonNull(extensions.getItems(ContextMenuEvent.Screen.Pos.TOP))
+                .ifTrue((items, b) -> b.addAll(items))
                 .when(Config.get().isDevMode())
                 .ifTrue(dev -> dev.separatorIfNonEmpty()
                         .whenNonNull(this.profiles.getProfile())
@@ -843,9 +828,11 @@ public class PackedPacksScreen extends PackListEventHandler implements
                         .parent(children -> devItem(ResourceUtil.getText("preferences"))
                                 .addChildren(children)
                                 .build(), builder -> builder
+                                .whenNonNull(prefExtensions.getItems(ContextMenuEvent.Preferences.Pos.TOP))
+                                .ifTrue((items, b) -> b.addAll(items))
                                 .addAll(ToggleableHelper.preferences())
-                                .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.Phase.PREFERENCES))
-                                .ifTrue((extraBuilder, b) -> b.addAll(extraBuilder.build()))
+                                .whenNonNull(prefExtensions.getItems(ContextMenuEvent.Preferences.Pos.BOTTOM))
+                                .ifTrue((items, b) -> b.addAll(items))
                                 .add(devItem(ResourceUtil.getText("preferences.reset"))
                                         .action(Preferences.INSTANCE::reset)
                                         .build()))
@@ -861,8 +848,8 @@ public class PackedPacksScreen extends PackListEventHandler implements
                                 .separator()
                                 .iterate(dirs)
                                 .map(DirectoryMenuItem::new)))
-                .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.Phase.AFTER_ALL))
-                .ifTrue((extraBuilder, b) -> b.addAll(extraBuilder.build()))
+                .whenNonNull(extensions.getItems(ContextMenuEvent.Screen.Pos.BOTTOM))
+                .ifTrue((items, b) -> b.addAll(items))
                 .peek(items -> {
                     int yOffset = this.hasHeader(items) ? this.contextMenu.getItemHeight() : 0;
                     this.contextMenu.open(mouseX, mouseY - yOffset, items);

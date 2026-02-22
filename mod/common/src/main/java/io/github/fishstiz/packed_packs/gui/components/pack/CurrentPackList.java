@@ -6,6 +6,7 @@ import io.github.fishstiz.fidgetz.gui.renderables.GradientRect;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import io.github.fishstiz.fidgetz.util.DrawUtil;
 import io.github.fishstiz.fidgetz.util.GuiUtil;
+import io.github.fishstiz.packed_packs.api.context.PackContext;
 import io.github.fishstiz.packed_packs.gui.components.MouseSelectionHandler;
 import io.github.fishstiz.packed_packs.gui.components.SelectionContext;
 import io.github.fishstiz.packed_packs.gui.components.events.DragEvent;
@@ -52,8 +53,8 @@ public class CurrentPackList extends PackList {
     }
 
     @Override
-    protected @NonNull Entry createEntry(SelectionContext<Pack> pack, int index) {
-        return new Entry(pack, index);
+    protected @NonNull Entry createEntry(PackContext context, SelectionContext<Pack> selectionContext, int index) {
+        return new Entry(context, selectionContext, index);
     }
 
     @Override
@@ -232,8 +233,8 @@ public class CurrentPackList extends PackList {
     }
 
     public class Entry extends PackList.Entry {
-        protected Entry(SelectionContext<Pack> context, int index) {
-            super(context, index);
+        protected Entry(PackContext context, SelectionContext<Pack> selectionContext, int index) {
+            super(context, selectionContext, index);
         }
 
         @Override
@@ -304,7 +305,7 @@ public class CurrentPackList extends PackList {
         }
 
         private boolean move(MoveDirection moveDirection) {
-            List<Pack> selectedPacks = this.context.getItemOrSelection();
+            List<Pack> selectedPacks = this.selectionContext.getItemOrSelection();
             if (selectedPacks.size() == 1) {
                 Pack pack = selectedPacks.getFirst();
                 if (moveDirection.movePack(CurrentPackList.this.list, pack)) {
@@ -314,7 +315,7 @@ public class CurrentPackList extends PackList {
                     return true;
                 }
             } else if (selectedPacks.size() > 1) {
-                Pack lastSelected = this.context.selection().getLast();
+                Pack lastSelected = this.selectionContext.selection().getLast();
                 List<Pack> moved = moveDirection.moveSelection(CurrentPackList.this.list, selectedPacks);
                 if (!moved.isEmpty()) {
                     CurrentPackList.this.select(lastSelected);

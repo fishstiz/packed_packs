@@ -3,10 +3,13 @@ package io.github.fishstiz.packed_packs.gui.components.pack;
 import io.github.fishstiz.fidgetz.gui.components.*;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuContainer;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuilder;
+import io.github.fishstiz.fidgetz.gui.layouts.*;
 import io.github.fishstiz.fidgetz.gui.renderables.ColoredRect;
 import io.github.fishstiz.fidgetz.util.DrawUtil;
 import io.github.fishstiz.fidgetz.util.GuiUtil;
-import io.github.fishstiz.packed_packs.api.events.ScreenEvent;
+import io.github.fishstiz.packed_packs.api.context.PackContext;
+import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
+import io.github.fishstiz.packed_packs.api.events.InitializePackEntryEvent;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.config.Preferences;
 import io.github.fishstiz.packed_packs.gui.components.MouseSelectionHandler;
@@ -15,6 +18,9 @@ import io.github.fishstiz.packed_packs.gui.components.contextmenu.PackMenuHeader
 import io.github.fishstiz.packed_packs.gui.components.events.PackListEventListener;
 import io.github.fishstiz.packed_packs.gui.history.Restorable;
 import io.github.fishstiz.packed_packs.gui.components.ToggleableHelper;
+import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
+import io.github.fishstiz.packed_packs.impl.context.PackContextImpl;
+import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
 import io.github.fishstiz.packed_packs.pack.PackAssetManager;
 import io.github.fishstiz.packed_packs.pack.PackFileOperations;
 import io.github.fishstiz.packed_packs.pack.PackOptionsContext;
@@ -69,7 +75,7 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
         this.list = new PackListModel(this.options);
     }
 
-    protected abstract @NonNull Entry createEntry(SelectionContext<Pack> context, int index);
+    protected abstract @NonNull Entry createEntry(PackContext context, SelectionContext<Pack> selectionContext, int index);
 
     public @Nullable Entry getEntry(@Nullable Pack pack) {
         if (pack == null) return null;
@@ -86,9 +92,13 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
 
         this.clearEntries();
         for (int i = 0; i < visiblePacks.size(); i++) {
-            Entry entry = this.createEntry(new SelectionContext<>(selection, visiblePacks.get(i)), i);
+            Pack pack = visiblePacks.get(i);
+            PackContext context = new PackContextImpl(pack, this.assets, this.fileOps);
+            Entry entry = this.createEntry(context, new SelectionContext<>(selection, pack), i);
+            InitializePackEntryEvent event = new InitializePackEntryEvent(listener.ctx(), context, entry, entry::addTopLayer);
+            PackedPacksApiImpl.getInstance().eventBus().post(event);
+
             this.addEntry(entry);
-            listener.postApiEvent(new ScreenEvent.InitPackEntry(listener.ctx(), entry));
         }
 
         this.clampScrollAmount();
@@ -441,21 +451,22 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
         private static final Tooltip FOLDER_OPEN_INFO = Tooltip.create(FolderPack.FOLDER_OPEN_TEXT);
         protected static final int H_SPACING = 2;
         protected static final ColoredRect SELECTED_OVERLAY = new ColoredRect(Theme.BLUE_500.withAlpha(0.25F));
-        protected final SelectionContext<Pack> context;
+        protected final PackContext context;
+        protected final SelectionContext<Pack> selectionContext;
+        private final MouseSelectionHandler<Pack> selectionHandler;
         private final List<GuiEventListener> children = new ObjectArrayList<>();
         private final List<Renderable> renderables = new ObjectArrayList<>();
         private final List<Renderable> topRenderables = new ObjectArrayList<>();
-        private final List<NarratableEntry> narratables = new ObjectArrayList<>();
-        private final MouseSelectionHandler<Pack> selectionHandler;
         private final PackWidget packWidget;
         private final @Nullable PackListDevMenu devMenu;
         private FidgetzButton<FolderPack> folderWidget;
         private boolean stale = false;
 
-        protected Entry(SelectionContext<Pack> context, int index) {
+        protected Entry(PackContext context, SelectionContext<Pack> selectionContext, int index) {
             super(index);
             this.context = context;
-            this.selectionHandler = new MouseSelectionHandler<>(this, context);
+            this.selectionContext = selectionContext;
+            this.selectionHandler = new MouseSelectionHandler<>(this, selectionContext);
             this.packWidget = this.addRenderableWidget(new PackWidget(
                     this.pack(),
                     PackList.this.assets,
@@ -480,24 +491,22 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
                 ));
             }
             this.devMenu = devMode
-                    ? new PackListDevMenu(PackList.this.minecraft, PackList.this.options, this.context, this::handleDevMenuEvent)
+                    ? new PackListDevMenu(PackList.this.minecraft, PackList.this.options, this.selectionContext, this::handleDevMenuEvent)
                     : null;
         }
 
         public Pack pack() {
-            return this.context.item();
+            return this.context.pack();
         }
 
         public <U extends GuiEventListener & Renderable> U addRenderableWidget(U widget) {
             this.children.add(widget);
             this.renderables.add(widget);
-            if (widget instanceof NarratableEntry narratable) this.narratables.add(narratable);
             return widget;
         }
 
         public <U extends GuiEventListener> U prependWidget(U widget) {
             this.children.addFirst(widget);
-            if (widget instanceof NarratableEntry narratable) this.narratables.add(narratable);
             return widget;
         }
 
@@ -506,16 +515,20 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
             return renderable;
         }
 
+        public <U extends GuiEventListener & Renderable> void addTopLayer(U widget) {
+            this.addTopRenderableOnly(this.prependWidget(widget));
+        }
+
         public boolean isTransferable() {
             return !PackList.this.options.isLocked() && !this.isStale();
         }
 
         public boolean isSelected() {
-            return this.context.isSelected();
+            return this.selectionContext.isSelected();
         }
 
         public boolean isSelectedLast() {
-            return this.context.isSelectedLast();
+            return this.selectionContext.isSelectedLast();
         }
 
         protected void sendPacks(Pack trigger, List<Pack> payload) {
@@ -691,19 +704,18 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
         public void buildItems(ContextMenuItemBuilder builder, int mouseX, int mouseY) {
             PackList.this.setFocused(this);
 
-            Map<ScreenEvent.OpenCtxMenu.PackEntry.Phase, ContextMenuItemBuilder> builders = new EnumMap<>(ScreenEvent.OpenCtxMenu.PackEntry.Phase.class);
-            listener.postApiEvent(new ScreenEvent.OpenCtxMenu.PackEntry(listener.ctx(), this, phase -> builders.computeIfAbsent(phase, p -> new ContextMenuItemBuilder())));
+            var extensions = ContextMenuEventImpl.postPackEntry(PackList.this.listener.ctx(), this.context);
 
             ContextMenuContainer.super.buildItems(builder
-                            .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.PackEntry.Phase.BEFORE_HEADER))
-                            .ifTrue((extraBuilder, b) -> b.addAll(extraBuilder.build()))
+                            .whenNonNull(extensions.getItems(ContextMenuEvent.PackEntry.Pos.BEFORE_HEADER))
+                            .ifTrue((items, b) -> b.addAll(items))
                             .add(new PackMenuHeader(this.pack(), this.packWidget.getSprite()))
-                            .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.PackEntry.Phase.AFTER_HEADER))
-                            .ifTrue((extraBuilder, b) -> b.addAll(extraBuilder.build()))
+                            .whenNonNull(extensions.getItems(ContextMenuEvent.PackEntry.Pos.AFTER_HEADER))
+                            .ifTrue((items, b) -> b.addAll(items))
                             .whenNonNull(this.devMenu)
                             .ifTrue(PackListDevMenu::onBuildHeader)
-                            .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.PackEntry.Phase.AFTER_DEV))
-                            .ifTrue((extraBuilder, b) -> b.addAll(extraBuilder.build()))
+                            .whenNonNull(extensions.getItems(ContextMenuEvent.PackEntry.Pos.AFTER_DEV))
+                            .ifTrue((items, b) -> b.addAll(items))
                             .whenNonNull(this.folderWidget)
                             .ifTrue(b -> b
                                     .simpleItem(FolderPack.FOLDER_OPEN_TEXT, this::openFolder)
@@ -716,8 +728,8 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
                                     .simpleItem(OPEN_FILE_TEXT, () -> PackUtil.openPack(this.pack()))
                                     .simpleItem(OPEN_PARENT_TEXT, () -> PackUtil.openParent(this.pack()))
                             )
-                            .whenNonNull(builders.get(ScreenEvent.OpenCtxMenu.PackEntry.Phase.AFTER_PACK))
-                            .ifTrue((extraBuilder, b) -> b.addAll(extraBuilder.build())),
+                            .whenNonNull(extensions.getItems(ContextMenuEvent.PackEntry.Pos.AFTER_HEADER))
+                            .ifTrue((items, b) -> b.addAll(items)),
                     mouseX,
                     mouseY
             );
@@ -764,7 +776,7 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
 
         @Override
         public @NonNull List<NarratableEntry> narratables() {
-            return this.narratables;
+            return Collections.emptyList();
         }
     }
 }

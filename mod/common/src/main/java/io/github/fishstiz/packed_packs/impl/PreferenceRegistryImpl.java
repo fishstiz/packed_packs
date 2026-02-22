@@ -33,47 +33,56 @@ public final class PreferenceRegistryImpl implements PreferenceRegistry {
         }
 
         String keyString = id.getNamespace().equals(PackedPacks.MOD_ID) ? id.getPath() : id.toString();
-        this.preferences.put(id, Preferences.Spec.create(keyString, defaultValue, deserializer));
+        this.preferences.put(id, Preferences.Spec.create(keyString, type, defaultValue, deserializer));
 
         return new KeyImpl<>(id, type);
     }
 
-    @Override
-    public <T> void set(Key<T> key, T value) {
-        if (isCorrectType(key, value)) {
-            this.setUnsafe(key.id(), value);
-        } else {
-            if (this.addIncorrectKey(key)) {
-                PackedPacks.LOGGER.warn("[packed_packs] Unexpected type found for preference '{}', unable to set value to '{}'", key.id(), value);
-            }
+    @SuppressWarnings("unchecked")
+    private <T> Preferences.@Nullable Spec<T> getAndValidate(Key<T> key) {
+        Preferences.Spec<?> spec = this.preferences.get(key.id());
+        if (spec == null) {
+            return null;
         }
+        if (spec.type() == key.type()) {
+            return (Preferences.Spec<T>) spec;
+        }
+        this.addIncorrectKey(key);
+        return null;
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public @Nullable <T> T get(Key<T> key) {
-        Object value = this.getUnsafe(key.id());
+    public <T> void set(Key<T> key, T value) {
+        this.checkFrozen();
 
-        if (!isCorrectType(key, value)) {
-            if (this.addIncorrectKey(key)) {
-                PackedPacks.LOGGER.warn("[packed_packs] Unexpected type found for preference '{}', unable to get value", key.id());
-            }
+        Preferences.Spec<T> spec = this.getAndValidate(key);
+        if (spec == null) {
+            throw new NullPointerException("Cannot set value of unregistered preference " + key.id());
+        }
+
+        Preferences.INSTANCE.getOrThrow(spec).set(value);
+    }
+
+    @Override
+    public @Nullable <T> T get(Key<T> key) {
+        this.checkFrozen();
+
+        Preferences.Spec<T> spec = this.getAndValidate(key);
+        if (spec == null) {
             return null;
         }
 
-        return (T) value;
+        return Preferences.INSTANCE.getOrThrow(spec).get();
     }
 
     @Override
     public void setUnsafe(Identifier id, Object value) {
-        if (!this.frozen) {
-            throw new IllegalStateException("Cannot set preference during initialization.");
-        }
+        this.checkFrozen();
 
         @SuppressWarnings("unchecked")
         Preferences.Spec<Object> spec = (Preferences.Spec<Object>) this.preferences.get(id);
         if (spec != null) {
-            Preferences.INSTANCE.get(spec).ifPresent(pref -> pref.set(value));
+            Preferences.INSTANCE.getOrThrow(spec).set(value);
         } else {
             throw new NullPointerException("Cannot set preference with key " + id);
         }
@@ -81,9 +90,7 @@ public final class PreferenceRegistryImpl implements PreferenceRegistry {
 
     @Override
     public @Nullable Object getUnsafe(Identifier key) {
-        if (!this.frozen) {
-            throw new IllegalStateException("Cannot get preference during initialization.");
-        }
+        this.checkFrozen();
 
         Preferences.Spec<?> spec = this.preferences.get(key);
         if (spec != null) {
@@ -93,12 +100,14 @@ public final class PreferenceRegistryImpl implements PreferenceRegistry {
         return null;
     }
 
-    private boolean addIncorrectKey(Key<?> key) {
+    private void addIncorrectKey(Key<?> key) {
         if (this.incorrectKeys == null) {
             this.incorrectKeys = new ReferenceOpenHashSet<>();
         }
 
-        return this.incorrectKeys.add(key);
+        if (this.incorrectKeys.add(key)) {
+            PackedPacks.LOGGER.warn("[packed_packs] Unexpected type found for preference key '{}'", key.id());
+        }
     }
 
     public Collection<Preferences.Spec<?>> getPreferences() {
@@ -110,8 +119,10 @@ public final class PreferenceRegistryImpl implements PreferenceRegistry {
         return (Preferences.Spec<T>) this.preferences.get(key.id());
     }
 
-    static <T> boolean isCorrectType(Key<T> key, @Nullable Object value) {
-        return value == null || key.type().isAssignableFrom(value.getClass());
+    private void checkFrozen() {
+        if (!this.frozen) {
+            throw new IllegalStateException("Cannot set or get a preference during initialization.");
+        }
     }
 
     void freeze() {

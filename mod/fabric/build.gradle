@@ -34,6 +34,9 @@ dependencies {
     api(project(path: ":fidgetz:fabric"))
     include(project(path: ":fidgetz:fabric"))
 
+    api project(path: ":api:fabric")
+    include(project(path: ":api:fabric"))
+
     minecraft "com.mojang:minecraft:$minecraft_version"
 
     implementation "net.fabricmc:fabric-loader:$fabric_loader_version"

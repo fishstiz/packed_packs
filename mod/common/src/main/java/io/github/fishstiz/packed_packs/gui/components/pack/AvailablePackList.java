@@ -5,6 +5,7 @@ import io.github.fishstiz.fidgetz.gui.renderables.ColoredRect;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import io.github.fishstiz.fidgetz.util.DrawUtil;
 import io.github.fishstiz.fidgetz.util.GuiUtil;
+import io.github.fishstiz.packed_packs.api.context.PackContext;
 import io.github.fishstiz.packed_packs.gui.components.SelectionContext;
 import io.github.fishstiz.packed_packs.gui.components.events.DragEvent;
 import io.github.fishstiz.packed_packs.gui.components.events.PackListEventListener;
@@ -39,8 +40,8 @@ public class AvailablePackList extends PackList {
     }
 
     @Override
-    protected @NonNull Entry createEntry(SelectionContext<Pack> context, int index) {
-        return new Entry(context, index);
+    protected @NonNull Entry createEntry(PackContext context, SelectionContext<Pack> selectionContext, int index) {
+        return new Entry(context, selectionContext, index);
     }
 
     @Override
@@ -102,8 +103,8 @@ public class AvailablePackList extends PackList {
     }
 
     public class Entry extends PackList.Entry {
-        private Entry(SelectionContext<Pack> context, int index) {
-            super(context, index);
+        private Entry(PackContext packContext, SelectionContext<Pack> context, int index) {
+            super(packContext, context, index);
         }
 
         public boolean isMouseOverSelect(double mouseX, double mouseY) {

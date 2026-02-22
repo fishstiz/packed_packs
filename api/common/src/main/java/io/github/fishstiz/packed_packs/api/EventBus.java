@@ -39,5 +39,5 @@ public interface EventBus {
      *
      * @throws IllegalStateException if called during initialization.
      */
-    void post(Event event);
+    <T extends Event> T post(T event);
 }

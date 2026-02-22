@@ -2,10 +2,7 @@ package io.github.fishstiz.fidgetz.gui.layouts;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.layouts.Layout;
-import net.minecraft.client.gui.layouts.LayoutElement;
-import net.minecraft.client.gui.layouts.LayoutSettings;
-import net.minecraft.client.gui.layouts.LinearLayout;
+import net.minecraft.client.gui.layouts.*;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
@@ -77,6 +74,10 @@ public class FlexLayout implements Layout {
         return this.addFlexChild(child, false, this.wrappedLayout.newCellSettings());
     }
 
+    public void addSpacer() {
+        this.addChild(new Spacer(this.wrappedLayout.addChild(new FlexSpacerElement())));
+    }
+
     private int getMinSizeAtOrientation() {
         return switch (this.orientation) {
             case HORIZONTAL -> this.minWidth;
@@ -100,7 +101,7 @@ public class FlexLayout implements Layout {
         for (int i = 0; i < this.children.size(); i++) {
             Child<?> child = this.children.get(i);
 
-            if (child instanceof FlexChild<?>) {
+            if (child.isFlexible()) {
                 flexCount++;
             } else {
                 totalSize += child.getSizeAtOrientation(this.orientation);
@@ -122,9 +123,7 @@ public class FlexLayout implements Layout {
         int distribution = this.getFlexDistribution();
 
         for (Child<?> child : this.children) {
-            if (child instanceof FlexChild<?> flexChild) {
-                flexChild.setDistribution(this.orientation, distribution, this.minWidth, this.minHeight);
-            }
+            child.setSize(this.orientation, distribution, this.minWidth, this.minHeight);
         }
 
         this.wrappedLayout.arrangeElements();
@@ -211,6 +210,13 @@ public class FlexLayout implements Layout {
         protected int getHeight() {
             return this.element.getHeight();
         }
+
+        protected void setSize(LinearLayout.Orientation orientation, int distribution, int width, int height) {
+        }
+
+        protected boolean isFlexible() {
+            return false;
+        }
     }
 
     private abstract static class FlexChild<T extends LayoutElement> extends Child<T> {
@@ -226,18 +232,58 @@ public class FlexLayout implements Layout {
 
         protected abstract void setHeight(int height);
 
-        protected void setDistribution(LinearLayout.Orientation orientation, int distribution, int width, int height) {
-            if (orientation == LinearLayout.Orientation.HORIZONTAL) {
-                this.setWidth(distribution);
-                if (this.crossAxis && height > 0) {
-                    this.setHeight(height);
+        @Override
+        protected boolean isFlexible() {
+            return true;
+        }
+
+        @Override
+        protected void setSize(LinearLayout.Orientation orientation, int distribution, int width, int height) {
+            switch (orientation) {
+                case HORIZONTAL -> {
+                    this.setWidth(distribution);
+                    if (this.crossAxis && height > 0) {
+                        this.setHeight(height);
+                    }
                 }
-            } else {
-                this.setHeight(distribution);
-                if (this.crossAxis && width > 0) {
-                    this.setWidth(width);
+                case VERTICAL -> {
+                    this.setHeight(distribution);
+                    if (this.crossAxis && width > 0) {
+                        this.setWidth(width);
+                    }
                 }
             }
+        }
+    }
+
+    private static class Spacer extends FlexChild<FlexSpacerElement> {
+        Spacer(FlexSpacerElement element) {
+            super(element, false, LayoutSettings.defaults());
+        }
+
+        @Override
+        protected int getSizeAtOrientation(LinearLayout.Orientation orientation) {
+            return 0;
+        }
+
+        @Override
+        protected int getWidth() {
+            return 0;
+        }
+
+        @Override
+        protected int getHeight() {
+            return 0;
+        }
+
+        @Override
+        protected void setWidth(int width) {
+            this.element.setWidth(width);
+        }
+
+        @Override
+        protected void setHeight(int height) {
+            this.element.setHeight(height);
         }
     }
 
