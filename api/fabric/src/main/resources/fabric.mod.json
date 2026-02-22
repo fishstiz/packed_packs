@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${mod_version}",
+  "name": "${mod_name}",
+  "environment": "client",
+  "custom": {
+    "modmenu": {
+      "parent": "${root_mod_id}",
+      "badges": [
+        "library"
+      ]
+    }
+  }
+}
