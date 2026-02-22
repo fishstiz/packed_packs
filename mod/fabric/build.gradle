@@ -31,8 +31,11 @@ repositories {
 }
 
 dependencies {
-    modApi(project(path: ":fidgetz:fabric"))
+    api(project(path: ":fidgetz:fabric", configuration: "namedElements"))
     include(project(path: ":fidgetz:fabric"))
+
+    api project(path: ":api:fabric", configuration: "namedElements")
+    include(project(path: ":api:fabric"))
 
     minecraft "com.mojang:minecraft:$minecraft_version"
     mappings loom.layered {

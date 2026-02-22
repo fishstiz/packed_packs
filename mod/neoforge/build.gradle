@@ -62,6 +62,9 @@ dependencies {
     api project(path: ":fidgetz:neoforge")
     jarJar project(path: ":fidgetz:neoforge")
 
+    api project(path: ":api:neoforge")
+    jarJar project(path: ":api:neoforge")
+
     compileOnly "maven.modrinth:resourcify:$resourcify_version"
     compileOnly "maven.modrinth:respackopts:$respackopts_version"
     compileOnly "io.gitlab.jfronny.libjf:libjf-resource-pack-entry-widgets-forge:$libjf_resource_pack_entry_widgets_version"
