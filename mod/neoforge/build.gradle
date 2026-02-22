@@ -63,6 +63,9 @@ dependencies {
     api project(path: ":fidgetz:neoforge")
     jarJar project(path: ":fidgetz:neoforge")
 
+    api project(path: ":api:neoforge")
+    jarJar project(path: ":api:neoforge")
+
     compileOnly "io.github.fishstiz:minecraft-cursor-common-api:$minecraft_cursor_version"
     localRuntime "io.github.fishstiz:minecraft-cursor-neoforge:$minecraft_cursor_version"
     compileOnly "maven.modrinth:resourcify:$resourcify_version"
