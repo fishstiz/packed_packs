@@ -3,9 +3,10 @@ package io.github.fishstiz.fidgetz.gui.components;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.ButtonSprites;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,9 +56,8 @@ public class ToggleButton<E> extends FidgetzButton<E> {
     }
 
     @Override
-    public void onClick(MouseButtonEvent mouseButtonEvent, boolean doubleClicked) {
-        super.onClick(mouseButtonEvent, doubleClicked);
-
+    public void onPress(@NotNull InputWithModifiers inputWithModifiers) {
+        super.onPress(inputWithModifiers);
         this.setValue(!this.getValue());
     }
 
@@ -66,7 +66,7 @@ public class ToggleButton<E> extends FidgetzButton<E> {
     }
 
     @Override
-    public void setMessage(Component message) {
+    public void setMessage(@NotNull Component message) {
         this.prefix = message;
         this.updateMessage();
     }
@@ -79,7 +79,7 @@ public class ToggleButton<E> extends FidgetzButton<E> {
         Component valueText = this.getValue() ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF;
 
         if (this.prefixMessage) {
-            super.setMessage(this.getPrefix().copy().append(": ").append(valueText));
+            super.setMessage(CommonComponents.optionNameValue(this.getPrefix(), valueText));
         } else {
             super.setMessage(valueText);
         }

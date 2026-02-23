@@ -49,6 +49,30 @@ public class InputUtil {
         return noModifiers(keyEvent.modifiers()) && (keyEvent.key() == KEY_SPACE || keyEvent.key() == KEY_RETURN);
     }
 
+    public static boolean isUp(KeyEvent keyEvent) {
+        return keyEvent.isUp();
+    }
+
+    public static boolean isDown(KeyEvent keyEvent) {
+        return keyEvent.isDown();
+    }
+
+    public static boolean isHome(KeyEvent keyEvent) {
+        return keyEvent.key() == KEY_HOME;
+    }
+
+    public static boolean isEnd(KeyEvent keyEvent) {
+        return keyEvent.key() == KEY_END;
+    }
+
+    public static boolean isPageUp(KeyEvent keyEvent) {
+        return keyEvent.key() == KEY_PAGEUP;
+    }
+
+    public static boolean isPageDown(KeyEvent keyEvent) {
+        return keyEvent.key() == KEY_PAGEDOWN;
+    }
+
     public static boolean isMoveDown(KeyEvent keyEvent) {
         return keyEvent.key() == KEY_DOWN && moveModifiers(keyEvent.modifiers());
     }

@@ -1,6 +1,6 @@
 package io.github.fishstiz.packed_packs.pack;
 
-import io.github.fishstiz.packed_packs.config.Folder;
+import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
 import io.github.fishstiz.packed_packs.pack.folder.FolderResources;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
@@ -34,7 +34,7 @@ public class PackFileOperations {
     // but reverting this would be a breaking change. Oops.
     // If a folder pack is renamed outside here, the config won't be remapped.
     private void remapFolderConfig(FolderPack folderPack, String name, Path path) {
-        Folder folder = this.repository.getFolderConfig(folderPack);
+        FolderPackMeta folder = this.repository.getFolderConfig(folderPack);
         if (folder == null) return;
 
         String newId = PackUtil.generatePackId(name);

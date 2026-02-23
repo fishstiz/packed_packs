@@ -20,7 +20,6 @@ public class RespackoptsIntegration extends ModIntegration {
 
         api.eventBus().register(InitializePackEntryEvent.class, this.id(), event -> {
             if (!event.screenContext().isClientResources()) return;
-
             if (event.screenContext().devMode() || Boolean.TRUE.equals(api.preferences().get(respackOptsPrefKey))) {
                 event.addDetachedWidget(container -> RespackoptsWidget.create(respackOptsPrefKey, container, event.packContext().pack()));
             }
@@ -28,7 +27,7 @@ public class RespackoptsIntegration extends ModIntegration {
 
         api.eventBus().register(ContextMenuEvent.Preferences.class, this.id(), id(Mod.ETF), event -> {
             if (event.screenContext().isClientResources()) {
-                event.addToggle(api.preferences(), respackOptsPrefKey, ModIntegration.getWidgetPrefText(respackOptsPrefKey));
+                event.addToggle(respackOptsPrefKey, getWidgetPrefText(respackOptsPrefKey));
             }
         });
 

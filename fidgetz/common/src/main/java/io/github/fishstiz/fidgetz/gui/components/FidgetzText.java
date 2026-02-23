@@ -17,7 +17,7 @@ public class FidgetzText<E> extends StringWidget implements Fidgetz, Metadata<E>
         super(
                 builder.x,
                 builder.y,
-                builder.hasWidth ? builder.width : builder.font.width(builder.message),
+                builder.width,
                 builder.height,
                 builder.message,
                 builder.font
@@ -36,7 +36,7 @@ public class FidgetzText<E> extends StringWidget implements Fidgetz, Metadata<E>
     }
 
     @Override
-    public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.isHovered = this.isHovered && Fidgetz.super.isHovered(mouseX, mouseY);
         super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
     }
@@ -66,7 +66,6 @@ public class FidgetzText<E> extends StringWidget implements Fidgetz, Metadata<E>
 
     public static class Builder<E> extends AbstractWidgetBuilder<Builder<E>> {
         private final Font font;
-        private boolean hasWidth;
         private int offsetY;
         private Component message = CommonComponents.EMPTY;
         private Integer color;
@@ -75,12 +74,6 @@ public class FidgetzText<E> extends StringWidget implements Fidgetz, Metadata<E>
 
         private Builder(Font font) {
             this.font = font;
-        }
-
-        @Override
-        public @NotNull Builder<E> setWidth(int width) {
-            this.hasWidth = true;
-            return super.setWidth(width);
         }
 
         public Builder<E> setOffsetY(int offsetY) {
