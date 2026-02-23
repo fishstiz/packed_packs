@@ -18,6 +18,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.github.fishstiz.packed_packs.util.PackUtil.hasFolderConfig;
 import static io.github.fishstiz.packed_packs.util.PackUtil.hasMcmeta;
@@ -33,9 +34,11 @@ public class PackWatcher implements AutoCloseable {
     private static final long POLL_INTERVAL_MS = 1000;
     private static final long DEBOUNCED_CHANGE_DELAY_MS = 1000;
     private final FileAlterationMonitor monitor = new FileAlterationMonitor(POLL_INTERVAL_MS);
+    private final DirectoryListener directoryListener = new DirectoryListener();
     private final PollingDebouncer<Path> onChangeCallback;
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    private final DirectoryListener directoryListener = new DirectoryListener();
+    private final AtomicInteger pauseCount = new AtomicInteger(0);
+
     private long lastPollTime;
 
     public PackWatcher(ScreenContext context, Collection<Path> directories, Runnable onChangeCallback) {
@@ -43,7 +46,7 @@ public class PackWatcher implements AutoCloseable {
             throw new IllegalStateException("PackWatcher monitor should not be creating a new thread.");
         });
         this.onChangeCallback = new ConcurrentPollingDebouncer<>(path -> {
-            if (!this.closed.get()) {
+            if (!this.closed.get() && this.pauseCount.get() == 0) {
                 WatchEvent watchEvent = new WatchEvent(context, path);
                 if (!PackedPacksApiImpl.getInstance().eventBus().post(watchEvent).isCanceled()) {
                     onChangeCallback.run();
@@ -85,6 +88,24 @@ public class PackWatcher implements AutoCloseable {
             this.lastPollTime = currentTime;
         }
         this.onChangeCallback.poll();
+    }
+
+    public void pause() {
+        this.pauseCount.incrementAndGet();
+        this.onChangeCallback.abort();
+    }
+
+    public void resume() {
+        this.pauseCount.decrementAndGet();
+    }
+
+    public void consumeChanges() {
+        this.pause();
+        backgroundExecutor().execute(() -> {
+            this.monitor.getObservers().forEach(FileAlterationObserver::checkAndNotify);
+            this.onChangeCallback.abort();
+            this.resume();
+        });
     }
 
     @Override

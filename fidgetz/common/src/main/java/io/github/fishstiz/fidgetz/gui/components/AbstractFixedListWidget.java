@@ -86,8 +86,7 @@ public abstract class AbstractFixedListWidget<T extends AbstractFixedListWidget<
         }
     }
 
-    protected @Nullable T getPreviousEntry() {
-        T current = this.getSelected();
+    protected @Nullable T getPreviousEntry(T current) {
         if (current != null && current.getIndex() > 0) {
             return this.children().get(current.getIndex() - 1);
         } else if (current == null && !this.children().isEmpty()) {
@@ -96,14 +95,23 @@ public abstract class AbstractFixedListWidget<T extends AbstractFixedListWidget<
         return null;
     }
 
-    protected @Nullable T getNextEntry() {
-        T current = this.getSelected();
+    protected @Nullable T getNextEntry(T current) {
         if (current != null && current.getIndex() + 1 < this.children().size()) {
             return this.children().get(current.getIndex() + 1);
         } else if (current == null && !this.children().isEmpty()) {
             return this.getFirstElement();
         }
         return null;
+    }
+
+    //  === compat ===
+
+    protected int getItemHeight() {
+        return this.itemHeight;
+    }
+
+    protected void scrollToEntry(T entry) {
+        this.ensureVisible(entry);
     }
 
     public abstract class Entry extends ContainerObjectSelectionList.Entry<T> implements LayoutElement {

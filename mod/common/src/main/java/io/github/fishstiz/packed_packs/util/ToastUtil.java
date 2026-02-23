@@ -33,4 +33,12 @@ public class ToastUtil {
     public static Component getDeleteFailText(String fileName) {
         return ResourceUtil.getText("file.delete.fail", fileName);
     }
+
+    public static void onDeleteFailToast(Component fileName) {
+        onFileFailToast(getDeleteFailText(fileName.getString()));
+    }
+
+    public static void onRenameFailToast(Component from, String to) {
+        onFileFailToast(getRenameFailText(from.getString(), to));
+    }
 }

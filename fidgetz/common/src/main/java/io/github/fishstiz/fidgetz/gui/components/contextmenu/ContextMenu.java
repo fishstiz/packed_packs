@@ -21,6 +21,7 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.CommonComponents;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -173,12 +174,12 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
     public boolean isMouseOverBounds(double mouseX, double mouseY) {
         if (!this.isOpen()) return false;
 
-        ContextMenu child = this.getOpenedChildMenu();
-        boolean withinBounds = child != null
-                ? this.getBoundingBox().containsPoint(mouseX, mouseY) || child.getBoundingBox().containsPoint(mouseX, mouseY)
-                : this.getBoundingBox().containsPoint(mouseX, mouseY);
+        if (this.getBoundingBox().containsPoint(mouseX, mouseY)) {
+            return super.isMouseOverBounds(mouseX, mouseY);
+        }
 
-        return withinBounds && super.isMouseOverBounds(mouseX, mouseY);
+        ContextMenu child = this.getOpenedChildMenu();
+        return child != null && child.isMouseOverBounds(mouseX, mouseY);
     }
 
     public void forEachChild(Consumer<ContextMenu> consumer) {
@@ -273,17 +274,17 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
             super(0, 0, width, ITEM_HEIGHT, item.text());
             this.spacing = spacing;
             this.text = FidgetzText.<Void>builder()
-                    .alignLeft()
                     .setOffsetY(MENU_POINT_OFFSET)
                     .setShadow(true)
                     .setMessage(item.text())
+                    .setColor(item.textColor())
                     .build();
             this.parent = parent;
             this.item = item;
         }
 
         @Override
-        public void playDownSound(SoundManager handler) {
+        public void playDownSound(@NotNull SoundManager handler) {
             if (this.item.active()) {
                 super.playDownSound(handler);
             }
@@ -314,7 +315,6 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
         }
 
         protected void renderText(GuiGraphics guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
-            this.text.setColor(this.item.textColor());
             this.text.setPosition(x, y);
             this.text.setSize(width, height);
             this.text.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
@@ -332,7 +332,7 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
         }
 
         @Override
-        protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        protected void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             this.setTooltip(this.item.tooltip());
 
             this.isHovered = this.isHovered && this.isMouseOver(mouseX, mouseY);
@@ -453,7 +453,7 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
         }
 
         @Override
-        protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        protected void renderWidget(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
 
             if (!this.item.active()) {
