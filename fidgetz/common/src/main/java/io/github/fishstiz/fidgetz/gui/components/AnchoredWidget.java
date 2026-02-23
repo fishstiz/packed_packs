@@ -1,10 +1,11 @@
 package io.github.fishstiz.fidgetz.gui.components;
 
+import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuContainer;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.layouts.LayoutElement;
 
-public class AnchoredWidget extends ContainedWidget {
+public class AnchoredWidget extends ContainedWidget implements ContextMenuContainer {
     private final LayoutElement container;
     private final float rowAnchor;
     private final float colAnchor;

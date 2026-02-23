@@ -1,7 +1,5 @@
 package io.github.fishstiz.packed_packs.pack;
 
-import io.github.fishstiz.packed_packs.config.Config;
-import io.github.fishstiz.packed_packs.config.DevConfig;
 import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.config.Profile;
 import net.minecraft.server.packs.PackSelectionConfig;
@@ -14,15 +12,13 @@ import java.util.function.Supplier;
 
 public class PackOptionsContext implements PackOptions {
     private final PackOptionsResolver resolver;
-    private final Config.Packs userConfig;
 
-    public PackOptionsContext(PackOptionsResolver resolver, Config.Packs userConfig) {
+    public PackOptionsContext(PackOptionsResolver resolver) {
         this.resolver = resolver;
-        this.userConfig = userConfig;
     }
 
-    public PackOptionsContext(Supplier<@Nullable Profile> profileSupplier, Config.Packs userConfig, DevConfig.Packs config) {
-        this(new PackOptionsResolver(profileSupplier, config), userConfig);
+    public PackOptionsContext(Supplier<@Nullable Profile> profileSupplier, Supplier<@Nullable Profile> defaultProfileSupplier) {
+        this(new PackOptionsResolver(profileSupplier, defaultProfileSupplier));
     }
 
     @Override
@@ -55,16 +51,16 @@ public class PackOptionsContext implements PackOptions {
     }
 
     public Optional<Profile> getDefaultProfile() {
-        return Optional.ofNullable(this.resolver.config().getDefaultProfile());
+        return Optional.ofNullable(this.resolver.defaultProfileSupplier().get());
     }
 
     public void validate(Pack pack) {
         Profile profile = this.resolver.profileSupplier().get();
         if (profile == null) return;
 
-        Profile defaultProfile = this.resolver.config().getDefaultProfile();
+        Profile defaultProfile = this.resolver.defaultProfileSupplier().get();
 
-        // non-default profiles cannot override required to false
+        // non-default profiles cannot override required to false (why?? i forgor now)
         if (defaultProfile == null || !defaultProfile.overridesRequired(pack)) {
             if (profile.overridesRequired(pack) && !profile.isRequired(pack)) {
                 profile.setRequired(null, pack);
@@ -79,19 +75,11 @@ public class PackOptionsContext implements PackOptions {
 
     public boolean isDefaultProfile() {
         Profile profile = this.resolver.profileSupplier().get();
-        return profile != null && profile == this.resolver.config().getDefaultProfile();
-    }
-
-    public Config.Packs getUserConfig() {
-        return this.userConfig;
-    }
-
-    public DevConfig.Packs getConfig() {
-        return this.resolver.config();
+        return profile != null && profile == this.resolver.defaultProfileSupplier().get();
     }
 
     public boolean hasOverride(Pack pack) {
-        Profile defaultProfile = this.resolver.config().getDefaultProfile();
+        Profile defaultProfile = this.resolver.defaultProfileSupplier().get();
         Profile profile = this.resolver.profileSupplier().get();
 
         return (defaultProfile != null && defaultProfile.hasOverride(pack)) ||
@@ -99,7 +87,7 @@ public class PackOptionsContext implements PackOptions {
     }
 
     public ProfileScope hasOverride(Pack pack, BiPredicate<Profile, Pack> option) {
-        Profile defaultProfile = this.resolver.config().getDefaultProfile();
+        Profile defaultProfile = this.resolver.defaultProfileSupplier().get();
         Profile profile = this.resolver.profileSupplier().get();
         ProfileScope scope = ProfileScope.NONE;
 

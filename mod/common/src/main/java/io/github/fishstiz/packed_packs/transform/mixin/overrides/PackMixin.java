@@ -35,19 +35,19 @@ public abstract class PackMixin implements ConfiguredPack {
 
     @Override
     public boolean packed_packs$isHidden() {
-        return this.packed_packs$resolver != null && this.packed_packs$resolver.isHidden(self());
+        return this.packed_packs$resolver != null && this.packed_packs$resolver.isHidden(packed_packs$self());
     }
 
     @Unique
-    private Pack self() {
+    private Pack packed_packs$self() {
         return (Pack) (Object) this;
     }
 
     @WrapMethod(method = "isRequired")
     private boolean resolveRequired(Operation<Boolean> original) {
         PackOptionsResolver resolver = this.packed_packs$resolver;
-        if (resolver != null && resolver.overridesRequired(self())) {
-            return resolver.isRequired(self());
+        if (resolver != null && resolver.overridesRequired(packed_packs$self())) {
+            return resolver.isRequired(packed_packs$self());
         }
         return original.call();
     }
@@ -55,8 +55,8 @@ public abstract class PackMixin implements ConfiguredPack {
     @WrapMethod(method = "isFixedPosition")
     private boolean resolveFixed(Operation<Boolean> original) {
         PackOptionsResolver resolver = this.packed_packs$resolver;
-        if (resolver != null && resolver.overridesPosition(self())) {
-            return resolver.isFixed(self());
+        if (resolver != null && resolver.overridesPosition(packed_packs$self())) {
+            return resolver.isFixed(packed_packs$self());
         }
         return original.call();
     }
@@ -64,7 +64,7 @@ public abstract class PackMixin implements ConfiguredPack {
     @WrapMethod(method = "getDefaultPosition")
     private Pack.Position resolvePosition(Operation<Pack.Position> original) {
         if (this.packed_packs$resolver != null) {
-            Pack.Position position = this.packed_packs$resolver.getPosition(self());
+            Pack.Position position = this.packed_packs$resolver.getPosition(packed_packs$self());
             if (position != null) {
                 return position;
             }
@@ -75,7 +75,7 @@ public abstract class PackMixin implements ConfiguredPack {
     @WrapMethod(method = "selectionConfig")
     private PackSelectionConfig resolveSelectionConfig(Operation<PackSelectionConfig> original) {
         if (this.packed_packs$resolver != null) {
-            PackSelectionConfig selectionConfig = this.packed_packs$resolver.getSelectionConfig(self());
+            PackSelectionConfig selectionConfig = this.packed_packs$resolver.getSelectionConfig(packed_packs$self());
             if (selectionConfig != null) {
                 return selectionConfig;
             }
@@ -86,8 +86,8 @@ public abstract class PackMixin implements ConfiguredPack {
     @WrapMethod(method = "getCompatibility")
     private PackCompatibility resolveCompatibility(Operation<PackCompatibility> original) {
         if (this.packed_packs$resolver != null) {
-            Profile defaultProfile = this.packed_packs$resolver.config().getDefaultProfile();
-            if (defaultProfile != null && defaultProfile.includes(self())) {
+            Profile defaultProfile = this.packed_packs$resolver.defaultProfileSupplier().get();
+            if (defaultProfile != null && defaultProfile.includes(packed_packs$self())) {
                 return PackCompatibility.COMPATIBLE;
             }
         }
@@ -97,8 +97,8 @@ public abstract class PackMixin implements ConfiguredPack {
     @Override
     public boolean packed_packs$isConfigured() {
         if (this.packed_packs$resolver != null) {
-            Profile defaultProfile = this.packed_packs$resolver.config().getDefaultProfile();
-            return defaultProfile != null && defaultProfile.includes(self());
+            Profile defaultProfile = this.packed_packs$resolver.defaultProfileSupplier().get();
+            return defaultProfile != null && defaultProfile.includes(packed_packs$self());
         }
 
         return false;

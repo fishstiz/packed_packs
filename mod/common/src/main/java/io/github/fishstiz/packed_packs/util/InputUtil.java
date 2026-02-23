@@ -49,6 +49,30 @@ public class InputUtil {
         return noModifiers(modifiers) && (keyCode == KEY_SPACE || keyCode == KEY_RETURN);
     }
 
+    public static boolean isUp(int keyCode) {
+        return keyCode == KEY_UP;
+    }
+
+    public static boolean isDown(int keyCode) {
+        return keyCode == KEY_DOWN;
+    }
+
+    public static boolean isHome(int keyCode) {
+        return keyCode == KEY_HOME;
+    }
+
+    public static boolean isEnd(int keyCode) {
+        return keyCode == KEY_END;
+    }
+
+    public static boolean isPageUp(int keyCode) {
+        return keyCode == KEY_PAGEUP;
+    }
+
+    public static boolean isPageDown(int keyCode) {
+        return keyCode == KEY_PAGEDOWN;
+    }
+
     public static boolean isMoveDown(int keyCode, int modifiers) {
         return keyCode == KEY_DOWN && moveModifiers(modifiers);
     }

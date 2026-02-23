@@ -67,13 +67,29 @@ public class DrawUtil {
     public static void renderDropShadow(GuiGraphics guiGraphics, int x, int y, int width, int height, int shadowSize) {
         float scale = (float) shadowSize / SHADOW_BORDER;
         int offset = Math.round(SHADOW_BORDER * scale);
-        guiGraphics.blitSprite(
-                RenderType::guiTextured,
+        renderSprite(
+                guiGraphics,
                 SHADOW_SPRITE,
                 x - offset,
                 y - offset,
                 width + offset * 2,
                 height + offset * 2
         );
+    }
+
+    public static void renderTexture(GuiGraphics guiGraphics, ResourceLocation texture, int textureWidth, int textureHeight, int x, int y, int width, int height) {
+        guiGraphics.blit(
+                RenderType::guiTextured,
+                texture,
+                x, y,
+                0, 0,
+                width, height,
+                textureWidth, textureHeight,
+                textureWidth, textureHeight
+        );
+    }
+
+    public static void renderSprite(GuiGraphics guiGraphics, ResourceLocation sprite, int x, int y, int width, int height) {
+        guiGraphics.blitSprite(RenderType::guiTextured, sprite, x, y, width, height);
     }
 }

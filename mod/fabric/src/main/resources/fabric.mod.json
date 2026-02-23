@@ -18,9 +18,6 @@
   "icon": "icon.png",
   "environment": "client",
   "entrypoints": {
-    "minecraft-cursor": [
-      "io.github.fishstiz.packed_packs.compat.minecraftcursor.PackedPacksMinecraftCursor"
-    ],
     "modmenu": [
       "io.github.fishstiz.packed_packs.compat.modmenu.PackedPacksModMenu"
     ],
