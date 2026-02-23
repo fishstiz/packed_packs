@@ -28,4 +28,8 @@ public class ResourceUtil {
     public static ResourceLocation getVanillaSprite(String path) {
         return ResourceLocation.withDefaultNamespace("textures/gui/sprites/" + path + ".png");
     }
+
+    public static ResourceLocation getVanilla(String path) {
+        return ResourceLocation.withDefaultNamespace(path);
+    }
 }

@@ -5,8 +5,6 @@ import io.github.fishstiz.packed_packs.api.PackedPacksApi;
 import io.github.fishstiz.packed_packs.api.PackedPacksInitializer;
 import io.github.fishstiz.packed_packs.platform.Services;
 
-import java.util.List;
-
 public final class PackedPacksApiImpl implements PackedPacksApi {
     private final EventBusImpl eventBus = new EventBusImpl();
     private final PreferenceRegistryImpl preferenceRegistry = new PreferenceRegistryImpl();
@@ -37,8 +35,7 @@ public final class PackedPacksApiImpl implements PackedPacksApi {
         static {
             PackedPacksApiImpl api = new PackedPacksApiImpl();
 
-            List<PackedPacksInitializer> extensions = Services.PLATFORM.getModExtensions();
-            for (PackedPacksInitializer extension : extensions) {
+            for (PackedPacksInitializer extension : Services.PLATFORM.getModExtensions()) {
                 try {
                     extension.onInitialize(api);
                 } catch (Throwable e) {
@@ -48,9 +45,7 @@ public final class PackedPacksApiImpl implements PackedPacksApi {
                     );
                 }
             }
-
             api.eventBus.freeze();
-            api.preferenceRegistry.freeze();
 
             INSTANCE = api;
         }

@@ -17,6 +17,8 @@ public class GuiConstants {
     public static final Sprite UNLOCK_SPRITE_SMALL = Sprite.of16(ResourceUtil.getIcon("unlock"));
     public static final Sprite LOCK_SPRITE_SMALL = Sprite.of16(ResourceUtil.getIcon("lock"));
     public static final Sprite STAR_SPRITE = Sprite.of16(ResourceUtil.getIcon("star"));
+    public static final Sprite RADIO_OFF_SPRITE = Sprite.of16(ResourceUtil.getIcon("radio_off"));
+    public static final Sprite RADIO_ON_SPRITE = Sprite.of16(ResourceUtil.getIcon("radio_on"));
     public static final Component OPTIONS_TEXT = ResourceUtil.getText("options.title");
     public static final Component OPEN_FILE_TEXT = ResourceUtil.getText("file.open");
     public static final Component OPEN_PARENT_TEXT = ResourceUtil.getText("file.parent.open");
@@ -28,5 +30,9 @@ public class GuiConstants {
 
     public static MenuItemBuilder devItem(Component text) {
         return MenuItem.builder(text).background(GuiConstants.DEVELOPER_MODE_ITEM_BACKGROUND);
+    }
+
+    public static Sprite getToggleIcon(boolean toggled) {
+        return toggled ? RADIO_ON_SPRITE : RADIO_OFF_SPRITE;
     }
 }

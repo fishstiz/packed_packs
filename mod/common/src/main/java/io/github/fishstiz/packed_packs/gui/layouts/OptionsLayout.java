@@ -38,7 +38,6 @@ public class OptionsLayout implements Layout {
                     contentLayout.addChild(
                             FidgetzText.<Void>builder()
                                     .setMessage(ResourceUtil.getText("resource_packs"))
-                                    .alignLeft()
                                     .setWidth(CONTENT_WIDTH)
                                     .build(),
                             titleSettings
@@ -57,7 +56,6 @@ public class OptionsLayout implements Layout {
                     contentLayout.addChild(
                             FidgetzText.<Void>builder()
                                     .setMessage(Component.translatable("selectWorld.dataPacks"))
-                                    .alignLeft()
                                     .setWidth(CONTENT_WIDTH)
                                     .build(),
                             titleSettings
