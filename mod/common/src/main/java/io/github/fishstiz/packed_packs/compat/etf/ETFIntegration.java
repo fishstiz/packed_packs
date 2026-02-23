@@ -27,17 +27,12 @@ public class ETFIntegration extends ModIntegration {
 
         api.eventBus().register(InitializeLayoutEvent.class, this.id(), event -> {
             if (!event.screenContext().isClientResources()) return;
-
-            var button = event.screenContext().bindPreference(api.preferences(), prefKey, this.createButton(event.screenContext().screen()));
-            if (button != null) {
-                event.addWidget(InitializeLayoutEvent.Pos.AFTER_TITLE, button);
-            }
+            var button = event.screenContext().bindPreference(prefKey, this.createButton(event.screenContext().screen()));
+            if (button != null) event.addWidget(InitializeLayoutEvent.Pos.AFTER_TITLE, button);
         });
 
         api.eventBus().register(ContextMenuEvent.Preferences.class, this.id(), event -> {
-            if (event.screenContext().isClientResources()) {
-                event.addToggle(api.preferences(), prefKey, getWidgetPrefText(prefKey));
-            }
+            if (event.screenContext().isClientResources()) event.addToggle(prefKey, getWidgetPrefText(prefKey));
         });
     }
 

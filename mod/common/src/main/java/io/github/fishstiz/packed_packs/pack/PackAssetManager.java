@@ -9,7 +9,6 @@ import io.github.fishstiz.packed_packs.util.PackUtil;
 import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.util.Util;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
@@ -24,44 +23,36 @@ import java.io.InputStream;
 import java.nio.file.NoSuchFileException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
+import java.util.concurrent.Executor;
 
 public class PackAssetManager {
     public static final Sprite DEFAULT_FOLDER_ICON = Sprite.of16(ResourceUtil.id("textures/misc/unknown_folder.png"));
     public static final Sprite DEFAULT_ICON = Sprite.of16(Identifier.withDefaultNamespace("textures/misc/unknown_pack.png"));
     private final Map<String, Sprite> cachedIcons = new Object2ObjectOpenHashMap<>();
-    private final Minecraft minecraft;
+    private final Executor mainThreadExecutor;
+    private final TextureManager textureManager;
     private Map<String, Sprite> staleIcons;
 
-    public PackAssetManager(Minecraft minecraft) {
-        this.minecraft = minecraft;
+    public PackAssetManager(Executor mainThreadExecutor, TextureManager textureManager) {
+        this.mainThreadExecutor = mainThreadExecutor;
+        this.textureManager = textureManager;
     }
 
     public Sprite getIcon(Pack pack) {
-        return this.cachedIcons.getOrDefault(pack.getId(), this.staleIcons != null
-                ? this.staleIcons.getOrDefault(pack.getId(), getDefaultIcon(pack))
-                : getDefaultIcon(pack)
-        );
-    }
-
-    public void getOrLoadIcon(Pack pack, Consumer<Sprite> iconCallback) {
-        if (this.staleIcons != null) {
-            Sprite staleIcon = this.staleIcons.get(pack.getId());
-            if (staleIcon != null) {
-                iconCallback.accept(staleIcon);
+        if (!this.cachedIcons.containsKey(pack.getId())) {
+            Sprite fallback = (this.staleIcons != null) ? this.staleIcons.get(pack.getId()) : null;
+            if (fallback == null) {
+                fallback = getDefaultIcon(pack);
             }
+            this.cachedIcons.put(pack.getId(), fallback);
+            this.loadPackIcon(pack).thenAcceptAsync(icon -> {
+                if (icon != null) {
+                    this.cachedIcons.put(pack.getId(), Sprite.of16(icon));
+                }
+            }, this.mainThreadExecutor);
         }
 
-        Sprite cachedIcon = this.cachedIcons.get(pack.getId());
-        if (cachedIcon != null) {
-            iconCallback.accept(cachedIcon);
-        } else {
-            this.loadPackIcon(pack).thenAcceptAsync(location -> {
-                Sprite sprite = location != null ? Sprite.of16(location) : getDefaultIcon(pack);
-                this.cachedIcons.put(pack.getId(), sprite);
-                iconCallback.accept(sprite);
-            }, this.minecraft);
-        }
+        return this.cachedIcons.getOrDefault(pack.getId(), getDefaultIcon(pack));
     }
 
     public void clearIconCache() {
@@ -86,12 +77,8 @@ public class PackAssetManager {
                 IoSupplier<@NonNull InputStream> iconIoSupplier = packResources.getRootResource(PackUtil.ICON_FILENAME);
                 if (iconIoSupplier == null) return null;
 
-                Identifier icon = Identifier.withDefaultNamespace(hashIconName(pack.getId()));
                 try (InputStream iconStream = iconIoSupplier.get()) {
-                    NativeImage nativeImage = NativeImage.read(iconStream);
-                    TextureManager manager = this.minecraft.getTextureManager();
-                    this.minecraft.execute(() -> manager.register(icon, new DynamicTexture(icon::toString, nativeImage)));
-                    return icon;
+                    return NativeImage.read(iconStream);
                 }
             } catch (Exception e) {
                 if (!(e instanceof NoSuchFileException)) {
@@ -99,7 +86,12 @@ public class PackAssetManager {
                 }
                 return null;
             }
-        }, Util.backgroundExecutor());
+        }, Util.backgroundExecutor()).thenApplyAsync(nativeImage -> {
+            if (nativeImage == null) return null;
+            Identifier icon = Identifier.withDefaultNamespace(hashIconName(pack.getId()));
+            this.textureManager.register(icon, new DynamicTexture(icon::toString, nativeImage));
+            return icon;
+        }, this.mainThreadExecutor);
     }
 
     @SuppressWarnings("deprecation")

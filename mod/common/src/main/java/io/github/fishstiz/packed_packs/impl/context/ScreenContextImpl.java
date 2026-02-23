@@ -1,15 +1,10 @@
 package io.github.fishstiz.packed_packs.impl.context;
 
-import io.github.fishstiz.fidgetz.gui.components.OverlayedWidget;
-import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuContainer;
-import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuilder;
-import io.github.fishstiz.fidgetz.gui.renderables.RenderableRect;
 import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
-import io.github.fishstiz.packed_packs.gui.components.ToggleableHelper;
+import io.github.fishstiz.packed_packs.gui.components.PreferenceToggle;
 import io.github.fishstiz.packed_packs.gui.metadata.PackSelectionScreenArgs;
-import io.github.fishstiz.packed_packs.gui.screens.PackedPacksScreen;
-import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
+import io.github.fishstiz.packed_packs.gui.model.PackedPacksViewModel;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
@@ -22,20 +17,27 @@ import java.util.List;
 
 public record ScreenContextImpl(
         Screen previousScreen,
-        PackedPacksScreen screen,
+        Screen screen,
+        PackedPacksViewModel viewModel,
         PackSelectionScreenArgs originalArgs,
         PackType packType,
         boolean devMode
 ) implements ScreenContext {
-    public ScreenContextImpl(Screen previousScreen, PackedPacksScreen screen, PackSelectionScreenArgs originalArgs, boolean devMode) {
-        this(previousScreen, screen, originalArgs, originalArgs.packType(), devMode);
+    public ScreenContextImpl(
+            Screen previousScreen,
+            Screen screen,
+            PackedPacksViewModel viewModel,
+            PackSelectionScreenArgs originalArgs,
+            boolean devMode
+    ) {
+        this(previousScreen, screen, viewModel, originalArgs, originalArgs.packType(), devMode);
     }
 
     @Override
     public PackSelectionScreen originalScreen() {
-        return previousScreen instanceof PackSelectionScreen packSelectionScreen
+        return this.previousScreen instanceof PackSelectionScreen packSelectionScreen
                 ? packSelectionScreen
-                : originalArgs.createDummy();
+                : this.originalArgs.createDummy();
     }
 
     @Override
@@ -45,44 +47,26 @@ public record ScreenContextImpl(
 
     @Override
     public List<Pack> getAvailablePacks() {
-        return this.screen.getAvailablePacks();
+        return this.viewModel.getAvailablePacks();
     }
 
     @Override
     public List<Pack> getSelectedPacks() {
-        return this.screen.getCurrentPacks();
+        return this.viewModel.getEnabledPacks();
     }
 
     @Override
     public void reload() {
-        this.screen.refreshPacks();
+        this.viewModel.refreshRepository();
     }
 
     @Override
     public void commit() {
-        this.screen.commit();
+        this.viewModel.commit();
     }
 
     @Override
-    public @Nullable AbstractWidget bindPreference(PreferenceRegistry prefs, PreferenceRegistry.Key<Boolean> key, AbstractWidget widget) {
-        if (this.devMode()) {
-            return new PreferenceOverlayedWidget(new ToggleableHelper(key), widget);
-        }
-        if (Boolean.TRUE.equals(prefs.get(key))) {
-            return widget;
-        }
-        return null;
-    }
-
-    private static final class PreferenceOverlayedWidget extends OverlayedWidget implements ContextMenuContainer {
-        public PreferenceOverlayedWidget(ToggleableHelper toggleableHelper, AbstractWidget widget) {
-            super(toggleableHelper, widget);
-        }
-
-        @Override
-        public void buildItems(ContextMenuItemBuilder builder, int mouseX, int mouseY) {
-            ((ToggleableHelper) this.overlay).buildContext(builder.separatorIfNonEmpty());
-            ContextMenuContainer.super.buildItems(builder, mouseX, mouseY);
-        }
+    public @Nullable AbstractWidget bindPreference(PreferenceRegistry.Key<Boolean> key, @Nullable AbstractWidget widget) {
+        return PreferenceToggle.wrap(key, widget);
     }
 }

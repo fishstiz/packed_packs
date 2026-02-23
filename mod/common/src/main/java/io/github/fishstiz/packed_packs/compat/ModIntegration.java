@@ -1,5 +1,6 @@
 package io.github.fishstiz.packed_packs.compat;
 
+import io.github.fishstiz.fidgetz.util.lang.FunctionsUtil;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.PackedPacksApi;
 import io.github.fishstiz.packed_packs.api.PackedPacksInitializer;
@@ -9,7 +10,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import org.apache.commons.lang3.exception.UncheckedReflectiveOperationException;
 import org.jspecify.annotations.NonNull;
 
 import java.lang.reflect.Constructor;
@@ -59,7 +59,8 @@ public abstract class ModIntegration implements PackedPacksInitializer {
                 }
             };
         } catch (ReflectiveOperationException e) {
-            throw new UncheckedReflectiveOperationException(e);
+            PackedPacks.LOGGER.error("[packed_packs] Failed to create screen setter for mod screen: '{}'", className, e);
+            return FunctionsUtil.nop();
         }
     }
 

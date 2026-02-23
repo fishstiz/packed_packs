@@ -1,9 +1,9 @@
 package io.github.fishstiz.packed_packs.pack;
 
 import io.github.fishstiz.fidgetz.util.lang.FunctionsUtil;
-import io.github.fishstiz.packed_packs.config.DevConfig;
 import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.config.Profile;
+import io.github.fishstiz.packed_packs.config.ProfileManager;
 import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
@@ -18,13 +18,13 @@ import java.util.function.*;
  */
 public record PackOptionsResolver(
         Supplier<@Nullable Profile> profileSupplier,
-        DevConfig.Packs config
+        Supplier<@Nullable Profile> defaultProfileSupplier
 ) implements PackOptions {
-    public static final PackOptionsResolver DATA_PACKS = new PackOptionsResolver(DevConfig.get().get(PackType.SERVER_DATA));
-    public static final PackOptionsResolver RESOURCE_PACKS = new PackOptionsResolver(DevConfig.get().get(PackType.CLIENT_RESOURCES));
+    public static final PackOptionsResolver DATA_PACKS = new PackOptionsResolver(ProfileManager.get(PackType.SERVER_DATA));
+    public static final PackOptionsResolver RESOURCE_PACKS = new PackOptionsResolver(ProfileManager.get(PackType.CLIENT_RESOURCES));
 
-    public PackOptionsResolver(DevConfig.Packs config) {
-        this(FunctionsUtil.nullSupplier(), config);
+    public PackOptionsResolver(ProfileManager manager) {
+        this(FunctionsUtil.nullSupplier(), manager::getDefault);
     }
 
     @Override
@@ -76,7 +76,7 @@ public record PackOptionsResolver(
     }
 
     private boolean hasOverride(Pack pack, BiPredicate<Profile, Pack> option) {
-        Profile defaultProfile = this.config.getDefaultProfile();
+        Profile defaultProfile = this.defaultProfileSupplier.get();
         Profile selected = this.profileSupplier.get();
 
         if (defaultProfile != null && option.test(defaultProfile, pack)) {
@@ -91,7 +91,7 @@ public record PackOptionsResolver(
     }
 
     private <T> T inDefaultOrSelected(Pack pack, BiPredicate<Profile, Pack> shouldApply, BiFunction<Profile, Pack, T> option, Function<Pack, T> defaultValue) {
-        Profile defaultProfile = this.config.getDefaultProfile();
+        Profile defaultProfile = this.defaultProfileSupplier.get();
         if (defaultProfile != null && shouldApply.test(defaultProfile, pack)) {
             return option.apply(defaultProfile, pack);
         }

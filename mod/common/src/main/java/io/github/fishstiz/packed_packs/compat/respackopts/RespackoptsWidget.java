@@ -8,7 +8,7 @@ import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
 import io.github.fishstiz.packed_packs.compat.Mod;
 import io.github.fishstiz.packed_packs.compat.PackWrapperDelegatorAbstractionEpicModelEntry;
 import io.github.fishstiz.packed_packs.config.Config;
-import io.github.fishstiz.packed_packs.gui.components.ToggleableHelper;
+import io.github.fishstiz.packed_packs.gui.components.PreferenceToggle;
 import io.gitlab.jfronny.libjf.entrywidgets.api.v0.ResourcePackEntryWidget;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractButton;
@@ -25,12 +25,11 @@ public class RespackoptsWidget extends AbstractButton implements ContextMenuProv
     private final ResourcePackEntryWidget wrapped;
     private final PackSelectionModel.Entry model;
     private final LayoutElement container;
-    private final @Nullable ToggleableHelper toggleable;
+    private final @Nullable PreferenceToggle toggle;
 
     private RespackoptsWidget(PreferenceRegistry.Key<Boolean> prefKey, LayoutElement container, ResourcePackEntryWidget wrapped, PackSelectionModel.Entry model) {
         super(0, 0, 0, 0, Component.literal(Mod.RESPACKOPTS.getId()));
-
-        this.toggleable = Config.get().isDevMode() ? new ToggleableHelper(prefKey) : null;
+        this.toggle = Config.get().isDevMode() ? PreferenceToggle.fromKey(prefKey) : null;
         this.container = container;
         this.wrapped = wrapped;
         this.model = model;
@@ -69,8 +68,8 @@ public class RespackoptsWidget extends AbstractButton implements ContextMenuProv
 
         this.wrapped.render(this.model, guiGraphics, this.getX(), this.getY(), this.isHovered, partialTick);
 
-        if (this.toggleable != null) {
-            this.toggleable.render(guiGraphics, this.getX(), this.getY(), this.getWidth(), this.getHeight(), partialTick);
+        if (this.toggle != null) {
+            this.toggle.render(guiGraphics, this.getX(), this.getY(), this.getWidth(), this.getHeight(), partialTick);
         }
 
         if (this.isHovered()) {
@@ -80,7 +79,7 @@ public class RespackoptsWidget extends AbstractButton implements ContextMenuProv
 
     @Override
     protected void updateWidgetNarration(@NonNull NarrationElementOutput narrationElementOutput) {
-        // unsupported
+        this.defaultButtonNarrationText(narrationElementOutput);
     }
 
     @Override
@@ -97,8 +96,8 @@ public class RespackoptsWidget extends AbstractButton implements ContextMenuProv
 
     @Override
     public void buildItems(ContextMenuItemBuilder builder, int mouseX, int mouseY) {
-        if (this.toggleable != null) {
-            this.toggleable.buildContext(builder.separatorIfNonEmpty());
+        if (this.toggle != null) {
+            builder.separatorIfNonEmpty().add(this.toggle);
         }
     }
 }

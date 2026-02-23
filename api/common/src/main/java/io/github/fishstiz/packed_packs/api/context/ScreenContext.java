@@ -69,14 +69,15 @@ public interface ScreenContext {
 
     /**
      * Forces a reload of the underlying {@link PackRepository} to discover new or modified files.
+     * <p>
+     * Use this over {@link PackRepository#reload()} to update the GUI state.
      */
     void reload();
 
     /**
-     * Finalizes the current selection. This applies the pack changes to the game environment
-     * and may trigger a resource/data reload when changes are made.
+     * Applies the changes in the selected list and may trigger a resource/data reload.
      * <p>
-     * <b>Note:</b> This closes the screen when {@link #isServerData()} returns {@code true}
+     * <b>Note:</b> This closes the screen when data packs are being managed.
      */
     void commit();
 
@@ -91,11 +92,10 @@ public interface ScreenContext {
      * When in {@link #devMode()} wraps the widget with a colored overlay that reflects the preference value.
      * Otherwise, it returns the widget if the preference is enabled, and {@code null} if it is disabled.
      *
-     * @param prefs  The registry containing the preference.
      * @param key    the preference key to check
      * @param widget the widget to bind
      * @return the bound widget, or {@code null} if it should be hidden
      */
     @Nullable
-    AbstractWidget bindPreference(PreferenceRegistry prefs, PreferenceRegistry.Key<Boolean> key, AbstractWidget widget);
+    AbstractWidget bindPreference(PreferenceRegistry.Key<Boolean> key, @Nullable AbstractWidget widget);
 }

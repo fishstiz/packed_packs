@@ -94,12 +94,11 @@ public class CollectionsUtil {
         return list;
     }
 
-    public static <E> void addIf(Collection<E> out, Collection<E> add, Predicate<E> predicate) {
+    public static <T extends Collection<E>, E> T addIf(T out, Collection<E> add, Predicate<E> predicate) {
         for (E e : add) {
-            if (predicate.test(e)) {
-                out.add(e);
-            }
+            if (predicate.test(e)) out.add(e);
         }
+        return out;
     }
 
     public static <E> boolean equalsOrdered(Collection<E> a, Collection<E> b) {

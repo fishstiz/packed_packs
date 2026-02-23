@@ -4,37 +4,31 @@ import net.minecraft.util.Util;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.input.MouseButtonEvent;
 
+import java.util.function.BooleanSupplier;
+
 import static io.github.fishstiz.packed_packs.util.InputUtil.*;
 
-public class MouseSelectionHandler<T> {
+public class MouseSelectionHandler {
     private static final double DRAG_THRESHOLD = 1.0;
     private final GuiEventListener inputListener;
-    private final SelectionContext<T> context;
+    private final BooleanSupplier selected;
+    private final BooleanSupplier selectedLast;
+    private final BooleanSupplier selectedOnly;
     private MouseSelectionState mouseSelectionState = MouseSelectionState.INACTIVE;
     private long lastClickTime = 0;
 
     public enum Action {
-        NONE(false),
-        FOCUS(false),
-        SELECT(true),
-        SELECT_TOGGLE(true),
-        SELECT_EXCLUSIVE(true),
-        SELECT_RANGE(true),
-        TRANSFER(false),
-        DRAG(false);
-
-        private final boolean select;
-
-        Action(boolean select) {
-            this.select = select;
-        }
+        NONE,
+        FOCUS,
+        SELECT,
+        SELECT_TOGGLE,
+        SELECT_EXCLUSIVE,
+        SELECT_RANGE,
+        TRANSFER,
+        DRAG;
 
         public boolean shouldDispatch() {
             return this != NONE;
-        }
-
-        public boolean shouldSelect() {
-            return this.select;
         }
     }
 
@@ -44,9 +38,11 @@ public class MouseSelectionHandler<T> {
         SELECTING_MANY
     }
 
-    public MouseSelectionHandler(GuiEventListener inputListener, SelectionContext<T> context) {
+    public MouseSelectionHandler(GuiEventListener inputListener, BooleanSupplier selected, BooleanSupplier selectedLast, BooleanSupplier selectedOnly) {
         this.inputListener = inputListener;
-        this.context = context;
+        this.selected = selected;
+        this.selectedLast = selectedLast;
+        this.selectedOnly = selectedOnly;
     }
 
     private static boolean exceedsDragThreshold(double dragX, double dragY) {
@@ -76,11 +72,11 @@ public class MouseSelectionHandler<T> {
             this.mouseSelectionState = MouseSelectionState.SELECTING_MANY;
             return Action.SELECT_TOGGLE;
         }
-        if (!this.context.isSelected()) {
+        if (!this.selected.getAsBoolean()) {
             this.mouseSelectionState = MouseSelectionState.SELECTING_ONE;
             return Action.SELECT_EXCLUSIVE;
         }
-        if (!this.context.isSelectedLast()) {
+        if (!this.selectedLast.getAsBoolean()) {
             this.mouseSelectionState = MouseSelectionState.SELECTING_ONE;
             return Action.SELECT;
         }
@@ -92,8 +88,8 @@ public class MouseSelectionHandler<T> {
     public Action mouseReleased(MouseButtonEvent mouseButtonEvent) {
         if (this.inputListener.isMouseOver(mouseButtonEvent.x(), mouseButtonEvent.y())
             && this.mouseSelectionState == MouseSelectionState.SELECTING_ONE
-            && this.context.isSelectedLast()
-            && this.context.selection().size() > 1) {
+            && this.selectedLast.getAsBoolean()
+            && !this.selectedOnly.getAsBoolean()) {
             this.mouseSelectionState = MouseSelectionState.INACTIVE;
             return Action.SELECT_EXCLUSIVE;
         }
@@ -108,7 +104,7 @@ public class MouseSelectionHandler<T> {
         }
 
         if (exceedsDragThreshold(dragX, dragY) &&
-            this.context.isSelected() &&
+            this.selected.getAsBoolean() &&
             this.mouseSelectionState == MouseSelectionState.SELECTING_ONE) {
             return Action.DRAG;
         }

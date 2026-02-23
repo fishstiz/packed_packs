@@ -64,8 +64,8 @@ public class DrawUtil {
     public static void renderDropShadow(GuiGraphics guiGraphics, int x, int y, int width, int height, int shadowSize) {
         float scale = (float) shadowSize / SHADOW_BORDER;
         int offset = Math.round(SHADOW_BORDER * scale);
-        guiGraphics.blitSprite(
-                RenderPipelines.GUI_TEXTURED,
+        renderSprite(
+                guiGraphics,
                 SHADOW_SPRITE,
                 x - offset,
                 y - offset,
@@ -79,5 +79,21 @@ public class DrawUtil {
         guiGraphics.fill(x, y + height - 1, x + width, y + height, color);
         guiGraphics.fill(x, y + 1, x + 1, y + height - 1, color);
         guiGraphics.fill(x + width - 1, y + 1, x + width, y + height - 1, color);
+    }
+
+    public static void renderTexture(GuiGraphics guiGraphics, Identifier texture, int textureWidth, int textureHeight, int x, int y, int width, int height) {
+        guiGraphics.blit(
+                RenderPipelines.GUI_TEXTURED,
+                texture,
+                x, y,
+                0, 0,
+                width, height,
+                textureWidth, textureHeight,
+                textureWidth, textureHeight
+        );
+    }
+
+    public static void renderSprite(GuiGraphics guiGraphics, Identifier sprite, int x, int y, int width, int height) {
+        guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, width, height);
     }
 }

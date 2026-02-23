@@ -3,7 +3,8 @@ package io.github.fishstiz.packed_packs.pack;
 import com.google.common.collect.ImmutableList;
 import io.github.fishstiz.fidgetz.util.lang.FunctionsUtil;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.config.Folder;
+import io.github.fishstiz.packed_packs.config.FolderPackMeta;
+import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionModelAccessor;
@@ -16,7 +17,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import net.minecraft.util.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
@@ -32,18 +32,15 @@ import java.util.concurrent.CompletableFuture;
 public class PackRepositoryManager {
     private final Map<String, Pack> availablePacks = new Object2ObjectLinkedOpenHashMap<>();
     private final Map<String, List<Pack>> folderPacks = new Object2ObjectOpenHashMap<>();
-    private final Map<String, CompletableFuture<Folder>> folderConfigs = new Object2ObjectOpenHashMap<>();
+    private final Map<String, CompletableFuture<FolderPackMeta>> folderConfigs = new Object2ObjectOpenHashMap<>();
     private final Set<String> selectedPacksCache = new ObjectOpenHashSet<>();
     private final PackRepository repository;
-    private final PackOptionsContext options;
     private final Path packDir;
     private PackSelectionModel model;
 
-    public PackRepositoryManager(PackRepository repository, PackOptionsContext options, Path packDir) {
+    public PackRepositoryManager(PackRepository repository, Path packDir) {
         this.repository = repository;
-        this.options = options;
         this.packDir = packDir;
-
         this.refreshModel();
         this.regenerateAvailablePacks();
     }
@@ -69,8 +66,8 @@ public class PackRepositoryManager {
         return List.copyOf(this.availablePacks.values());
     }
 
-    public PackGroup getPacksBySelected() {
-        return this.validateAndGroupPacks(this.getUnselectedPacks(), this.getSelectedPacks());
+    public PackGroup getPacksBySelected(PackOptions options) {
+        return this.validateAndGroupPacks(this.getUnselectedPacks(), this.getSelectedPacks(), options);
     }
 
     public void removePack(Pack pack) {
@@ -97,38 +94,8 @@ public class PackRepositoryManager {
      * @param selected   ungrouped list of selected packs
      * @return validated and grouped list of packs
      */
-    public PackGroup validateAndGroupPacks(List<Pack> unselected, List<Pack> selected) {
-        return this.validatePacks(this.groupByFolders(unselected), this.groupByFolders(selected));
-    }
-
-    private void addValidPacks(List<Pack> source, Set<Pack> seen, ObjectOpenHashSet<Pack> validPacks, List<Pack> target) {
-        for (Pack pack : source) {
-            this.options.validate(pack);
-            Pack validPack = validPacks.get(pack); // metadata can change
-            if (validPack != null && (seen.add(pack))) {
-                target.add(validPack);
-            }
-        }
-    }
-
-    private void addValidPacks(
-            List<Pack> source,
-            Set<Pack> seen,
-            ObjectOpenHashSet<Pack> validPacks,
-            List<Pack> targetUnselected,
-            List<Pack> targetSelected
-    ) {
-        for (Pack pack : source) {
-            this.options.validate(pack);
-            Pack validPack = validPacks.get(pack);
-            if (validPack != null && seen.add(pack)) {
-                if (this.options.isRequired(validPack)) {
-                    this.options.getPosition(validPack).insert(targetSelected, validPack, this.options::getSelectionConfig, true);
-                } else {
-                    targetUnselected.add(validPack);
-                }
-            }
-        }
+    public PackGroup validateAndGroupPacks(List<Pack> unselected, List<Pack> selected, PackOptions options) {
+        return this.validatePacks(this.groupByFolders(unselected), this.groupByFolders(selected), options);
     }
 
     /**
@@ -136,26 +103,8 @@ public class PackRepositoryManager {
      * @param selected   grouped list of selected packs
      * @return validated and grouped list of packs
      */
-    public PackGroup validatePacks(List<Pack> unselected, List<Pack> selected) {
-        Set<Pack> seen = new ObjectOpenHashSet<>();
-        ObjectOpenHashSet<Pack> validPacks = new ObjectOpenHashSet<>(this.availablePacks.values());
-        List<Pack> validSelected = new ObjectArrayList<>(selected.size());
-        List<Pack> validUnselected = new ObjectArrayList<>(unselected.size());
-
-        this.addValidPacks(selected, seen, validPacks, validSelected);
-        this.addValidPacks(unselected, seen, validPacks, validUnselected, validSelected);
-
-        for (Pack validPack : validPacks) {
-            if (seen.add(validPack)) {
-                this.options.validate(validPack);
-                if (this.options.isRequired(validPack)) {
-                    this.options.getPosition(validPack).insert(validSelected, validPack, this.options::getSelectionConfig, true);
-                } else {
-                    validUnselected.add(validPack);
-                }
-            }
-        }
-        return PackGroup.of(validSelected, validUnselected);
+    public PackGroup validatePacks(List<Pack> unselected, List<Pack> selected, PackOptions options) {
+        return PackUtil.syncPackSelection(new ObjectOpenHashSet<>(this.availablePacks.values()), unselected, selected, options);
     }
 
     /**
@@ -164,12 +113,17 @@ public class PackRepositoryManager {
      * @return a validated and ordered list of all packs under the folder pack
      */
     public List<Pack> validateAndOrderNestedPacks(FolderPack folderPack, List<Pack> orderedPacks) {
+        Set<Pack> seen = new ObjectOpenHashSet<>();
         List<Pack> orderedValidPacks = this.folderPacks.get(folderPack.getId());
         ObjectOpenHashSet<Pack> validPacks = new ObjectOpenHashSet<>(orderedValidPacks);
-        Set<Pack> seen = new ObjectOpenHashSet<>();
-        List<Pack> finalOrderedPacks = new ObjectArrayList<>();
+        List<Pack> finalOrderedPacks = new ObjectArrayList<>(validPacks.size());
 
-        this.addValidPacks(orderedPacks, seen, validPacks, finalOrderedPacks);
+        for (Pack pack : orderedPacks) {
+            Pack validPack = validPacks.get(pack); // metadata can change
+            if (validPack != null && (seen.add(pack))) {
+                finalOrderedPacks.add(validPack);
+            }
+        }
 
         for (Pack validPack : orderedValidPacks) {
             if (seen.add(validPack)) {
@@ -318,10 +272,6 @@ public class PackRepositoryManager {
         return grouped;
     }
 
-    public void openDir() {
-        Util.getPlatform().openPath(this.packDir);
-    }
-
     public boolean isEnabled(Pack pack) {
         if (pack instanceof FolderPack folderPack) {
             for (Pack nestedPack : this.folderPacks.get(folderPack.getId())) {
@@ -350,14 +300,14 @@ public class PackRepositoryManager {
                 .toList();
     }
 
-    public @Nullable Folder getFolderConfig(@Nullable FolderPack folderPack) {
+    public @Nullable FolderPackMeta getFolderConfig(@Nullable FolderPack folderPack) {
         if (folderPack == null) return null;
-        CompletableFuture<Folder> future = this.folderConfigs.get(folderPack.getId());
+        CompletableFuture<FolderPackMeta> future = this.folderConfigs.get(folderPack.getId());
         return future != null ? future.join() : null;
     }
 
     public List<Pack> getNestedPacks(FolderPack folderPack) {
-        Folder config = this.getFolderConfig(folderPack);
+        FolderPackMeta config = this.getFolderConfig(folderPack);
         if (config == null) return Collections.emptyList();
         return this.validateAndOrderNestedPackIds(folderPack, config.getPackIds());
     }

@@ -2,6 +2,8 @@ package io.github.fishstiz.packed_packs.util;
 
 import com.sun.jna.platform.FileUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
+import io.github.fishstiz.packed_packs.config.PackOptions;
+import io.github.fishstiz.packed_packs.pack.PackGroup;
 import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
 import io.github.fishstiz.packed_packs.pack.folder.FolderResources;
 import io.github.fishstiz.packed_packs.platform.Services;
@@ -31,6 +33,7 @@ public class PackUtil {
     public static final String HIGH_CONTRAST_ID = "high_contrast";
     public static final String VANILLA_ID = "vanilla";
     public static final String FABRIC_ID = "fabric";
+    public static final String NEOFORGE_ID = "mod_resources";
     public static final String ZIP_PACK_EXTENSION = ".zip";
     public static final String ICON_FILENAME = "pack.png";
     public static final PackSource PACK_SOURCE = PackSource.create(name ->
@@ -56,12 +59,16 @@ public class PackUtil {
         return FILE_PREFIX + name;
     }
 
+    public static String generateNestedPackId(Path path, String name) {
+        return FILE_PREFIX + generatePackName(path.getParent()) + DELIMITER + name;
+    }
+
     public static String generatePackId(Path path) {
         return generatePackId(generatePackName(path));
     }
 
     public static String generateNestedPackId(Path path) {
-        return FILE_PREFIX + generatePackName(path.getParent()) + DELIMITER + generatePackName(path);
+        return generateNestedPackId(path, generatePackName(path));
     }
 
     public static PackLocationInfo replicateLocationInfo(PackLocationInfo info, String id) {
@@ -104,7 +111,8 @@ public class PackUtil {
     }
 
     public static boolean isEssential(Pack pack) {
-        return pack.getId().equals(VANILLA_ID) || pack.getId().equals(FABRIC_ID);
+        String packId = pack.getId();
+        return packId.equals(VANILLA_ID) || packId.equals(FABRIC_ID) || packId.equals(NEOFORGE_ID);
     }
 
     public static boolean isFeature(Pack pack) {
@@ -121,12 +129,24 @@ public class PackUtil {
     }
 
     public static List<Pack> flattenPacks(Collection<Pack> packs) {
-        List<Pack> flattened = new ObjectArrayList<>();
+        List<Pack> flattened = new ObjectArrayList<>(packs.size());
         for (Pack pack : packs) {
             if (pack instanceof FolderPack folderPack) {
                 flattened.addAll(folderPack.flatten());
             } else {
                 flattened.add(pack);
+            }
+        }
+        return flattened;
+    }
+
+    public static List<String> flattenPackIds(Collection<Pack> packs) {
+        List<String> flattened = new ObjectArrayList<>(packs.size());
+        for (Pack pack : packs) {
+            if (pack instanceof FolderPack folderPack) {
+                flattened.addAll(extractPackIds(folderPack.flatten()));
+            } else {
+                flattened.add(pack.getId());
             }
         }
         return flattened;
@@ -237,6 +257,14 @@ public class PackUtil {
         return UtilAccess.packed_packs$createRenamer(path, newName).getAsBoolean();
     }
 
+    public static String getNewIdOnRename(Pack pack, String newName) {
+        FilePack filePack = (FilePack) pack;
+        Path path = filePack.packed_packs$getPath();
+        if (path == null) return pack.getId();
+
+        return filePack.packed_packs$nestedPack() ? generateNestedPackId(path, newName) : generatePackId(newName);
+    }
+
     public static PathValidationResults validatePaths(List<Path> packs) {
         PackDetector<@NonNull Path> packDetector = new PackDetector<>(Minecraft.getInstance().directoryValidator()) {
             @Override
@@ -298,5 +326,42 @@ public class PackUtil {
             this.valid.add(path);
             this.rejected.remove(path);
         }
+    }
+
+    public static PackGroup syncPackSelection(ObjectOpenHashSet<Pack> allPacks, List<Pack> unselectedPacks, List<Pack> selectedPacks, PackOptions options) {
+        Set<Pack> seen = new ObjectOpenHashSet<>(allPacks.size());
+
+        List<Pack> newSelectedPacks = new ObjectArrayList<>(selectedPacks.size());
+        for (Pack pack : selectedPacks) {
+            Pack validPack = allPacks.get(pack);
+            if (validPack != null && seen.add(validPack)) {
+                newSelectedPacks.add(validPack);
+            }
+        }
+
+        List<Pack> newUnselectedPacks = new ObjectArrayList<>(unselectedPacks.size());
+        for (Pack unselectedPack : unselectedPacks) {
+            // use pack from the master list as the metadata may have updated
+            Pack pack = allPacks.get(unselectedPack);
+            if (pack != null && seen.add(pack)) {
+                if (options.isRequired(pack)) {
+                    options.getPosition(pack).insert(newSelectedPacks, pack, options::getSelectionConfig, true);
+                } else {
+                    newUnselectedPacks.add(pack);
+                }
+            }
+        }
+
+        for (Pack pack : allPacks) {
+            if (seen.add(pack)) {
+                if (options.isRequired(pack)) {
+                    options.getPosition(pack).insert(newSelectedPacks, pack, options::getSelectionConfig, true);
+                } else {
+                    newUnselectedPacks.add(pack);
+                }
+            }
+        }
+
+        return new PackGroup(newSelectedPacks, newUnselectedPacks);
     }
 }

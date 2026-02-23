@@ -9,8 +9,6 @@ import static com.mojang.blaze3d.platform.InputConstants.*;
 public class InputUtil {
     public static final String DEV_MODE_SHORTCUT = "CTRL + SHIFT + I";
     public static final long DOUBLE_CLICK_THRESHOLD_MS = 250;
-    public static final int MOUSE_BUTTON_BACK = 3;
-    public static final int MOUSE_BUTTON_FORWARD = 4;
 
     private InputUtil() {
     }
@@ -24,11 +22,11 @@ public class InputUtil {
     }
 
     public static boolean isClickBack(MouseButtonEvent mouseEvent) {
-        return mouseEvent.button() == MOUSE_BUTTON_BACK;
+        return mouseEvent.button() == MOUSE_BUTTON_4;
     }
 
     public static boolean isClickForward(MouseButtonEvent mouseEvent) {
-        return mouseEvent.button() == MOUSE_BUTTON_FORWARD;
+        return mouseEvent.button() == MOUSE_BUTTON_5;
     }
 
     public static boolean isUndo(KeyEvent keyEvent) {
@@ -47,6 +45,30 @@ public class InputUtil {
 
     public static boolean isTransfer(KeyEvent keyEvent) {
         return noModifiers(keyEvent.modifiers()) && (keyEvent.key() == KEY_SPACE || keyEvent.key() == KEY_RETURN);
+    }
+
+    public static boolean isUp(KeyEvent keyEvent) {
+        return keyEvent.isUp();
+    }
+
+    public static boolean isDown(KeyEvent keyEvent) {
+        return keyEvent.isDown();
+    }
+
+    public static boolean isHome(KeyEvent keyEvent) {
+        return keyEvent.key() == KEY_HOME;
+    }
+
+    public static boolean isEnd(KeyEvent keyEvent) {
+        return keyEvent.key() == KEY_END;
+    }
+
+    public static boolean isPageUp(KeyEvent keyEvent) {
+        return keyEvent.key() == KEY_PAGEUP;
+    }
+
+    public static boolean isPageDown(KeyEvent keyEvent) {
+        return keyEvent.key() == KEY_PAGEDOWN;
     }
 
     public static boolean isMoveDown(KeyEvent keyEvent) {

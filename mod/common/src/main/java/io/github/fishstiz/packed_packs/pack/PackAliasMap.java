@@ -1,8 +1,8 @@
 package io.github.fishstiz.packed_packs.pack;
 
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.config.DevConfig;
+import io.github.fishstiz.packed_packs.config.ProfileManager;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.NonNull;
@@ -96,8 +96,15 @@ public class PackAliasMap implements Map<String, Pack> {
             return null;
         }
 
-        String resolvedPackId = this.config.getAndSaveCanonicalId(Config.get().get(this.config.packType()).getProfiles(), packId);
+        String resolvedPackId = this.config.resolveCanonicalId(packId);
         if (resolvedPackId != null) {
+            if (!this.config.isAlias(packId)) {
+                PackedPacks.LOGGER.info("[packed_packs] Unknown pack '{}' matched via regex to '{}', caching result.", packId, resolvedPackId);
+                this.config.putAlias(packId, resolvedPackId);
+                ProfileManager.get(this.config.packType()).remapAndSavePackIds(packId, resolvedPackId);
+                DevConfig.get().save();
+            }
+
             Pack resolvedPack = this.map.get(resolvedPackId);
             if (resolvedPack != null) {
                 PackedPacks.LOGGER.info("[packed_packs] Resolved unknown pack '{}' to '{}'.", packId, resolvedPackId);

@@ -23,6 +23,8 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 
 public class VTDIntegration extends ModIntegration {
+    private static final int PENCIL_MARGIN_RIGHT = 1;
+
     @Override
     public ModContext mod() {
         return FabricMod.VTD;
@@ -36,33 +38,28 @@ public class VTDIntegration extends ModIntegration {
         api.eventBus().register(InitializeLayoutEvent.class, this.id(), ModIntegration.id(Mod.ETF), event -> {
             ScreenContext ctx = event.screenContext();
             if (ctx.isClientResources()) {
-                var button = ctx.bindPreference(api.preferences(), vtdButtonPrefKey, this.createButton(ctx.screen()));
-                if (button != null) {
-                    event.addWidget(InitializeLayoutEvent.Pos.AFTER_TITLE, button);
-                }
+                var button = ctx.bindPreference(vtdButtonPrefKey, this.createButton(ctx.screen()));
+                if (button != null) event.addWidget(InitializeLayoutEvent.Pos.AFTER_TITLE, button);
             }
         });
 
         api.eventBus().register(InitializePackEntryEvent.class, this.id(), event -> {
             ScreenContext ctx = event.screenContext();
             if (ctx.isClientResources()) {
-                var button = ctx.bindPreference(api.preferences(), vtdEditButtonPrefKey, VTDEditButtonWidget.create(
+                var button = ctx.bindPreference(vtdEditButtonPrefKey, VTDEditButtonWidget.create(
                         vtdEditButtonPrefKey,
                         ctx.screen(),
                         event.packContext().pack(),
-                        event.packContext().fileModifiable()
+                        event.packContext()::fileModifiable
                 ));
-
-                if (button != null) {
-                    event.addBottomRight(1, button);
-                }
+                if (button != null) event.addBottomRight(PENCIL_MARGIN_RIGHT, button);
             }
         });
 
         api.eventBus().register(ContextMenuEvent.Preferences.class, this.id(), List.of(id(Mod.RESPACKOPTS), id(Mod.ETF)), event -> {
             if (event.screenContext().isClientResources()) {
-                event.addToggle(api.preferences(), vtdButtonPrefKey, getWidgetPrefText(vtdButtonPrefKey));
-                event.addToggle(api.preferences(), vtdEditButtonPrefKey, getWidgetPrefText(vtdEditButtonPrefKey));
+                event.addToggle(vtdButtonPrefKey, getWidgetPrefText(vtdButtonPrefKey));
+                event.addToggle(vtdEditButtonPrefKey, getWidgetPrefText(vtdEditButtonPrefKey));
             }
         });
     }

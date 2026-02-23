@@ -1,47 +1,45 @@
 package io.github.fishstiz.packed_packs.gui.components.pack;
 
+import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import io.github.fishstiz.fidgetz.gui.components.*;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuContainer;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuilder;
-import io.github.fishstiz.fidgetz.gui.layouts.*;
 import io.github.fishstiz.fidgetz.gui.renderables.ColoredRect;
+import io.github.fishstiz.fidgetz.gui.renderables.GradientRect;
+import io.github.fishstiz.fidgetz.gui.renderables.sprites.GuiSprite;
+import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import io.github.fishstiz.fidgetz.util.DrawUtil;
 import io.github.fishstiz.fidgetz.util.GuiUtil;
-import io.github.fishstiz.packed_packs.api.context.PackContext;
+import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
 import io.github.fishstiz.packed_packs.api.events.InitializePackEntryEvent;
-import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.config.Preferences;
+import io.github.fishstiz.packed_packs.gui.FocusPathProvider;
+import io.github.fishstiz.packed_packs.gui.FocusTarget;
 import io.github.fishstiz.packed_packs.gui.components.MouseSelectionHandler;
-import io.github.fishstiz.packed_packs.gui.components.SelectionContext;
+import io.github.fishstiz.packed_packs.gui.components.PreferenceToggle;
 import io.github.fishstiz.packed_packs.gui.components.contextmenu.PackMenuHeader;
-import io.github.fishstiz.packed_packs.gui.components.events.PackListEventListener;
-import io.github.fishstiz.packed_packs.gui.history.Restorable;
-import io.github.fishstiz.packed_packs.gui.components.ToggleableHelper;
+import io.github.fishstiz.packed_packs.gui.model.PackListKey;
+import io.github.fishstiz.packed_packs.gui.model.PackListUtils;
+import io.github.fishstiz.packed_packs.gui.model.PackListViewModel;
+import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
-import io.github.fishstiz.packed_packs.impl.context.PackContextImpl;
 import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
-import io.github.fishstiz.packed_packs.pack.PackAssetManager;
-import io.github.fishstiz.packed_packs.pack.PackFileOperations;
-import io.github.fishstiz.packed_packs.pack.PackOptionsContext;
-import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.util.PackUtil;
-import io.github.fishstiz.packed_packs.util.ToastUtil;
-import io.github.fishstiz.packed_packs.util.constants.GuiConstants;
 import io.github.fishstiz.packed_packs.util.constants.Theme;
-import io.github.fishstiz.packed_packs.gui.components.events.*;
 import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.components.SelectableEntry;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.navigation.FocusNavigationEvent;
+import net.minecraft.client.gui.navigation.ScreenDirection;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -50,347 +48,366 @@ import java.util.*;
 
 import static io.github.fishstiz.fidgetz.util.GuiUtil.playClickSound;
 import static io.github.fishstiz.packed_packs.util.InputUtil.*;
+import static io.github.fishstiz.packed_packs.util.ResourceUtil.getVanilla;
 import static io.github.fishstiz.packed_packs.util.constants.GuiConstants.*;
 import static io.github.fishstiz.fidgetz.util.lang.ObjectsUtil.*;
 
-public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> implements
-        Restorable<PackList.Snapshot>,
-        ContainerEventHandlerPatch,
-        ContextMenuContainer {
-    protected static final int Y_OFFSET = 1;
-    protected static final int ITEM_HEIGHT = 35;
-    protected static final int ROW_GAP = 3;
-    protected final PackOptionsContext options;
-    protected final PackAssetManager assets;
-    protected final PackListModel list;
-    private final PackFileOperations fileOps;
-    private final PackListEventListener listener;
+public class PackList extends AbstractFixedListWidget<PackList.Entry> implements FocusPathProvider, ContainerEventHandlerPatch, ContextMenuContainer {
+    private static final int Y_OFFSET = 1;
+    private static final int ITEM_HEIGHT = 35;
+    private static final int ROW_GAP = 3;
+    private static final double SCROLL_STEP = 10;
+    private static final int DROP_INDEX_PADDING = 3;
+    private final ScreenContext screenContext;
+    private final PackListViewModel viewModel;
+    private Theme dropTheme;
+    private ColoredRect dropRect;
+    private ColoredRect dropIndexRect;
+    private GradientRect scrollUpRect;
+    private GradientRect scrollDownRect;
+    private boolean scrolling;
 
-    protected PackList(PackOptionsContext options, PackAssetManager assets, PackFileOperations fileOps, PackListEventListener listener) {
+    public PackList(ScreenContext screenContext, PackListViewModel viewModel) {
         super(ITEM_HEIGHT);
-        this.assets = assets;
-        this.options = options;
-        this.fileOps = fileOps;
-        this.listener = listener;
-        this.list = new PackListModel(this.options);
+        this.screenContext = screenContext;
+        this.viewModel = viewModel;
+        this.applyTheme();
+        this.refresh();
+        this.viewModel.subscribe(PackListViewModel.Property.PACKS, this::refresh);
+        this.viewModel.subscribe(PackListViewModel.Property.SELECTION, this::refreshSelected);
     }
 
-    protected abstract @NonNull Entry createEntry(PackContext context, SelectionContext<Pack> selectionContext, int index);
+    public PackListKey key() {
+        return this.viewModel.key();
+    }
 
-    public @Nullable Entry getEntry(@Nullable Pack pack) {
-        if (pack == null) return null;
-        for (Entry entry : this.children()) {
-            if (Objects.equals(entry.pack(), pack)) return entry;
+    private void applyTheme() {
+        if (this.viewModel.supportsReordering()) {
+            this.dropTheme = Theme.GREEN_500;
+            this.dropIndexRect = new ColoredRect(dropTheme.getARGB());
+            this.scrollUpRect = GradientRect.fromTop(dropTheme.withAlpha(0.75f), dropTheme.withAlpha(0));
+            this.scrollDownRect = this.scrollUpRect.flip();
+        } else {
+            this.dropTheme = Theme.RED_700;
+            this.dropRect = new ColoredRect(dropTheme.withAlpha(0.25f));
         }
-        return null;
     }
 
-    private void refreshEntries() {
+    private void refresh() {
         Entry focused = this.getFocused();
-        List<Pack> selection = this.list.getSelection();
-        List<Pack> visiblePacks = this.list.getVisibleItems();
+
+        this.setFocused(null);
+        this.setSelected(null);
 
         this.clearEntries();
-        for (int i = 0; i < visiblePacks.size(); i++) {
-            Pack pack = visiblePacks.get(i);
-            PackContext context = new PackContextImpl(pack, this.assets, this.fileOps);
-            Entry entry = this.createEntry(context, new SelectionContext<>(selection, pack), i);
-            InitializePackEntryEvent event = new InitializePackEntryEvent(listener.ctx(), context, entry, entry::addTopLayer);
-            PackedPacksApiImpl.getInstance().eventBus().post(event);
 
-            this.addEntry(entry);
-        }
+        this.viewModel.forEachEntry((entry, i) -> {
+            Entry listEntry = new Entry(entry, i);
+            this.addEntry(listEntry);
+
+            if (entry.selectedLast()) {
+                this.setSelected(listEntry);
+            }
+            if (focused != null && focused.pack().equals(entry.pack())) {
+                this.setFocused(listEntry);
+            }
+        });
 
         this.clampScrollAmount();
-        this.setFocused(mapOrNull(focused, f -> this.getEntry(f.pack())));
     }
 
-    protected void refreshList() {
-        this.list.refresh();
-        this.refreshEntries();
+    private void refreshSelected() {
+        Entry selected = this.selected;
+        if (selected != null && !selected.viewModel.selectedLast()) {
+            this.selected = null;
+        }
+    }
+
+    @Override
+    public void setSelected(@Nullable Entry selected) {
+        if (selected == null || selected.viewModel.selectedLast()) {
+            this.selected = selected;
+        }
+    }
+
+    @Override
+    public @Nullable Entry getSelected() {
+        Entry selected = super.getSelected();
+        if (selected == null && !this.viewModel.hasSelection()) {
+            return this.selected = null;
+        }
+        if (selected != null && selected.viewModel.selectedLast()) {
+            return selected;
+        }
+        for (Entry entry : this.children()) {
+            if (entry.viewModel.selectedLast()) {
+                return this.selected = entry;
+            }
+        }
+        return selected;
     }
 
     public void scrollToTop() {
         this.setScrollAmount(0);
     }
 
-    public void reload(Collection<Pack> packs) {
-        this.list.replaceAll(packs);
-        this.setFocused(null);
-        this.refresh();
+    public void scrollToLastSelected() {
+        ifPresent(this.getSelected(), this::scrollToEntry);
     }
 
-    public @NonNull List<Pack> copyPacks() {
-        return List.copyOf(this.list.getItems());
+    private void scrollStep(boolean up, float partialTick) {
+        double scrollAmount = this.scrollAmount();
+        if (up) {
+            scrollAmount -= SCROLL_STEP * partialTick;
+        } else {
+            scrollAmount += SCROLL_STEP * partialTick;
+        }
+
+        this.scrolling = true;
+        this.setClampedScrollAmount(scrollAmount);
     }
 
-    public List<Pack> getOrderedSelection() {
-        return this.list.getOrderedSelection();
+    private int getDropIndex(double mouseY) {
+        if (this.children().isEmpty()) return -1;
+
+        int index = this.getRowIndex(mouseY);
+        if (index == -1) return -1;
+
+        Entry entry = this.getEntry(index);
+        int centerY = entry.getY() + (entry.getHeight() / 2);
+
+        if (mouseY >= centerY) {
+            int next = index + 1;
+            return next < this.children().size() ? next : -1;
+        }
+        return index;
     }
 
-    public void clearSelection() {
-        this.list.clearSelection();
+    private boolean isMouseOverSelectionEntry(SequencedCollection<Pack> selection, double mouseX, double mouseY, int index) {
+        if (index < 0 || index >= this.children().size()) return false;
+
+        Entry entry = this.children().get(index);
+        if (entry == null) return false;
+
+        return entry.isMouseOver(mouseX, mouseY) && selection.contains(entry.pack());
     }
 
-    private void refresh() {
-        this.clearSelection();
-        this.refreshList();
-        this.scrollToTop();
+    private boolean isMouseOverSelection(SequencedCollection<Pack> selection, double mouseX, double mouseY, int index) {
+        return this.isMouseOverSelectionEntry(selection, mouseX, mouseY, index - 1) || this.isMouseOverSelectionEntry(selection, mouseX, mouseY, index);
     }
 
-    public void sort(Query.SortOption sort) {
-        if (this.list.sort(sort)) {
-            this.refresh();
+    private boolean canDropAt(ActiveAction.Dragging dragging, int mouseX, int mouseY, int index) {
+        if (this.scrolling || (dragging.target() == this.key() && this.isMouseOverSelection(dragging.payload(), mouseX, mouseY, index))) {
+            return false;
+        }
+        return this.viewModel.canDrop(dragging.target(), dragging.ctx().pack(), dragging.payload(), index);
+    }
+
+    private void renderDropIndex(GuiGraphics guiGraphics, int x, int width, int index) {
+        int rowTop = Math.clamp(
+                this.getRowTop(index != -1 ? index : this.children().size()),
+                this.getY() + this.offsetY + DROP_INDEX_PADDING,
+                this.getBottom() - this.rowGap - DROP_INDEX_PADDING
+        );
+        int indexY = rowTop - this.rowGap - DROP_INDEX_PADDING;
+
+        guiGraphics.enableScissor(this.getX(), this.getY(), this.getRight(), this.getBottom());
+        this.dropIndexRect.render(guiGraphics, x, indexY, width, rowTop - indexY + DROP_INDEX_PADDING);
+        guiGraphics.disableScissor();
+    }
+
+    private void renderDroppableSlots(GuiGraphics guiGraphics, ActiveAction.Dragging dragging, int mouseX, int mouseY, float partialTick) {
+        int x = this.getX();
+        int y = this.getY();
+        int width = this.scrollbarVisible() ? this.getWidth() - this.scrollbarOffset : this.getWidth();
+        int height = this.getHeight();
+        int bottom = this.getBottom();
+
+        if (this.isMouseOver(mouseX, mouseY)) {
+            double scrollAmount = this.scrollAmount();
+
+            int scrollDownY = bottom - this.getItemHeight();
+            if (scrollAmount < this.maxScrollAmount() && mouseY >= scrollDownY) {
+                this.scrollDownRect.render(guiGraphics, x, scrollDownY, width, this.getItemHeight());
+                this.scrollStep(false, partialTick);
+            } else if (scrollAmount > 0 && mouseY <= y + this.getItemHeight()) {
+                this.scrollUpRect.render(guiGraphics, x, y, width, this.getItemHeight());
+                this.scrollStep(true, partialTick);
+            } else {
+                this.scrolling = false;
+            }
+
+            int index = this.getDropIndex(mouseY);
+            if (this.canDropAt(dragging, mouseX, mouseY, index)) {
+                this.renderDropIndex(guiGraphics, x, width, index);
+            }
+        }
+
+        DrawUtil.renderOutline(guiGraphics, x, y, width, height, dropTheme.getARGB());
+    }
+
+    private void renderDroppableRect(GuiGraphics guiGraphics, ActiveAction.Dragging dragging, int mouseX, int mouseY, float partialTick) {
+        if (this.canDropAt(dragging, mouseX, mouseY, 0)) {
+            if (this.isMouseOver(mouseX, mouseY)) {
+                this.dropRect.render(guiGraphics, this.getX(), this.getY(), width, this.getHeight(), partialTick);
+            }
+            DrawUtil.renderOutline(guiGraphics, this.getX(), this.getY(), width, this.getHeight(), this.dropTheme.getARGB());
         }
     }
 
-    public void hideIncompatible(boolean hideIncompatible) {
-        if (this.list.hideIncompatible(hideIncompatible)) {
-            this.clearSelection();
-            this.refreshList();
+    public void renderDroppableZone(GuiGraphics guiGraphics, ActiveAction.Dragging dragging, int mouseX, int mouseY, float partialTick) {
+        if (!this.viewModel.locked() && PackListUtils.canInteract(dragging.target(), this.key())) {
+            if (this.viewModel.supportsReordering()) {
+                this.renderDroppableSlots(guiGraphics, dragging, mouseX, mouseY, partialTick);
+            } else {
+                this.renderDroppableRect(guiGraphics, dragging, mouseX, mouseY, partialTick);
+            }
         }
     }
 
-    public void search(@NonNull String search) {
-        if (this.list.search(search)) {
-            this.refresh();
+    public void onDrop(ActiveAction.Dragging dragging, int mouseX, int mouseY) {
+        int index = this.getDropIndex(mouseY);
+        if (this.canDropAt(dragging, mouseX, mouseY, index)) {
+            this.viewModel.applyDrop(dragging.target(), dragging.ctx(), dragging.payload(), index);
+        } else {
+            this.viewModel.cancelDrop(dragging.target(), dragging.ctx(), dragging.payload());
         }
     }
 
-    public boolean isQueried() {
-        return this.list.isQueried();
-    }
-
-    public void addAll(List<Pack> packs) {
-        for (Pack pack : packs) {
-            this.list.add(pack);
+    private @Nullable Entry getEntry(String packId) {
+        for (Entry entry : this.children()) {
+            if (entry.pack().getId().equals(packId)) {
+                return entry;
+            }
         }
-        this.refreshList();
+        return null;
     }
 
-    public void addOrMove(Pack pack, int to) {
-        this.list.insertOrMove(to, pack);
-        this.list.select(pack);
+    private @Nullable Entry getNextEntryAt(ScreenDirection direction) {
+        if (this.children().isEmpty()) return null;
+
+        Entry selectedEntry = firstNonNull(this.getFocused(), this.getSelected());
+        return switch (direction) {
+            case UP -> selectedEntry != null && this.children().getFirst().equals(selectedEntry)
+                    ? selectedEntry
+                    : this.getPreviousEntry(selectedEntry);
+            case DOWN -> selectedEntry != null && this.children().getLast().equals(selectedEntry)
+                    ? selectedEntry
+                    : this.getNextEntry(selectedEntry);
+            case LEFT -> this.key().type().available() ? selectedEntry : null;
+            case RIGHT -> this.key().type().enabled() ? selectedEntry : null;
+        };
     }
 
-    public boolean moveAll(List<Pack> selection, int to) {
-        if (this.list.moveAll(to, selection)) {
-            this.refreshList();
+    @Override
+    public @Nullable ComponentPath getFocusPath(FocusTarget target) {
+        if (this.children().isEmpty()) return null;
+
+        Entry targetEntry = switch (target) {
+            case FocusTarget.LastSelected ignored -> this.getSelected();
+            case FocusTarget.PackEntry entry -> this.getEntry(entry.packId());
+        };
+
+        return targetEntry == null ? null : new ListPath(this, targetEntry, target.scroll(), false);
+    }
+
+    @Override
+    public @Nullable ComponentPath nextFocusPath(@NonNull FocusNavigationEvent event) {
+        if (this.children().isEmpty()) return null;
+
+        Entry next = switch (event) {
+            case FocusNavigationEvent.InitialFocus ignored -> firstNonNull(this.getFocused(), this.getSelected());
+            case FocusNavigationEvent.TabNavigation ignored -> this.isFocused()
+                    ? null
+                    : Objects.requireNonNullElse(this.getSelected(), this.children().getFirst());
+            case FocusNavigationEvent.ArrowNavigation(ScreenDirection direction) -> this.isFocused()
+                    ? this.getNextEntryAt(direction)
+                    : Objects.requireNonNullElse(this.getSelected(), this.children().getFirst());
+            default -> null;
+        };
+
+        return next == null ? null : ListPath.path(this, next);
+    }
+
+    record ListPath(PackList component, Entry child, boolean scroll, boolean select) implements ComponentPath {
+        static ListPath path(PackList component, Entry child) {
+            return new ListPath(component, child, true, true);
+        }
+
+        @Override
+        public void applyFocus(boolean focused) {
+            this.child.setFocused(focused);
+            if (!focused) {
+                this.component.setFocused(null);
+                return;
+            }
+            this.component.setFocused(this.child);
+            if (this.scroll) {
+                this.component.scrollToEntry(this.child);
+            }
+            if (this.select && !this.child.viewModel.selectedLast()) {
+                this.child.viewModel.select();
+            }
+        }
+    }
+
+    private void selectOnKeyPress(@Nullable Entry entry) {
+        if (entry == null) return;
+        if (isRangeModifierActive()) {
+            entry.viewModel.selectRange();
+        } else {
+            entry.viewModel.selectExclusive();
+        }
+        this.setFocused(entry);
+        this.scrollToEntry(entry);
+    }
+
+    @Override
+    public boolean keyPressed(@NonNull KeyEvent keyEvent) {
+        if (isSelectAll(keyEvent)) {
+            this.viewModel.selectAll();
             return true;
         }
-        return true;
-    }
-
-    private boolean removePack(Pack pack) {
-        Entry focused = this.getFocused();
-        if (this.list.remove(pack)) {
-            if (focused != null && focused.pack().getId().equals(pack.getId())) {
-                this.setFocused(null);
-            }
+        if (super.keyPressed(keyEvent)) {
+            return true;
+        }
+        if (isUp(keyEvent) || isDown(keyEvent)) {
+            this.selectOnKeyPress(this.getNextEntryAt(isUp(keyEvent) ? ScreenDirection.UP : ScreenDirection.DOWN));
+            return true;
+        }
+        if (isHome(keyEvent) || isEnd(keyEvent)) {
+            if (this.children().isEmpty()) return true;
+            this.selectOnKeyPress(isHome(keyEvent) ? this.children().getFirst() : this.children().getLast());
+            return true;
+        }
+        if (isPageUp(keyEvent) || isPageDown(keyEvent)) {
+            if (this.children().isEmpty()) return true;
+            int pageSize = Math.max(1, this.getHeight() / this.getItemHeight());
+            Entry selected = firstNonNull(this.getFocused(), this.getSelected());
+            int currentIndex = selected != null ? this.children().indexOf(selected) : 0;
+            int targetIndex = isPageUp(keyEvent)
+                    ? Math.max(0, currentIndex - pageSize)
+                    : Math.min(this.children().size() - 1, currentIndex + pageSize);
+            Entry entry = this.children().get(targetIndex);
+            this.selectOnKeyPress(entry);
             return true;
         }
         return false;
     }
 
-    public void remove(Pack pack) {
-        this.removePack(pack);
-        this.refreshList();
-    }
-
-    public void removeAll(List<Pack> packs) {
-        boolean removed = false;
-        for (Pack pack : packs) {
-            removed |= this.removePack(pack);
-        }
-        if (removed) {
-            this.refreshList();
-        }
-    }
-
-    public @Nullable Pack getLastSelected() {
-        return this.list.getLastSelected();
-    }
-
     @Override
-    public @Nullable Entry getSelected() {
-        return this.getLastSelected() != null ? this.getEntry(this.getLastSelected()) : super.getSelected();
-    }
-
-    @Override
-    public void setSelected(@Nullable Entry selected) {
-        this.selected = selected;
-    }
-
-    public boolean isSelected(Pack pack) {
-        return this.list.isSelected(pack);
-    }
-
-    public void scrollToLastSelected() {
-        ifPresent(this.getEntry(this.getLastSelected()), this::scrollToEntry);
-    }
-
-    public void unselect(Pack pack) {
-        this.list.unselect(pack);
-
-        Entry entry = this.getEntry(pack);
-        if (entry == this.getFocused()) {
-            this.setFocused(null);
-        }
-        if (entry == this.getSelected()) {
-            this.setSelected(null);
-        }
-    }
-
-    public void select(Pack pack) {
-        if (this.list.select(pack)) {
-            Entry entry = this.getEntry(pack);
-            this.setFocused(entry);
-            this.setSelected(entry);
-        }
-    }
-
-    public void selectAll() {
-        this.list.getVisibleItems().forEach(this::select);
-    }
-
-    public void selectAll(List<Pack> packs) {
-        packs.forEach(this::select);
-    }
-
-    public void selectExclusive(Pack pack) {
-        this.clearSelection();
-        this.select(pack);
-    }
-
-    public void selectToggle(Pack pack) {
-        if (this.isSelected(pack)) {
-            this.unselect(pack);
-        } else {
-            this.select(pack);
-        }
-    }
-
-    public void selectRange(Pack pack) {
-        this.list.selectRange(pack);
-        this.select(pack);
-    }
-
-    public boolean isTransferable(Pack pack) {
-        return testNullable(this.getEntry(pack), PackList.Entry::isTransferable);
-    }
-
-    public void transferAll() {
-        List<Pack> payload = new ArrayList<>();
-        List<Pack> visiblePacks = this.list.getVisibleItems();
-        for (int i = visiblePacks.size() - 1; i >= 0; i--) {
-            Pack pack = visiblePacks.get(i);
-            if (this.isTransferable(pack)) {
-                payload.add(pack);
-            }
-        }
-        if (!payload.isEmpty()) {
-            this.sendEvent(new RequestTransferEvent(this, this.getLastSelected(), payload));
-        }
-    }
-
-    protected void sendEvent(PackListEvent event) {
-        this.listener.onEvent(event);
-    }
-
-    public abstract boolean canInteract(PackList source);
-
-    protected abstract boolean canDrop(DragEvent dragEvent, double mouseX, double mouseY);
-
-    protected abstract List<Pack> handleDrop(DragEvent dragEvent, double mouseX, double mouseY);
-
-    public abstract void renderDroppableZone(GuiGraphics guiGraphics, DragEvent dragEvent, int mouseX, int mouseY, float partialTick);
-
-    public final void drop(DragEvent dragEvent, double mouseX, double mouseY) {
-        if (this.options.isLocked()) return;
-
-        List<Pack> dropped = this.handleDrop(dragEvent, mouseX, mouseY);
-        if (!dropped.isEmpty()) {
-            if (dragEvent.target() != this) {
-                this.sendEvent(new DropEvent(dragEvent.target(), this, dropped));
-            } else {
-                this.sendEvent(new MoveEvent(this, dragEvent.trigger(), dropped));
-            }
-        }
-    }
-
-    protected void openFolder(FolderPack folderPack) {
-        this.sendEvent(new FolderOpenEvent(this, folderPack));
-    }
-
-    private @Nullable ComponentPath handleArrowNavigation(FocusNavigationEvent.ArrowNavigation arrowNavigation) {
-        Entry entry = switch (arrowNavigation.direction()) {
-            case UP -> this.getPreviousEntry();
-            case DOWN -> this.getNextEntry();
-            default -> null;
-        };
-        if (entry != null) {
-            if (isRangeModifierActive()) {
-                this.selectRange(entry.pack());
-            } else {
-                this.selectExclusive(entry.pack());
-            }
-            this.sendEvent(new SelectionEvent(this));
-            this.scrollToEntry(entry);
-            return ComponentPath.path(entry, this);
-        }
-        this.setFocused(null);
-        return null;
-    }
-
-    @Override
-    public @Nullable ComponentPath nextFocusPath(FocusNavigationEvent event) {
-        if (!this.isFocused()) {
-            Pack lastSelected = this.getLastSelected();
-            Entry entry = null;
-            if (lastSelected != null) {
-                entry = this.getEntry(lastSelected);
-            } else if (!this.children().isEmpty()) {
-                entry = this.children().getFirst();
-            }
-            if (entry != null) {
-                this.select(entry.pack());
-                this.scrollToEntry(entry);
-                return ComponentPath.path(entry, this);
-            }
-        } else if (event instanceof FocusNavigationEvent.ArrowNavigation arrowNavigation) {
-            return this.handleArrowNavigation(arrowNavigation);
-        } else {
-            this.setFocused(null);
-        }
-        return null;
-    }
-
-    @Override
-    public boolean keyPressed(KeyEvent keyEvent) {
-        Entry entry = this.getEntry(this.getLastSelected());
-        if (isExpandFolder(keyEvent) && entry != null && entry.folderWidget != null && this.list.getSelection().size() == 1) {
-            this.openFolder(entry.folderWidget.getMetadata());
-            return true;
-        }
-        if (isTransfer(keyEvent)) {
-            if (entry != null && entry.transfer()) {
-                playClickSound();
-            }
-            return entry != null;
-        }
-        return super.keyPressed(keyEvent);
-    }
-
-    @Override
-    public boolean mouseClicked(MouseButtonEvent mouseButtonEvent, boolean doubleClicked) {
+    public boolean mouseClicked(@NonNull MouseButtonEvent mouseButtonEvent, boolean doubleClicked) {
         boolean scrolling = this.updateScrolling(mouseButtonEvent);
-        return this.isMouseOver(mouseButtonEvent.x(), mouseButtonEvent.y()) &&
-               ContainerEventHandlerPatch.super.mouseClickedAt(mouseButtonEvent, doubleClicked) ||
-               scrolling;
+        return ContainerEventHandlerPatch.super.mouseClicked(mouseButtonEvent, doubleClicked) || scrolling;
     }
 
     @Override
-    protected void renderListItems(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public @NonNull List<Entry> children() {
+        return this.children;
+    }
+
+    @Override
+    protected void renderListItems(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         super.renderListItems(guiGraphics, mouseX, mouseY, partialTick);
 
         Entry focused = this.getFocused();
@@ -402,189 +419,122 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
     }
 
     @Override
+    protected void renderItem(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, Entry item) {
+        item.ensureInitialized();
+        super.renderItem(guiGraphics, mouseX, mouseY, partialTick, item);
+    }
+
+    @Override
     public int maxScrollAmount() {
         int maxScrollAmount = super.maxScrollAmount();
         return maxScrollAmount > 0 ? maxScrollAmount + Y_OFFSET : maxScrollAmount;
     }
 
-    public @NonNull Snapshot captureState(String eventName) {
-        return new Snapshot(this);
-    }
-
-    public void replaceState(@NonNull Snapshot snapshot) {
-        snapshot.model.restore();
-        this.refreshEntries();
-        this.setFocused(this.getEntry(snapshot.focused));
-        this.setSelected(this.getEntry(snapshot.selected));
-    }
-
-    public record Snapshot(
-            PackList target,
-            @Nullable Pack focused,
-            @Nullable Pack selected,
-            PackListModel.Snapshot model
-    ) implements Restorable.Snapshot<Snapshot> {
-        public Snapshot(PackList target, PackListModel.Snapshot model) {
-            this(target, extractPack(target.getFocused()), extractPack(target.getSelected()), model);
-        }
-
-        public Snapshot(PackList target) {
-            this(target, target.list.captureState());
-        }
-
-        public Snapshot replaceAll(List<Pack> packs) {
-            return new Snapshot(this.target, this.focused, this.selected, this.model.replaceAll(packs));
-        }
-
-        public Snapshot retainAll(Set<Pack> packs) {
-            return new Snapshot(this.target, this.focused, this.selected, this.model.retainAll(packs));
-        }
-    }
-
-    private static @Nullable Pack extractPack(@Nullable Entry entry) {
-        return mapOrNull(entry, Entry::pack);
-    }
-
-    public abstract class Entry extends AbstractFixedListWidget<Entry>.Entry implements ContainerEventHandlerPatch, ContextMenuContainer {
+    public class Entry extends AbstractFixedListWidget<Entry>.Entry implements SelectableEntry, ContainerEventHandlerPatch, ContextMenuContainer {
         private static final int V_MARGIN = ROW_GAP / 2 + Y_OFFSET;
         private static final int BACKGROUND_MARGIN = 1;
+        private static final int H_SPACING = 2;
+        private static final int ICON_SIZE = ITEM_HEIGHT - ROW_GAP;
         private static final Tooltip FOLDER_OPEN_INFO = Tooltip.create(FolderPack.FOLDER_OPEN_TEXT);
-        protected static final int H_SPACING = 2;
-        protected static final ColoredRect SELECTED_OVERLAY = new ColoredRect(Theme.BLUE_500.withAlpha(0.25F));
-        protected final PackContext context;
-        protected final SelectionContext<Pack> selectionContext;
-        private final MouseSelectionHandler<Pack> selectionHandler;
+        private static final ColoredRect SELECTED_OVERLAY = new ColoredRect(Theme.BLUE_500.withAlpha(0.25F));
+        private static final Sprite SELECT_HIGHLIGHTED_SPRITE = GuiSprite.of32(getVanilla("transferable_list/select_highlighted"));
+        private static final Sprite SELECT_SPRITE = GuiSprite.of32(getVanilla("transferable_list/select"));
+        private static final Sprite UNSELECT_HIGHLIGHTED_SPRITE = GuiSprite.of32(getVanilla("transferable_list/unselect_highlighted"));
+        private static final Sprite UNSELECT_SPRITE = GuiSprite.of32(getVanilla("transferable_list/unselect"));
+        private static final Sprite MOVE_UP_HIGHLIGHTED_SPRITE = GuiSprite.of32(getVanilla("transferable_list/move_up_highlighted"));
+        private static final Sprite MOVE_UP_SPRITE = GuiSprite.of32(getVanilla("transferable_list/move_up"));
+        private static final Sprite MOVE_DOWN_HIGHLIGHTED_SPRITE = GuiSprite.of32(getVanilla("transferable_list/move_down_highlighted"));
+        private static final Sprite MOVE_DOWN_SPRITE = GuiSprite.of32(getVanilla("transferable_list/move_down"));
+        private final PackListViewModel.Entry viewModel;
+        private final MouseSelectionHandler selectionHandler;
         private final List<GuiEventListener> children = new ObjectArrayList<>();
         private final List<Renderable> renderables = new ObjectArrayList<>();
         private final List<Renderable> topRenderables = new ObjectArrayList<>();
-        private final PackWidget packWidget;
-        private final @Nullable PackListDevMenu devMenu;
-        private FidgetzButton<FolderPack> folderWidget;
-        private boolean stale = false;
+        private @Nullable PackWidget packWidget;
+        private @Nullable FidgetzButton<Void> folderWidget;
+        private @Nullable PackListDevMenu devMenu;
+        private boolean initialized;
 
-        protected Entry(PackContext context, SelectionContext<Pack> selectionContext, int index) {
+        Entry(PackListViewModel.Entry viewModel, int index) {
             super(index);
-            this.context = context;
-            this.selectionContext = selectionContext;
-            this.selectionHandler = new MouseSelectionHandler<>(this, selectionContext);
-            this.packWidget = this.addRenderableWidget(new PackWidget(
-                    this.pack(),
-                    PackList.this.assets,
-                    this.getX(),
-                    PackList.this.getRowTop(this.index),
-                    this.getWidth(),
-                    ITEM_HEIGHT - ROW_GAP,
-                    H_SPACING
-            ));
-            boolean devMode = Config.get().isDevMode();
-            if (this.pack() instanceof FolderPack folderPack && (devMode || Preferences.INSTANCE.folderPackWidget.get())) {
-                this.folderWidget = this.addTopRenderableOnly(this.prependWidget(
-                        ToggleableHelper.applyPref(Preferences.INSTANCE.folderPackWidget, FidgetzButton.<FolderPack>builder())
-                                .setTooltip(FOLDER_OPEN_INFO)
-                                .setHeight(this.packWidget.getHeight() / 3)
-                                .makeSquare()
-                                .setSprite(GuiConstants.HAMBURGER_SPRITE)
-                                .setFocusOnInteract(false)
-                                .setMetadata(folderPack)
-                                .setOnPress(this::openFolder)
-                                .build()
-                ));
+            this.viewModel = viewModel;
+            this.selectionHandler = new MouseSelectionHandler(this, viewModel::selected, viewModel::selectedLast, viewModel::selectedExclusive);
+        }
+
+        private void ensureInitialized() {
+            if (!this.initialized) this.init();
+        }
+
+        private void init() {
+            this.packWidget = this.addRenderableOnly(new PackWidget(PackList.this.minecraft, this.viewModel, ITEM_HEIGHT - ROW_GAP, H_SPACING));
+            this.folderWidget = this.addTopLayer(this.viewModel.folder().flatMap(pack ->
+                    PreferenceToggle.bind(Preferences.FOLDER_PACK_WIDGET, FidgetzButton.<Void>builder())
+                            .map(bound -> bound.value().setTooltip(FOLDER_OPEN_INFO)
+                                    .setHeight(this.packWidget.getHeight() / 3)
+                                    .makeSquare()
+                                    .setContextMenuBuilder(bound.apply(toggle -> (btn, b) -> toggle.updateBuilder(b)))
+                                    .setForeground(bound.toggle())
+                                    .setSprite(HAMBURGER_SPRITE)
+                                    .setOnPress(this.viewModel::openFolder)
+                                    .build())).orElse(null));
+
+            if (PackList.this.screenContext.devMode()) {
+                this.devMenu = this.viewModel.devMenu(PackList.this.minecraft);
             }
-            this.devMenu = devMode
-                    ? new PackListDevMenu(PackList.this.minecraft, PackList.this.options, this.selectionContext, this::handleDevMenuEvent)
-                    : null;
+
+            this.initialized = true;
+
+            InitializePackEntryEvent event = new InitializePackEntryEvent(PackList.this.screenContext, this.viewModel, this, this::addTopLayer);
+            PackedPacksApiImpl.getInstance().eventBus().post(event);
         }
 
         public Pack pack() {
-            return this.context.pack();
+            return this.viewModel.pack();
         }
 
-        public <U extends GuiEventListener & Renderable> U addRenderableWidget(U widget) {
-            this.children.add(widget);
-            this.renderables.add(widget);
-            return widget;
+        public <T extends Renderable> T addRenderableOnly(T renderable) {
+            if (renderable == null) return null;
+            this.renderables.add(renderable);
+            return renderable;
         }
 
-        public <U extends GuiEventListener> U prependWidget(U widget) {
+        public <T extends GuiEventListener> T prependWidget(T widget) {
+            if (widget == null) return null;
             this.children.addFirst(widget);
             return widget;
         }
 
-        public <U extends Renderable> U addTopRenderableOnly(U renderable) {
+        public <T extends Renderable> T addTopRenderableOnly(T renderable) {
+            if (renderable == null) return null;
             this.topRenderables.add(renderable);
             return renderable;
         }
 
-        public <U extends GuiEventListener & Renderable> void addTopLayer(U widget) {
-            this.addTopRenderableOnly(this.prependWidget(widget));
+        public <T extends GuiEventListener & Renderable> T addTopLayer(T widget) {
+            if (widget == null) return null;
+            return this.addTopRenderableOnly(this.prependWidget(widget));
         }
 
-        public boolean isTransferable() {
-            return !PackList.this.options.isLocked() && !this.isStale();
-        }
-
-        public boolean isSelected() {
-            return this.selectionContext.isSelected();
-        }
-
-        public boolean isSelectedLast() {
-            return this.selectionContext.isSelectedLast();
-        }
-
-        protected void sendPacks(Pack trigger, List<Pack> payload) {
-            PackList.this.sendEvent(new RequestTransferEvent(PackList.this, trigger, payload));
-        }
-
-        private boolean sendSelection() {
-            List<Pack> payload = new ObjectArrayList<>();
-
-            for (Pack selected : PackList.this.getOrderedSelection().reversed()) {
-                if (PackList.this.isTransferable(selected)) {
-                    payload.add(selected);
-                }
-            }
-
-            if (!payload.isEmpty()) {
-                Pack trigger = this.isTransferable() ? this.pack() : null;
-                this.sendPacks(trigger, payload);
-                return true;
-            }
-
-            return false;
-        }
-
-        public boolean transfer() {
-            if (!this.isSelected() && this.isTransferable()) {
-                PackList.this.sendEvent(new RequestTransferEvent(PackList.this, this.pack()));
-                return true;
-            }
-
-            return this.sendSelection();
-        }
-
-        protected boolean handleMouseAction(MouseSelectionHandler.Action action) {
-            if (!action.shouldDispatch() || this.isStale()) return false;
+        private boolean handleMouseAction(MouseSelectionHandler.Action action) {
+            if (!action.shouldDispatch()) return false;
 
             switch (action) {
-                case SELECT -> PackList.this.select(this.pack());
-                case SELECT_TOGGLE -> PackList.this.selectToggle(this.pack());
-                case SELECT_EXCLUSIVE -> PackList.this.selectExclusive(this.pack());
-                case SELECT_RANGE -> PackList.this.selectRange(this.pack());
+                case SELECT -> this.viewModel.select();
+                case SELECT_TOGGLE -> this.viewModel.selectToggle();
+                case SELECT_EXCLUSIVE -> this.viewModel.selectExclusive();
+                case SELECT_RANGE -> this.viewModel.selectRange();
+                case DRAG -> this.viewModel.drag();
                 case TRANSFER -> {
-                    if (this.isTransferable()) {
-                        PackList.this.sendEvent(new RequestTransferEvent(PackList.this, this.pack()));
-                        return false;
-                    }
+                    this.viewModel.transfer();
+                    return false;
                 }
-                case DRAG ->
-                        PackList.this.sendEvent(new DragEvent(PackList.this, PackList.this.getOrderedSelection().reversed(), this.pack()));
-            }
-
-            if (action.shouldSelect()) {
-                PackList.this.sendEvent(new SelectionEvent(PackList.this));
             }
 
             return true;
+        }
+
+        private boolean isFocusedOrSelected() {
+            return PackList.this.getFocused() == null ? this.viewModel.selectedLast() : this.isFocused();
         }
 
         @Override
@@ -593,26 +543,82 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
         }
 
         @Override
-        public boolean mouseClicked(MouseButtonEvent mouseButtonEvent, boolean doubleClicked) {
-            if (ContainerEventHandlerPatch.super.mouseClicked(mouseButtonEvent, doubleClicked)) {
+        public boolean mouseClicked(@NonNull MouseButtonEvent mouseButtonEvent, boolean doubleClicked) {
+            if (ContainerEventHandlerPatch.super.mouseClicked(mouseButtonEvent, doubleClicked) || isRightClick(mouseButtonEvent)) {
+                if (!PackList.this.viewModel.isFolderOpened()) {
+                    return true;
+                }
+                if (this.folderWidget != null) {
+                    // ideally folderWidget should return false on #shouldTakeFocusAfterInteraction,
+                    // but that does not exist on older versions
+                    this.folderWidget.setFocused(false);
+                }
                 return false;
             }
+
+            if (isLeftClick(mouseButtonEvent)) {
+                int relativeX = (int) mouseButtonEvent.x() - (this.getX() + H_SPACING);
+                int relativeY = (int) mouseButtonEvent.y() - (this.getY() + V_MARGIN);
+
+                if (this.viewModel.canEnable() && this.mouseOverIcon(relativeX, relativeY, ICON_SIZE)) {
+                    this.viewModel.enable();
+                    playClickSound();
+                    return false;
+                }
+
+                if (this.viewModel.canDisable() && this.mouseOverLeftHalf(relativeX, relativeY, ICON_SIZE)) {
+                    this.viewModel.disable();
+                    playClickSound();
+                    return false;
+                }
+
+                if (this.viewModel.canMoveUp() && this.mouseOverTopRightQuarter(relativeX, relativeY, ICON_SIZE)) {
+                    this.viewModel.moveUp();
+                    playClickSound();
+                    return false;
+                }
+
+                if (this.viewModel.canMoveDown() && this.mouseOverBottomRightQuarter(relativeX, relativeY, ICON_SIZE)) {
+                    this.viewModel.moveDown();
+                    playClickSound();
+                    return false;
+                }
+            }
+
             return this.handleMouseAction(this.selectionHandler.mouseClicked(mouseButtonEvent));
         }
 
         @Override
-        public boolean mouseReleased(MouseButtonEvent mouseButtonEvent) {
+        public boolean mouseReleased(@NonNull MouseButtonEvent mouseButtonEvent) {
             return this.handleMouseAction(this.selectionHandler.mouseReleased(mouseButtonEvent));
         }
 
         @Override
-        public boolean mouseDragged(MouseButtonEvent mouseButtonEvent, double dragX, double dragY) {
+        public boolean mouseDragged(@NonNull MouseButtonEvent mouseButtonEvent, double dragX, double dragY) {
             return this.handleMouseAction(this.selectionHandler.mouseDragged(mouseButtonEvent, dragX, dragY));
         }
 
         @Override
-        public boolean keyPressed(KeyEvent keyEvent) {
+        public boolean keyPressed(@NonNull KeyEvent keyEvent) {
             if (super.keyPressed(keyEvent)) {
+                return true;
+            }
+            if (isExpandFolder(keyEvent) && this.viewModel.folder().isPresent() && this.viewModel.selectedExclusive()) {
+                this.viewModel.openFolder();
+                return true;
+            }
+            if (isTransfer(keyEvent) && this.viewModel.canTransfer()) {
+                this.viewModel.transfer();
+                return true;
+            }
+            // we only check #supportsReordering rather than #canMoveDown or #canMoveUp
+            // as the entry may not be movable, but the selection might.
+            if (isMoveDown(keyEvent) && PackList.this.viewModel.supportsReordering()) {
+                this.viewModel.moveDown();
+                return true;
+            }
+            if (isMoveUp(keyEvent) && PackList.this.viewModel.supportsReordering()) {
+                this.viewModel.moveUp();
                 return true;
             }
             if (isOpenFile(keyEvent)) {
@@ -623,19 +629,19 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
                 PackUtil.openParent(this.pack());
                 return true;
             }
-            if (isDelete(keyEvent) && this.canOperateFile()) {
-                this.deletePack();
+            if (isDelete(keyEvent) && this.viewModel.fileModifiable()) {
+                this.viewModel.delete();
                 return true;
             }
-            if (isRename(keyEvent) && this.canOperateFile()) {
-                this.renamePack();
+            if (isRename(keyEvent) && this.viewModel.fileModifiable()) {
+                this.viewModel.openRename();
                 return true;
             }
             return false;
         }
 
-        public void renderBack(GuiGraphics guiGraphics, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovering, float partialTick) {
-            if (!this.pack().getCompatibility().isCompatible() && !PackList.this.options.getUserConfig().isIncompatibleWarningsHidden()) {
+        public void renderBack(GuiGraphics guiGraphics, int top, int left, int width, int height) {
+            if (!this.pack().getCompatibility().isCompatible() && !this.viewModel.incompatibleWarningsHidden()) {
                 int backgroundLeft = left + BACKGROUND_MARGIN;
                 int backgroundTop = top + BACKGROUND_MARGIN;
                 int backgroundRight = backgroundLeft + width - BACKGROUND_MARGIN * 2;
@@ -645,16 +651,54 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
             }
         }
 
-        protected abstract void renderForeground(GuiGraphics guiGraphics, int top, int left, int width, int height, int mouseX, int mouseY, boolean hovering, float partialTick);
+        private void updateCursor(GuiGraphics guiGraphics, boolean hovered) {
+            if (hovered) {
+                guiGraphics.requestCursor(CursorTypes.POINTING_HAND);
+            }
+        }
+
+        private void renderForeground(GuiGraphics guiGraphics, int top, int left, int mouseX, int mouseY, boolean hovering) {
+            if (!hovering && !this.viewModel.selectedLast()) return;
+
+            int x = left + H_SPACING;
+            int relativeX = mouseX - x;
+            int relativeY = mouseY - top;
+
+            WHITE_OVERLAY.render(guiGraphics, x, top, ICON_SIZE, ICON_SIZE);
+
+            if (this.viewModel.canEnable()) {
+                boolean hovered = hovering && this.mouseOverIcon(relativeX, relativeY, ICON_SIZE);
+                pick(hovered, SELECT_HIGHLIGHTED_SPRITE, SELECT_SPRITE).render(guiGraphics, x, top);
+                this.updateCursor(guiGraphics, hovered);
+            }
+
+            if (this.viewModel.canDisable()) {
+                boolean hovered = hovering && this.mouseOverLeftHalf(relativeX, relativeY, ICON_SIZE);
+                pick(hovered, UNSELECT_HIGHLIGHTED_SPRITE, UNSELECT_SPRITE).render(guiGraphics, x, top);
+                this.updateCursor(guiGraphics, hovered);
+            }
+
+            if (this.viewModel.canMoveUp()) {
+                boolean hovered = hovering && this.mouseOverTopRightQuarter(relativeX, relativeY, ICON_SIZE);
+                pick(hovered, MOVE_UP_HIGHLIGHTED_SPRITE, MOVE_UP_SPRITE).render(guiGraphics, x, top);
+                this.updateCursor(guiGraphics, hovered);
+            }
+
+            if (this.viewModel.canMoveDown()) {
+                boolean hovered = hovering && this.mouseOverBottomRightQuarter(relativeX, relativeY, ICON_SIZE);
+                pick(hovered, MOVE_DOWN_HIGHLIGHTED_SPRITE, MOVE_DOWN_SPRITE).render(guiGraphics, x, top);
+                this.updateCursor(guiGraphics, hovered);
+            }
+        }
 
         private void renderSelection(GuiGraphics guiGraphics, int top, int left, int width, int height) {
-            if (this.isSelected()) {
-                pick(isSelectedLast(), WHITE_OVERLAY, SELECTED_OVERLAY).render(guiGraphics, left, top, width, height);
+            if (this.viewModel.selected()) {
+                pick(this.viewModel.selectedLast(), WHITE_OVERLAY, SELECTED_OVERLAY).render(guiGraphics, left, top, width, height);
                 DrawUtil.renderOutline(guiGraphics, left, top, width, height, Theme.BLUE_500.getARGB());
             }
         }
 
-        protected void renderTop(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        private void renderTop(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             if (this.folderWidget != null) {
                 int folderWidgetY = this.getBottom() - this.folderWidget.getHeight() - BACKGROUND_MARGIN;
                 this.folderWidget.setPosition(this.packWidget.getContentLeft(), folderWidgetY);
@@ -666,7 +710,7 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
         }
 
         @Override
-        public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, boolean hovering, float partialTick) {
             hovering = hovering && PackList.this.beforeScrollbarX(mouseX) && GuiUtil.isHovered(this, mouseX, mouseY);
 
             int left = this.getX();
@@ -679,52 +723,48 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
             this.packWidget.setPosition(left, innerTop);
             this.packWidget.setWidth(width);
 
-            this.renderBack(guiGraphics, top, left, width, height, mouseX, mouseY, hovering, partialTick);
+            this.renderBack(guiGraphics, top, left, width, height);
+
+            this.packWidget.checkCompatibility(hovering || this.isFocusedOrSelected());
 
             for (Renderable renderable : this.renderables) {
                 renderable.render(guiGraphics, mouseX, mouseY, partialTick);
             }
 
             this.renderSelection(guiGraphics, top, left, width, height + Y_OFFSET);
-            this.renderForeground(guiGraphics, innerTop, left, width, innerHeight, mouseX, mouseY, hovering, partialTick);
+            this.renderForeground(guiGraphics, innerTop, left, mouseX, mouseY, hovering);
             this.renderTop(guiGraphics, mouseX, mouseY, partialTick);
 
             if (this.devMenu != null) {
-                this.devMenu.renderDevSprites(guiGraphics, innerTop, left, width);
-            }
-        }
-
-        protected void handleDevMenuEvent(PackListDevMenu.Event<?> event) {
-            if (event instanceof PackListDevMenu.Event.EditAliases editAliases) {
-                PackList.this.sendEvent(new PackAliasOpenEvent(PackList.this, editAliases.trigger()));
+                this.devMenu.render(guiGraphics, innerTop, left, width, innerHeight, partialTick);
             }
         }
 
         @Override
         public void buildItems(ContextMenuItemBuilder builder, int mouseX, int mouseY) {
-            PackList.this.setFocused(this);
+            if (!this.initialized) return;
 
-            var extensions = ContextMenuEventImpl.postPackEntry(PackList.this.listener.ctx(), this.context);
+            var extensions = ContextMenuEventImpl.postPackEntry(PackList.this.screenContext, this.viewModel);
 
             ContextMenuContainer.super.buildItems(builder
                             .whenNonNull(extensions.getItems(ContextMenuEvent.PackEntry.Pos.BEFORE_HEADER))
                             .ifTrue((items, b) -> b.addAll(items))
-                            .add(new PackMenuHeader(this.pack(), this.packWidget.getSprite()))
+                            .add(new PackMenuHeader(this.pack(), this.viewModel.sprite()))
                             .whenNonNull(extensions.getItems(ContextMenuEvent.PackEntry.Pos.AFTER_HEADER))
                             .ifTrue((items, b) -> b.addAll(items))
                             .whenNonNull(this.devMenu)
-                            .ifTrue(PackListDevMenu::onBuildHeader)
+                            .ifTrue((menu, b) -> menu.buildItems(b, mouseX, mouseY))
                             .whenNonNull(extensions.getItems(ContextMenuEvent.PackEntry.Pos.AFTER_DEV))
                             .ifTrue((items, b) -> b.addAll(items))
                             .whenNonNull(this.folderWidget)
                             .ifTrue(b -> b
-                                    .simpleItem(FolderPack.FOLDER_OPEN_TEXT, this::openFolder)
+                                    .simpleItem(FolderPack.FOLDER_OPEN_TEXT, this.viewModel::openFolder)
                                     .separator()
                             )
-                            .whenNonNull(((FilePack) this.pack()).packed_packs$getPath())
+                            .when(this.viewModel.fileModifiable())
                             .ifTrue(b -> b
-                                    .simpleItem(RENAME_FILE_TEXT, this::canOperateFile, this::renamePack)
-                                    .simpleItem(DELETE_FILE_TEXT, this::canOperateFile, this::deletePack)
+                                    .simpleItem(RENAME_FILE_TEXT, this.viewModel::fileModifiable, this.viewModel::openRename)
+                                    .simpleItem(DELETE_FILE_TEXT, this.viewModel::fileModifiable, this.viewModel::delete)
                                     .simpleItem(OPEN_FILE_TEXT, () -> PackUtil.openPack(this.pack()))
                                     .simpleItem(OPEN_PARENT_TEXT, () -> PackUtil.openParent(this.pack()))
                             )
@@ -733,40 +773,6 @@ public abstract class PackList extends AbstractFixedListWidget<PackList.Entry> i
                     mouseX,
                     mouseY
             );
-        }
-
-        private void openFolder() {
-            PackList.this.openFolder(Objects.requireNonNull(this.folderWidget, "Cannot open folder without folder widget").getMetadata());
-        }
-
-        public boolean canOperateFile() {
-            return PackList.this.fileOps.isOperable(this.pack());
-        }
-
-        public void deletePack() {
-            if (PackList.this.fileOps.deletePack(this.pack())) {
-                this.stale = true;
-                PackList.this.remove(this.pack());
-                PackList.this.sendEvent(new FileDeleteEvent(PackList.this));
-            } else {
-                ToastUtil.onFileFailToast(ToastUtil.getDeleteFailText(this.pack().getTitle().getString()));
-            }
-        }
-
-        public void renamePack() {
-            PackList.this.sendEvent(new FileRenameOpenEvent(PackList.this, this.pack()));
-        }
-
-        public void onRename(Component newName) {
-            this.stale = true;
-            this.packWidget.onRename(newName);
-            if (this.folderWidget != null) {
-                this.folderWidget.active = false;
-            }
-        }
-
-        public boolean isStale() {
-            return this.stale;
         }
 
         @Override

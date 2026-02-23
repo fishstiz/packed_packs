@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.pack.folder;
 
 import io.github.fishstiz.packed_packs.config.JsonLoader;
-import io.github.fishstiz.packed_packs.config.Folder;
+import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import io.github.fishstiz.packed_packs.util.ResourceUtil;
@@ -44,6 +44,10 @@ public class FolderPack extends Pack implements FilePack {
         this.path = path;
     }
 
+    public List<Pack> contents() {
+        return ObjectsUtil.getOrDefault(this.nestedPacksProvider.apply(this), Collections.emptyList());
+    }
+
     public List<Pack> flatten() {
         List<Pack> result = new ObjectArrayList<>();
         result.add(this);
@@ -51,7 +55,7 @@ public class FolderPack extends Pack implements FilePack {
         return result;
     }
 
-    public CompletableFuture<Folder> loadConfig() {
+    public CompletableFuture<FolderPackMeta> loadConfig() {
         return CompletableFuture.supplyAsync(() -> {
             try (PackResources resources = this.open()) {
                 var configIoSupplier = resources.getRootResource(FolderResources.FOLDER_CONFIG_FILENAME);
@@ -59,17 +63,17 @@ public class FolderPack extends Pack implements FilePack {
                     throw new IOException();
                 }
                 try (InputStream inputStream = configIoSupplier.get()) {
-                    return JsonLoader.loadJson(inputStream, Folder.class);
+                    return JsonLoader.loadJson(inputStream, FolderPackMeta.class);
                 }
             } catch (NoSuchFileException e) {
-                return ObjectsUtil.peek(new Folder(), this::saveConfig);
+                return ObjectsUtil.peek(new FolderPackMeta(), this::saveConfig);
             } catch (IOException e) {
-                return new Folder();
+                return new FolderPackMeta();
             }
         }, Util.backgroundExecutor());
     }
 
-    public void saveConfig(Folder folder) {
+    public void saveConfig(FolderPackMeta folder) {
         if (folder != null) {
             folder.save(this.path.resolve(FolderResources.FOLDER_CONFIG_FILENAME));
         }
