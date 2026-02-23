@@ -1,16 +1,19 @@
 package io.github.fishstiz.fidgetz.gui.components;
 
+import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.events.ContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.navigation.FocusNavigationEvent;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
 
-public class ContainedWidget extends AbstractWidget implements ContainerEventHandler {
+public class ContainedWidget extends AbstractWidget implements Fidgetz, ContainerEventHandler {
     protected final AbstractWidget widget;
     private final List<AbstractWidget> children;
     private @Nullable GuiEventListener focused;
@@ -33,7 +36,7 @@ public class ContainedWidget extends AbstractWidget implements ContainerEventHan
     }
 
     @Override
-    public List<AbstractWidget> children() {
+    public @NotNull List<AbstractWidget> children() {
         return this.children;
     }
 
@@ -105,5 +108,30 @@ public class ContainedWidget extends AbstractWidget implements ContainerEventHan
     @Override
     public int getY() {
         return this.widget.getY();
+    }
+
+    @Override
+    public @Nullable ComponentPath nextFocusPath(@NotNull FocusNavigationEvent focusNavigationEvent) {
+        return ContainerEventHandler.super.nextFocusPath(focusNavigationEvent);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        return ContainerEventHandler.super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        return ContainerEventHandler.super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        return ContainerEventHandler.super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean isFocused() {
+        return ContainerEventHandler.super.isFocused();
     }
 }

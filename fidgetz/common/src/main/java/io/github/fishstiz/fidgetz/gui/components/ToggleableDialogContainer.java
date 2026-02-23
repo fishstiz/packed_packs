@@ -1,5 +1,6 @@
 package io.github.fishstiz.fidgetz.gui.components;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -9,7 +10,7 @@ import java.util.List;
 
 import static io.github.fishstiz.fidgetz.util.GuiUtil.isDescendant;
 
-public interface ToggleableDialogContainer {
+public interface ToggleableDialogContainer extends ContainerEventHandlerPatch {
     List<ToggleableDialog<?>> getDialogs();
 
     default List<ToggleableDialog<?>> getOpenDialogs() {
@@ -40,5 +41,27 @@ public interface ToggleableDialogContainer {
         List<ToggleableDialog<?>> dialogs = this.getOpenDialogs();
         dialogs.sort(Comparator.<ToggleableDialog<?>, Float>comparing(ToggleableDialog::getZ).reversed());
         return dialogs;
+    }
+
+    @Override
+    default boolean mouseClicked(double mouseX, double mouseY, int button) {
+        boolean propagateNonDialogs = true;
+
+        for (ToggleableDialog<?> dialog : this.getDialogs()) {
+            if (dialog.mouseClicked(mouseX, mouseY, button)) {
+                if (dialog.isOpen()) {
+                    this.setFocused(dialog);
+                }
+                if (button == InputConstants.MOUSE_BUTTON_LEFT) {
+                    this.setDragging(true);
+                }
+                return true;
+            }
+            if (dialog.isMouseOver(mouseX, mouseY)) {
+                propagateNonDialogs = false;
+            }
+        }
+
+        return propagateNonDialogs && ContainerEventHandlerPatch.super.mouseClicked(mouseX, mouseY, button);
     }
 }

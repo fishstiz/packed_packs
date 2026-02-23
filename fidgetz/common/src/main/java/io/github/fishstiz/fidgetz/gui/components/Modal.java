@@ -26,10 +26,6 @@ public class Modal<T extends Layout> extends ToggleableDialog<LayoutWrapper<T>> 
         this.setOpen(false);
     }
 
-    public void clear() {
-        this.clearWidgets();
-    }
-
     public static <S extends Screen & ToggleableDialogContainer, T extends Layout> Builder<T> builder(S screen, T layout) {
         return new Builder<>(screen, new LayoutWrapper<>(layout, MIN_SIZE, MIN_SIZE));
     }

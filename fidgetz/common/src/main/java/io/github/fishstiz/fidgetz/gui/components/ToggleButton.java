@@ -54,9 +54,8 @@ public class ToggleButton<E> extends FidgetzButton<E> {
     }
 
     @Override
-    public void onClick(double mouseX, double mouseY) {
-        super.onClick(mouseX, mouseY);
-
+    public void onPress() {
+        super.onPress();
         this.setValue(!this.getValue());
     }
 
@@ -78,7 +77,7 @@ public class ToggleButton<E> extends FidgetzButton<E> {
         Component valueText = this.getValue() ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF;
 
         if (this.prefixMessage) {
-            super.setMessage(this.getPrefix().copy().append(": ").append(valueText));
+            super.setMessage(CommonComponents.optionNameValue(this.getPrefix(), valueText));
         } else {
             super.setMessage(valueText);
         }
