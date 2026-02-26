@@ -65,5 +65,6 @@
   "packed_packs.preferences.widgets.etf_button": "实体纹理特性ETF按钮",
   "packed_packs.preferences.widgets.respackopts_button": "Respackopts按钮",
   "packed_packs.preferences.widgets.vtd_button": "VTDownloader按钮",
-  "packed_packs.preferences.widgets.vtd_edit_button": "VTDownloader编辑按钮"
+  "packed_packs.preferences.widgets.vtd_edit_button": "VTDownloader编辑按钮",
+  "packed_packs.preferences.widgets.polytone_button": "Polytone按钮"
 }
