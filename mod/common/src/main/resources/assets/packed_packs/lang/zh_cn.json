@@ -21,7 +21,7 @@
   "packed_packs.profile.unnamed": "未命名的预设",
   "packed_packs.profile.edit": "编辑预设名称",
   "packed_packs.profile.copy": "副本",
-  "packed_packs.profile.delete": "Delete",
+  "packed_packs.profile.delete": "删除",
   "packed_packs.profile.delete.info": "删除预设",
   "packed_packs.profile.default.set": "设为默认",
   "packed_packs.profile.default.unset": "不再设为默认",
