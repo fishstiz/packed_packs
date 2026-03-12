@@ -11,7 +11,6 @@ import io.github.fishstiz.fidgetz.util.debounce.SimplePollingDebouncer;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.TabOrderedElement;
 import net.minecraft.client.gui.components.events.AbstractContainerEventHandler;
@@ -71,8 +70,8 @@ public class ToggleableDialog<T extends LayoutElement> extends AbstractContainer
         this.captureClick = builder.captureClick;
         this.captureFocus = builder.captureFocus;
         this.listeners = builder.listeners;
-
-        this.setOpen(builder.open);
+        this.open = builder.open;
+        if (this.open && this.focusOnOpen) this.focusOnOpenTask.run();
     }
 
     public T root() {
@@ -88,15 +87,23 @@ public class ToggleableDialog<T extends LayoutElement> extends AbstractContainer
         this.open = open;
 
         if (previous != this.open) {
+            if (!open) {
+                this.focusOnOpenTask.abort();
+
+                if (this.screen.getFocused() == this) {
+                    this.screen.setFocused(null);
+                }
+
+                ComponentPath path = this.getCurrentFocusPath();
+                if (path != null) {
+                    path.applyFocus(false);
+                }
+            } else if (this.focusOnOpen || this.captureFocus) {
+                this.focusOnOpenTask.run();
+            }
+
             for (var listener : this.listeners) {
                 listener.accept(open);
-            }
-            if (this.focusOnOpen || this.captureFocus) {
-                if (open) {
-                    this.focusOnOpenTask.run();
-                } else {
-                    this.focusOnOpenTask.abort();
-                }
             }
         }
     }
@@ -190,9 +197,9 @@ public class ToggleableDialog<T extends LayoutElement> extends AbstractContainer
     public final void render(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.hovered = this.isMouseOverBounds(mouseX, mouseY);
 
-        this.focusOnOpenTask.poll();
-
         if (this.isOpen()) {
+            this.focusOnOpenTask.poll();
+
             int x = this.boundingBox.getX();
             int y = this.boundingBox.getY();
             int width = this.boundingBox.getWidth();
@@ -328,63 +335,36 @@ public class ToggleableDialog<T extends LayoutElement> extends AbstractContainer
 
     public void focus() {
         if (this.isOpen()) {
+            ComponentPath path = this.nextFocusPath(new FocusNavigationEvent.InitialFocus());
             this.screen.clearFocus();
-
-            ComponentPath path;
-
-            if (this.children.isEmpty()) {
-                path = ComponentPath.path(this, this.screen);
-            } else {
-                GuiEventListener firstFocusable = this.getFirstFocusable();
-                path = firstFocusable != null
-                        ? ComponentPath.path(firstFocusable, this, this.screen)
-                        : ComponentPath.path(this, this.screen);
+            this.screen.setFocused(this);
+            if (path != null) {
+                path.applyFocus(true);
             }
-
-            path.applyFocus(true);
         }
     }
 
     @Override
     public @Nullable ComponentPath nextFocusPath(@NonNull FocusNavigationEvent event) {
-        if (!this.isOpen()) {
-            return null;
-        }
+        if (!this.isOpen()) return null;
 
         ComponentPath next = super.nextFocusPath(event);
-        if (this.captureFocus && next == null) {
-            if (this.children.isEmpty()) {
-                return ComponentPath.path(this);
-            }
+        if (next != null) return next;
 
-            GuiEventListener lastFocusable = this.getLastFocusable();
-            GuiEventListener activeChild = this.getFocused() == lastFocusable
-                    ? this.getFirstFocusable()
-                    : lastFocusable;
-
-            return activeChild == null
-                    ? ComponentPath.path(this)
-                    : ComponentPath.path(activeChild, this);
+        if (event instanceof FocusNavigationEvent.InitialFocus && !this.children.isEmpty()) {
+            GuiEventListener firstFocusable = Collections.min(this.children, Comparator.comparingInt(GuiEventListener::getTabOrderGroup));
+            ComponentPath path = firstFocusable.nextFocusPath(event);
+            return path == null ? ComponentPath.path(firstFocusable, this) : ComponentPath.path(this, path);
         }
-        return next;
+
+        return this.captureFocus ? this.getCurrentFocusPath() : null;
     }
 
-    private @Nullable GuiEventListener getLastFocusable() {
-        for (int i = this.children.size() - 1; i >= 0; i--) {
-            if (!(this.children.get(i) instanceof AbstractWidget widget) || widget.active) {
-                return this.children.get(i);
-            }
+    @Override
+    public void setFocused(boolean isFocused) {
+        if (!isFocused) {
+            this.setFocused(null);
         }
-        return null;
-    }
-
-    private @Nullable GuiEventListener getFirstFocusable() {
-        for (GuiEventListener child : this.children) {
-            if (!(child instanceof AbstractWidget widget) || widget.active) {
-                return child;
-            }
-        }
-        return null;
     }
 
     public void repositionElements() {

@@ -2,35 +2,22 @@ package io.github.fishstiz.fidgetz.gui.components;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.components.events.ContainerEventHandler;
-import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.input.MouseButtonEvent;
+import org.jspecify.annotations.NonNull;
 
 public interface ContainerEventHandlerPatch extends ContainerEventHandler {
-    /**
-     * This code is copied from the 1.21.1 version of {@link ContainerEventHandler#mouseClicked}
-     */
     @Override
     default boolean mouseClicked(MouseButtonEvent mouseButtonEvent, boolean doubleClicked) {
-        for (GuiEventListener guieventlistener : this.children()) {
-            if (guieventlistener.mouseClicked(mouseButtonEvent, doubleClicked)) {
-                if (guieventlistener.shouldTakeFocusAfterInteraction()) {
-                    this.setFocused(guieventlistener);
-                }
-                if (mouseButtonEvent.button() == InputConstants.MOUSE_BUTTON_LEFT) {
-                    this.setDragging(true);
-                }
-
-                return true;
-            }
-        }
-        return false;
+        return this.isMouseClickHandled(mouseButtonEvent, doubleClicked);
     }
 
     /**
      * {@link ContainerEventHandler#mouseClicked}, except it only
      * returns {@code true} if mouse click is actually handled instead of when child is present.
+     * This is to allow elements to not focus by returning false.
+     * Note that #shouldTakeFocusAfterInteraction does not exist in older versions.
      */
-    default boolean mouseClickedAt(MouseButtonEvent mouseButtonEvent, boolean doubleClicked) {
+    private boolean isMouseClickHandled(MouseButtonEvent mouseButtonEvent, boolean doubleClicked) {
         return this.getChildAt(mouseButtonEvent.x(), mouseButtonEvent.y()).map(child -> {
             if (child.mouseClicked(mouseButtonEvent, doubleClicked)) {
                 if (child.shouldTakeFocusAfterInteraction()) {
@@ -43,5 +30,15 @@ public interface ContainerEventHandlerPatch extends ContainerEventHandler {
             }
             return false;
         }).orElse(false);
+    }
+
+    @Override
+    default boolean mouseReleased(@NonNull MouseButtonEvent mouseButtonEvent) {
+        return ContainerEventHandler.super.mouseReleased(mouseButtonEvent);
+    }
+
+    @Override
+    default boolean mouseDragged(@NonNull MouseButtonEvent mouseButtonEvent, double dragX, double dragY) {
+        return ContainerEventHandler.super.mouseDragged(mouseButtonEvent, dragX, dragY);
     }
 }

@@ -107,10 +107,10 @@ public class MenuItemBuilder {
 
     private void setDefaults() {
         if (this.iconSupplier == null) {
-            this.iconSupplier = MenuItemBuilder::nullSupplier;
+            this.iconSupplier = FunctionsUtil.nullSupplier();
         }
         if (this.tooltipSupplier == null) {
-            this.tooltipSupplier = MenuItemBuilder::nullSupplier;
+            this.tooltipSupplier = FunctionsUtil.nullSupplier();
         }
         if (this.activeSupplier == null) {
             this.activeSupplier = () -> true;
@@ -118,10 +118,6 @@ public class MenuItemBuilder {
         if (this.textColorSupplier == null) {
             this.textColorSupplier = () -> this.activeSupplier.getAsBoolean() ? ARGBColor.WHITE : ContextMenu.DEFAULT_TEXT_INACTIVE_COLOR;
         }
-    }
-
-    private static <T> T nullSupplier() {
-        return null;
     }
 
     public MenuItem build() {

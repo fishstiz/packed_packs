@@ -3,6 +3,7 @@ package io.github.fishstiz.packed_packs.transform.mixin.overrides;
 import io.github.fishstiz.packed_packs.config.DevConfig;
 import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
+import io.github.fishstiz.packed_packs.config.ProfileManager;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.world.level.DataPackConfig;
 import net.minecraft.world.level.WorldDataConfiguration;
@@ -19,7 +20,7 @@ public abstract class CreateWorldScreenMixin {
             target = "Lnet/minecraft/client/gui/screens/worldselection/CreateWorldScreen;createDefaultLoadConfig(Lnet/minecraft/server/packs/repository/PackRepository;Lnet/minecraft/world/level/WorldDataConfiguration;)Lnet/minecraft/server/WorldLoader$InitConfig;"
     ))
     private static WorldDataConfiguration applyDefaultProfile(WorldDataConfiguration worldDataConfiguration) {
-        Profile defaultProfile = DevConfig.get().getDatapacks().getDefaultProfile();
+        Profile defaultProfile = ProfileManager.serverData().getDefault();
         if (defaultProfile == null) return worldDataConfiguration;
 
         DataPackConfig dataPackConfig = worldDataConfiguration.dataPacks();

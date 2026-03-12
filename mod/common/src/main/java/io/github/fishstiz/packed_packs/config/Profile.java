@@ -2,60 +2,48 @@ package io.github.fishstiz.packed_packs.config;
 
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.util.PackUtil;
-import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import net.minecraft.util.FileUtil;
 import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.nio.file.Path;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 
 import static io.github.fishstiz.fidgetz.util.lang.ObjectsUtil.mapOrDefault;
 
-public class Profile implements PackOptions, Serializable {
-    public static final int NAME_MAX_LENGTH = 32;
-    static final String PROFILE_EXTENSION = ".profile.json";
-    private static final String PROFILE_EXTENSION_QUOTE = Pattern.quote(PROFILE_EXTENSION);
+public final class Profile implements PackOptions, Serializable {
     private boolean locked = false;
     private String name;
     private Map<String, PackOverride> overrides = new Object2ObjectOpenHashMap<>();
     private Set<String> packIds = new ObjectLinkedOpenHashSet<>();
     transient String id;
-    transient Path saveFolder;
     transient boolean temp = false;
 
-    Profile() {
-        this.id = createTempId();
+    Profile(String id) {
+        this.id = id;
+        this.name = id;
     }
 
-    Profile(String name, Path saveFolder) {
-        this.temp = true;
-        this.saveFolder = saveFolder;
-        this.name = trimName(name);
-        this.id = findAvailableId(this.saveFolder, this.name);
-    }
-
-    private Profile(String name, Set<String> packIds, Map<String, PackOverride> overrides, Path saveFolder) {
-        this(name, saveFolder);
+    private Profile(String id, Set<String> packIds, Map<String, PackOverride> overrides) {
+        this.id = id;
+        this.name = id;
         this.packIds = new ObjectLinkedOpenHashSet<>(packIds);
         this.overrides = new Object2ObjectOpenHashMap<>(overrides);
-        this.overrides.replaceAll((id, override) -> new PackOverride(override.hidden(), override.required(), override.position()));
+        this.overrides.replaceAll((ignored, override) -> new PackOverride(override.hidden(), override.required(), override.position()));
     }
 
     public String getId() {
         return this.id;
+    }
+
+    Profile copy(String id) {
+        return new Profile(id, this.packIds, this.overrides);
     }
 
     boolean remapPackId(String packId, String newId) {
@@ -84,22 +72,7 @@ public class Profile implements PackOptions, Serializable {
     }
 
     void setName(String name) {
-        if (!this.isLocked()) {
-            this.name = trimName(name);
-            if (this.temp && this.saveFolder != null) {
-                this.id = findAvailableId(this.saveFolder, this.name);
-            }
-        }
-    }
-
-    public Profile copy() {
-        String profileName = this.name;
-
-        if (profileName != null && !profileName.isBlank()) {
-            profileName += " - " + ResourceUtil.getText("profile.copy").getString();
-        }
-
-        return new Profile(profileName, this.packIds, this.overrides, this.saveFolder);
+        this.name = name;
     }
 
     public boolean includes(Pack pack) {
@@ -112,19 +85,15 @@ public class Profile implements PackOptions, Serializable {
 
     public void setPacks(Collection<Pack> selected) {
         if (!this.locked) {
-            selected = PackUtil.flattenPacks(selected);
-
-            this.packIds = new ObjectLinkedOpenHashSet<>(PackUtil.extractPackIds(selected));
+            this.packIds = new ObjectLinkedOpenHashSet<>(PackUtil.flattenPackIds(selected));
         }
     }
 
     public void syncPacks(Collection<Pack> available, Collection<Pack> selected) {
         if (!this.locked) {
-            available = PackUtil.flattenPacks(available);
-            selected = PackUtil.flattenPacks(selected);
+            this.packIds = new ObjectLinkedOpenHashSet<>(PackUtil.flattenPackIds(selected));
+            Set<String> availableIds = new ObjectOpenHashSet<>(PackUtil.flattenPackIds(available));
 
-            this.packIds = new ObjectLinkedOpenHashSet<>(PackUtil.extractPackIds(selected));
-            Set<String> availableIds = new ObjectOpenHashSet<>(PackUtil.extractPackIds(available));
             this.overrides.entrySet().removeIf(entry -> {
                 PackOverride override = entry.getValue();
                 String packId = entry.getKey();
@@ -239,35 +208,6 @@ public class Profile implements PackOptions, Serializable {
         if (!override.hasOverride()) this.overrides.remove(packId);
     }
 
-    private static String trimName(String name) {
-        if (name == null) return null;
-        return name.length() <= NAME_MAX_LENGTH ? name : name.substring(0, NAME_MAX_LENGTH);
-    }
-
-    private static String createTempId() {
-        return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss.SSS"));
-    }
-
-    private static String findAvailableId(Path saveFolder, String name) {
-        try {
-            return removeExtension(FileUtil.findAvailableName(
-                    Objects.requireNonNull(saveFolder, "saveFolder"),
-                    Objects.requireNonNull(name, "name"),
-                    PROFILE_EXTENSION
-            ));
-        } catch (IOException e) {
-            return createTempId();
-        }
-    }
-
-    static String removeExtension(String id) {
-        return id.replaceFirst(PROFILE_EXTENSION_QUOTE + "$", "");
-    }
-
-    public boolean isTemp() {
-        return this.temp;
-    }
-
     @Override
     public int hashCode() {
         return this.id.hashCode();
@@ -284,9 +224,6 @@ public class Profile implements PackOptions, Serializable {
         if (!(obj instanceof Profile other)) {
             return false;
         }
-        if (Objects.equals(other.getId(), this.getId())) {
-            return true;
-        }
-        return false;
+        return Objects.equals(other.getId(), this.getId());
     }
 }

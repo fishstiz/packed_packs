@@ -1,16 +1,19 @@
 package io.github.fishstiz.fidgetz.gui.components;
 
+import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.events.ContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.navigation.FocusNavigationEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
 
-public class ContainedWidget extends AbstractWidget implements ContainerEventHandler {
+public class ContainedWidget extends AbstractWidget implements Fidgetz, ContainerEventHandler {
     protected final AbstractWidget widget;
     private final List<AbstractWidget> children;
     private @Nullable GuiEventListener focused;
@@ -105,5 +108,30 @@ public class ContainedWidget extends AbstractWidget implements ContainerEventHan
     @Override
     public int getY() {
         return this.widget.getY();
+    }
+
+    @Override
+    public @Nullable ComponentPath nextFocusPath(FocusNavigationEvent focusNavigationEvent) {
+        return ContainerEventHandler.super.nextFocusPath(focusNavigationEvent);
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent mouseButtonEvent, boolean doubleClicked) {
+        return ContainerEventHandler.super.mouseClicked(mouseButtonEvent, doubleClicked);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent mouseButtonEvent) {
+        return ContainerEventHandler.super.mouseReleased(mouseButtonEvent);
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent mouseButtonEvent, double dragX, double dragY) {
+        return ContainerEventHandler.super.mouseDragged(mouseButtonEvent, dragX, dragY);
+    }
+
+    @Override
+    public boolean isFocused() {
+        return ContainerEventHandler.super.isFocused();
     }
 }

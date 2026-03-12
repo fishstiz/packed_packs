@@ -7,33 +7,30 @@ import io.github.fishstiz.fidgetz.gui.shapes.Size;
 import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
 import io.github.fishstiz.packed_packs.util.PackUtil;
+import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.util.Comparator;
-import java.util.Locale;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Predicate;
 
 public record Query(
         boolean hideIncompatible,
-        SortOption sort,
-        String search,
-        String unmodifiedSearch
-) implements Predicate<Pack>, Comparator<Pack> {
+        @Nullable SortOption sort,
+        @Nullable String search,
+        @Nullable String unmodifiedSearch
+) implements Predicate<Pack> {
+    private static final Query EMPTY = new Query(false, null, null, null);
+
     public Query {
         search = search != null ? search.toLowerCase(Locale.ROOT) : null;
     }
 
-    public Query(Query query) {
-        this(query.hideIncompatible, query.sort, query.search, query.unmodifiedSearch);
-    }
-
-    Query() {
-        this(false, null, null, null);
+    public static Query empty() {
+        return EMPTY;
     }
 
     public Query withHideIncompatible(boolean hideIncompatible) {
@@ -60,52 +57,76 @@ public record Query(
         if (this.hideIncompatible && !pack.getCompatibility().isCompatible()) {
             return false;
         }
-        if (this.search != null && !normalizeTitle(pack.getTitle().getString()).toLowerCase(Locale.ROOT).contains(this.search)) {
-            return false;
-        }
-        return true;
+        return this.search == null || normalizeTitle(pack.getTitle().getString()).toLowerCase(Locale.ROOT).contains(this.search);
     }
 
-    @Override
-    public int compare(Pack first, Pack second) {
-        return this.sort != null ? this.sort.comparator.compare(first, second) : 0;
-    }
-
-    boolean hasQuery() {
+    public boolean hasQuery() {
         return this.hideIncompatible || (this.search != null && !this.search.isEmpty()) || this.sort != null;
     }
 
+    private static String normalizeTitle(String title) {
+        return title.replaceAll("§.", "").trim();
+    }
+
     public enum SortOption implements CyclicButton.SpriteOption {
-        VANILLA("sort.vanilla", "sort_vanilla", (first, second) -> {
-            boolean builtInFirst = PackUtil.isBuiltIn(first);
-            boolean builtInSecond = PackUtil.isBuiltIn(second);
-            if (builtInFirst != builtInSecond) return builtInFirst ? 1 : -1;
+        VANILLA("sort.vanilla", "sort_vanilla") {
+            @Override
+            public Comparator<Pack> comparator(SequencedCollection<Pack> packs) {
+                return folderFirst((first, second) -> {
+                    boolean builtInFirst = PackUtil.isBuiltIn(first);
+                    boolean builtInSecond = PackUtil.isBuiltIn(second);
 
-            boolean featureFirst = PackUtil.isFeature(first);
-            boolean featureSecond = PackUtil.isFeature(second);
-            if (featureFirst != featureSecond) return featureFirst ? 1 : -1;
+                    if (builtInFirst != builtInSecond) return builtInFirst ? 1 : -1;
 
-            return first.getTitle().getString().compareTo(second.getTitle().getString());
-        }),
-        A_Z("sort.a_z", "sort_a_z", Comparator.comparing(
-                pack -> normalizeTitle(pack.getTitle().getString()),
-                String.CASE_INSENSITIVE_ORDER
-        )),
-        Z_A("sort.z_a", "sort_z_a", A_Z.comparator.reversed()),
-        RECENT("sort.recent", "sort_recent", Comparator.comparingLong(PackUtil::getLastUpdatedEpochMs).reversed()),
-        OLDEST("sort.oldest", "sort_oldest", RECENT.comparator.reversed());
+                    boolean featureFirst = PackUtil.isFeature(first);
+                    boolean featureSecond = PackUtil.isFeature(second);
+
+                    if (featureFirst != featureSecond) return featureFirst ? 1 : -1;
+
+                    return first.getTitle().getString().compareTo(second.getTitle().getString());
+                });
+            }
+        },
+        A_Z("sort.a_z", "sort_a_z") {
+            @Override
+            public Comparator<Pack> comparator(SequencedCollection<Pack> packs) {
+                return folderFirst(Comparator.comparing(
+                        pack -> normalizeTitle(pack.getTitle().getString()),
+                        String.CASE_INSENSITIVE_ORDER
+                ));
+            }
+        },
+        Z_A("sort.z_a", "sort_z_a") {
+            @Override
+            public Comparator<Pack> comparator(SequencedCollection<Pack> packs) {
+                return A_Z.comparator(packs).reversed();
+            }
+        },
+        RECENT("sort.recent", "sort_recent") {
+            @Override
+            public Comparator<Pack> comparator(SequencedCollection<Pack> packs) {
+                Map<Pack, Long> cache = buildTimestampCache(packs);
+                return folderFirst(Comparator.<Pack, Long>comparing(cache::get).reversed());
+            }
+        },
+        OLDEST("sort.oldest", "sort_oldest") {
+            @Override
+            public Comparator<Pack> comparator(SequencedCollection<Pack> packs) {
+                return RECENT.comparator(packs).reversed();
+            }
+        };
 
         private final Component component;
         private final Tooltip tooltip;
         private final ButtonSprites sprites;
-        private final Comparator<Pack> comparator;
 
-        SortOption(String key, String icon, Comparator<Pack> comparator) {
+        SortOption(String key, String icon) {
             this.component = ResourceUtil.getText(key);
             this.tooltip = Tooltip.create(this.component);
             this.sprites = ButtonSprites.of(new Sprite(ResourceUtil.getIcon(icon), Size.of16()));
-            this.comparator = folderFirst(comparator);
         }
+
+        public abstract Comparator<Pack> comparator(SequencedCollection<Pack> packs);
 
         @Override
         public @NonNull Component text() {
@@ -137,11 +158,11 @@ public record Query(
                 return VANILLA;
             }
         }
-    }
 
-    private static String normalizeTitle(String title) {
-        return title
-                .replaceAll("§.", "") // remove formatting
-                .trim();
+        private static Map<Pack, Long> buildTimestampCache(SequencedCollection<Pack> packs) {
+            Map<Pack, Long> cache = new Object2LongLinkedOpenHashMap<>(packs.size());
+            for (Pack pack : packs) cache.put(pack, PackUtil.getLastUpdatedEpochMs(pack));
+            return cache;
+        }
     }
 }

@@ -30,55 +30,55 @@ public abstract class ContextMenuEvent<P extends Enum<P>> extends ScreenEvent {
      * The context menu item configuration.
      */
     @ApiStatus.NonExtendable
-    public interface ItemBuilder {
+    public interface Item {
         /**
          * Sets the display text of the item.
          */
-        ItemBuilder withLabel(Component label);
+        Item setLabel(Component label);
 
         /**
          * Sets the action to execute when the item is clicked.
          */
-        ItemBuilder withAction(Runnable action);
+        Item setAction(Runnable action);
 
         /**
          * Sets the sprite icon displayed next to the label.
          */
-        ItemBuilder withIcon(Identifier sprite);
+        Item setIcon(Identifier sprite);
 
         /**
          * Sets the tooltip displayed when hovering over the item.
          */
-        ItemBuilder withTooltip(Tooltip tooltip);
+        Item setTooltip(Tooltip tooltip);
 
         /**
          * Creates a sub-menu for this item.
          */
-        ItemBuilder withChild(Consumer<ItemBuilder> item);
+        Item addChild(Consumer<Item> item);
 
         /**
          * Adds a horizontal separator line below this item.
          */
-        ItemBuilder withSeparatorBelow();
+        Item addSeparatorBelow();
 
         /**
          * Adds a horizontal separator line above this item.
          */
-        ItemBuilder withSeparatorAbove();
+        Item addSeparatorAbove();
 
         /**
          * Applies a distinct visual style intended for developer mode.
          */
-        ItemBuilder withDevStyle();
+        Item applyDevStyle();
     }
 
     /**
      * Adds a custom item to the menu at the specified position.
      *
      * @param pos  The placement position.
-     * @param item A consumer to configure the {@link ItemBuilder}.
+     * @param item A consumer to configure the {@link Item}.
      */
-    public abstract void addItem(P pos, Consumer<ItemBuilder> item);
+    public abstract void addItem(P pos, Consumer<Item> item);
 
     /**
      * Adds a toggleable (checkbox) item to the menu at the specified position.
@@ -106,7 +106,7 @@ public abstract class ContextMenuEvent<P extends Enum<P>> extends ScreenEvent {
          * @param pos  the placement position within the menu
          * @param item a consumer used to configure the menu item
          */
-        public void addItem(P pos, Consumer<ItemBuilder> item) {
+        public void addItem(P pos, Consumer<Item> item) {
             this.delegate.addItem(pos, item);
         }
 
@@ -115,7 +115,7 @@ public abstract class ContextMenuEvent<P extends Enum<P>> extends ScreenEvent {
          *
          * @param item a consumer used to configure the menu item
          */
-        public void addItem(Consumer<ItemBuilder> item) {
+        public void addItem(Consumer<Item> item) {
             this.addItem(this.lastPos(), item);
         }
 
@@ -173,6 +173,8 @@ public abstract class ContextMenuEvent<P extends Enum<P>> extends ScreenEvent {
      * Fired when the Preferences sub menu is being constructed.
      */
     public static final class Preferences extends DelegatedContextMenuEvent<Preferences.Pos> implements Event {
+        private final PreferenceRegistry registry;
+
         public enum Pos {
             /**
              * Above the standard preferences.
@@ -185,27 +187,27 @@ public abstract class ContextMenuEvent<P extends Enum<P>> extends ScreenEvent {
         }
 
         @ApiStatus.Internal
-        public Preferences(ContextMenuEvent<Preferences.Pos> delegate) {
+        public Preferences(PreferenceRegistry registry, ContextMenuEvent<Preferences.Pos> delegate) {
             super(delegate);
+            this.registry = registry;
         }
 
         /**
          * Links a boolean preference directly to a menu toggle.
          *
          * @param pos   The placement position.
-         * @param prefs The registry containing the preference.
          * @param key   The specific preference key.
          * @param label The display text.
          */
-        public void addToggle(Pos pos, PreferenceRegistry prefs, PreferenceRegistry.Key<Boolean> key, Component label) {
-            this.addToggle(pos, label, () -> Boolean.TRUE.equals(prefs.get(key)), value -> prefs.set(key, value));
+        public void addToggle(Pos pos, PreferenceRegistry.Key<Boolean> key, Component label) {
+            this.addToggle(pos, label, () -> Boolean.TRUE.equals(this.registry.get(key)), value -> this.registry.set(key, value));
         }
 
         /**
-         * Links a boolean preference to a menu toggle below the standard preferences.
+         * Links a boolean preference to a menu toggle positioned below the standard preferences.
          */
-        public void addToggle(PreferenceRegistry prefs, PreferenceRegistry.Key<Boolean> key, Component label) {
-            this.addToggle(this.lastPos(), prefs, key, label);
+        public void addToggle(PreferenceRegistry.Key<Boolean> key, Component label) {
+            this.addToggle(this.lastPos(), key, label);
         }
 
         @Override

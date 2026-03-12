@@ -1,11 +1,8 @@
 package io.github.fishstiz.packed_packs.config;
 
-import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.gui.components.pack.Query;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.util.Util;
 import net.minecraft.server.packs.PackType;
 import org.jspecify.annotations.Nullable;
 
@@ -13,9 +10,9 @@ import java.io.Serializable;
 import java.nio.file.Path;
 import java.util.*;
 
-public class Config implements Serializable {
+public final class Config implements Serializable {
     private static final String FILENAME = "config.json";
-    private static final Config INSTANCE = loadOrCreate();
+    private static final Config INSTANCE = JsonLoader.loadOrCreateJson(getPath(), Config.class, Config::new);
     private boolean devMode = false;
     private boolean showActionBar = false;
     private boolean hideIncompatible = false;
@@ -30,12 +27,12 @@ public class Config implements Serializable {
         return PackedPacks.getConfigDir().resolve(FILENAME);
     }
 
-    private static Config loadOrCreate() {
-        return JsonLoader.loadOrCreateJson(getPath(), Config.class, Config::new);
-    }
-
     public static Config get() {
         return INSTANCE;
+    }
+
+    public static Packs packs(PackType packType) {
+        return INSTANCE.get(packType);
     }
 
     public Packs get(PackType packType) {
@@ -97,8 +94,6 @@ public class Config implements Serializable {
         private boolean rememberLastViewedProfile = false;
         private @Nullable String lastViewedProfile = null;
         private List<String> profileOrder = new ObjectArrayList<>();
-        private transient @Nullable List<Profile> availableProfiles;
-        private transient @Nullable Profile cachedLastViewedProfile = null;
 
         public abstract PackType packType();
 
@@ -110,74 +105,20 @@ public class Config implements Serializable {
             this.rememberLastViewedProfile = rememberLastViewedProfile;
         }
 
-        public @Nullable Profile getLastViewedProfile() {
-            if (this.lastViewedProfile == null) {
-                return null;
-            }
-            if (this.cachedLastViewedProfile != null) {
-                return this.cachedLastViewedProfile;
-            }
-            this.cachedLastViewedProfile = CollectionsUtil.firstMatch(this.getProfiles(), this.lastViewedProfile, Profile::getId);
-            if (this.cachedLastViewedProfile == null) {
-                this.lastViewedProfile = null;
-            }
-            return this.cachedLastViewedProfile;
+        List<String> getProfileOrder() {
+            return this.profileOrder;
         }
 
-        public void setLastViewedProfile(@Nullable Profile lastViewedProfile) {
+        void setProfileOrder(List<String> profileOrder) {
+            this.profileOrder = profileOrder;
+        }
+
+        @Nullable String getLastViewedProfile() {
+            return this.lastViewedProfile;
+        }
+
+        void setLastViewedProfile(@Nullable Profile lastViewedProfile) {
             this.lastViewedProfile = lastViewedProfile != null ? lastViewedProfile.getId() : null;
-            this.cachedLastViewedProfile = lastViewedProfile;
-        }
-
-        public List<Profile> getProfiles() {
-            if (this.availableProfiles == null) {
-                List<Profile> availableProfiles = Profiles.getAll(this.packType(), Util.backgroundExecutor());
-
-                Map<String, Integer> profileOrderMap = new Object2IntOpenHashMap<>(this.profileOrder.size());
-                for (int i = 0; i < this.profileOrder.size(); i++) {
-                    profileOrderMap.put(this.profileOrder.get(i), i);
-                }
-
-                availableProfiles.sort(Comparator.<Profile>comparingInt(profile ->
-                        profileOrderMap.containsKey(profile.getId())
-                                ? profileOrderMap.get(profile.getId()) + this.profileOrder.size()
-                                : 0
-                ).thenComparing(Profile::getName));
-
-                this.availableProfiles = availableProfiles;
-            }
-
-
-            return Collections.unmodifiableList(this.availableProfiles);
-        }
-
-        public void setProfileOrder(SequencedCollection<Profile> profiles) {
-            this.profileOrder = CollectionsUtil.map(profiles, Profile::getId, ObjectArrayList::new);
-        }
-
-        public void addProfile(Profile profile) {
-            this.profileOrder.add(profile.getId());
-            if (this.availableProfiles != null) {
-                this.availableProfiles.add(profile);
-            }
-        }
-
-        public void renameProfile(Profile profile, String name) {
-            profile.setName(name);
-        }
-
-        public void removeProfile(Profile profile) {
-            Profiles.delete(this.packType(), profile);
-
-            this.profileOrder.remove(profile.getId());
-            if (this.availableProfiles != null) {
-                this.availableProfiles.remove(profile);
-            }
-
-            if (this.profileOrder.isEmpty() || Objects.equals(this.lastViewedProfile, profile.getId())) {
-                this.lastViewedProfile = null;
-                this.cachedLastViewedProfile = null;
-            }
         }
 
         public boolean isReplaceOriginal() {

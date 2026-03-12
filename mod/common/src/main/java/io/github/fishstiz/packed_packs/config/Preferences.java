@@ -1,117 +1,55 @@
 package io.github.fishstiz.packed_packs.config;
 
+import com.google.gson.Gson;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
-import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
-import org.jspecify.annotations.Nullable;
+import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 
 import java.io.*;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.lang.reflect.Type;
 import java.util.Properties;
+import java.util.Set;
 import java.util.function.Function;
 
 import static io.github.fishstiz.packed_packs.PackedPacks.LOGGER;
 
-public class Preferences {
-    public static final Preferences INSTANCE = load();
-    private final Map<Spec<?>, Option<?>> options = new Reference2ObjectOpenHashMap<>();
-    public final Option<Boolean> originalScreenWidget = new Option<>("original_screen", boolean.class, true);
-    public final Option<Boolean> optionsWidget = new Option<>("options", boolean.class, true);
-    public final Option<Boolean> actionBarWidget = new Option<>("action_bar", boolean.class, true);
-    public final Option<Boolean> toggleIncompatibleWidget = new Option<>("toggle_incompatible", boolean.class, true);
-    public final Option<Boolean> folderPackWidget = new Option<>("folder_pack", boolean.class, true);
-
-    private Preferences() {
-    }
-
-    private void appendExtensions() {
-        PackedPacksApiImpl.getInstance().preferences().getPreferences().forEach(Option::new);
-    }
-
-    public interface Spec<T> {
-        String key();
-
-        Class<T> type();
-
-        T defaultValue();
-
-        T deserialize(String value);
-
-        static <T> Spec<T> create(String key, Class<T> type, T defaultValue, Function<String, T> deserializer) {
-            return new Spec<>() {
-                @Override
-                public String key() {
-                    return key;
-                }
-
-                @Override
-                public Class<T> type() {
-                    return type;
-                }
-
-                @Override
-                public T defaultValue() {
-                    return defaultValue;
-                }
-
-                @Override
-                public T deserialize(String value) {
-                    return deserializer.apply(value);
-                }
-            };
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T> Optional<Option<T>> get(Spec<T> spec) {
-        return Optional.ofNullable((Option<T>) this.options.get(spec));
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T> Option<T> getOrThrow(Spec<T> spec) {
-        return Objects.requireNonNull((Option<T>) this.options.get(spec), spec.key());
-    }
+public final class Preferences {
+    private static final Gson GSON = new Gson();
+    private static final Preferences INSTANCE = new Preferences();
+    public static final Option<Boolean> ORIGINAL_SCREEN_WIDGET = register("original_screen", boolean.class, true);
+    public static final Option<Boolean> OPTIONS_WIDGET = register("options", boolean.class, true);
+    public static final Option<Boolean> ACTION_BAR_WIDGET = register("action_bar", boolean.class, true);
+    public static final Option<Boolean> INCOMPATIBLE_TOGGLE_WIDGET = register("toggle_incompatible", boolean.class, true);
+    public static final Option<Boolean> FOLDER_PACK_WIDGET = register("folder_pack", boolean.class, true);
+    private final Set<Option<?>> options = new ReferenceOpenHashSet<>();
 
     private static File getFile() {
         return PackedPacks.getConfigDir().resolve("preferences.properties").toFile();
     }
 
-    private static Preferences load() {
-        Preferences prefs = new Preferences();
-        prefs.appendExtensions();
+    public static <T> Option<T> register(String key, Class<T> type, T defaultValue, Function<String, T> deserializer, Function<T, String> serializer) {
+        return INSTANCE.newOption(key, type, defaultValue, serializer, deserializer);
+    }
 
-        File file = getFile();
-        if (!file.exists()) {
-            return prefs;
-        }
+    @SuppressWarnings("unchecked")
+    public static <T> Option<T> register(String key, Class<T> type, T defaultValue) {
+        return type == String.class
+                ? (Option<T>) register(key, String.class, (String) defaultValue, Function.identity(), Function.identity())
+                : register(key, type, defaultValue, json -> GSON.fromJson(json, type), GSON::toJson);
+    }
 
+    public static void reset() {
+        INSTANCE.options.forEach(Option::reset);
+    }
+
+    public static void save() {
         Properties props = new Properties();
-        try (FileInputStream fis = new FileInputStream(file)) {
-            props.load(fis);
 
-            for (Option<?> entry : prefs.options.values()) {
-                String key = entry.getKey();
-                String value = props.getProperty(key);
-                entry.deserializeAndSet(value);
+        for (Option<?> option : INSTANCE.options) {
+            try {
+                props.setProperty(option.getKey(), option.serialize());
+            } catch (Exception e) {
+                LOGGER.error("[packed_packs] Failed to serialize preference '{}' with value '{}'. ", option.getKey(), option.get(), e);
             }
-        } catch (IOException | NumberFormatException e) {
-            LOGGER.error("[packed_packs] Failed to load preferences. ", e);
-        }
-
-        return prefs;
-    }
-
-    public void reset() {
-        this.options.values().forEach(Option::reset);
-    }
-
-    public void save() {
-        Properties props = new Properties();
-
-        for (Option<?> entry : this.options.values()) {
-            props.setProperty(entry.getKey(), entry.get().toString());
         }
 
         try (FileOutputStream fos = new FileOutputStream(getFile())) {
@@ -121,22 +59,53 @@ public class Preferences {
         }
     }
 
+    private <T> Option<T> newOption(String key, Class<T> type, T defaultValue, Function<T, String> serializer, Function<String, T> deserializer) {
+        return new Option<>(key, type, defaultValue, serializer, deserializer);
+    }
+
+    private Preferences() {
+    }
+
     public class Option<T> {
-        private final Spec<T> spec;
+        private static final Properties CACHE;
+        private final String key;
+        private final Type type;
+        private final T defaultValue;
+        private final Function<T, String> serializer;
         private T value;
 
-        private Option(Spec<T> spec) {
-            this.spec = spec;
-            this.value = spec.defaultValue();
-            Preferences.this.options.put(spec, this);
+        static {
+            Properties props = new Properties();
+            File file = getFile();
+            if (file.exists()) {
+                try (FileInputStream fis = new FileInputStream(file)) {
+                    props.load(fis);
+                } catch (Exception e) {
+                    LOGGER.error("[packed_packs] Failed to load preferences. ", e);
+                }
+            }
+            CACHE = props;
         }
 
-        private Option(String key, Class<T> type, T defaultValue, @Nullable Function<String, T> deserializer) {
-            this(Spec.create(key, type, defaultValue, deserializer == null ? getDefaultDeserializer(type) : deserializer));
+        private Option(String key, Class<T> type, T defaultValue, Function<T, String> serializer, Function<String, T> deserializer) {
+            this.key = key;
+            this.type = type;
+            this.defaultValue = defaultValue;
+            this.serializer = serializer;
+            this.value = resolveFromCache(key, defaultValue, deserializer);
+            Preferences.this.options.add(this);
         }
 
-        private Option(String key, Class<T> type, T defaultValue) {
-            this(key, type, defaultValue, null);
+        private static <T> T resolveFromCache(String key, T fallback, Function<String, T> deserializer) {
+            String value = CACHE.getProperty(key);
+            if (value == null) return fallback;
+
+            try {
+                return deserializer.apply(value);
+            } catch (Exception e) {
+                LOGGER.error("[packed_packs] Failed to deserialize preference '{}' with value '{}'. ", key, value, e);
+                return fallback;
+            }
         }
 
         public void set(T value) {
@@ -148,41 +117,23 @@ public class Preferences {
         }
 
         public String getKey() {
-            return this.spec.key();
+            return this.key;
         }
 
         public T getDefault() {
-            return this.spec.defaultValue();
+            return this.defaultValue;
         }
 
         public void reset() {
-            this.value = this.getDefault();
+            this.set(this.getDefault());
         }
 
-        void deserializeAndSet(@Nullable String value) {
-            if (value == null) {
-                this.value = this.getDefault();
-                return;
-            }
-
-            try {
-                this.value = this.spec.deserialize(value);
-            } catch (Exception e) {
-                this.value = this.getDefault();
-                LOGGER.error("[packed_packs] Failed to read preference '{}' with value '{}'. ", this.spec.key(), value, e);
-            }
+        public Type type() {
+            return this.type;
         }
 
-        @SuppressWarnings("unchecked")
-        static <T> Function<String, T> getDefaultDeserializer(Class<T> type) {
-            if (type == boolean.class || type == Boolean.class) {
-                return value -> (T) Boolean.valueOf(Boolean.parseBoolean(value));
-            } else if (type == int.class || type == Integer.class) {
-                return value -> (T) Integer.valueOf(Integer.parseInt(value));
-            } else if (type == String.class) {
-                return value -> (T) value;
-            }
-            throw new UnsupportedOperationException("No default deserializer for " + type);
+        String serialize() {
+            return this.serializer.apply(this.value);
         }
     }
 }

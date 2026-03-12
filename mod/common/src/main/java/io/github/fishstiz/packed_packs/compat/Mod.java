@@ -3,7 +3,6 @@ package io.github.fishstiz.packed_packs.compat;
 import io.github.fishstiz.packed_packs.platform.Services;
 
 public enum Mod implements ModContext {
-    CURSORS_EXTENDED("cursors_extended"),
     RESOURCIFY("resourcify"),
     RESPACKOPTS("respackopts"),
     ETF("entity_texture_features"),

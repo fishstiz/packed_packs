@@ -4,25 +4,20 @@ import com.mojang.blaze3d.platform.InputConstants;
 import io.github.fishstiz.fidgetz.gui.components.*;
 import io.github.fishstiz.fidgetz.gui.layouts.FlexLayout;
 import io.github.fishstiz.fidgetz.util.DrawUtil;
-import io.github.fishstiz.packed_packs.gui.components.events.FileRenameCloseEvent;
-import io.github.fishstiz.packed_packs.gui.components.events.FileRenameEvent;
-import io.github.fishstiz.packed_packs.gui.components.events.PackListEventListener;
+import io.github.fishstiz.fidgetz.util.GuiUtil;
+import io.github.fishstiz.packed_packs.gui.intents.PackListIntent;
+import io.github.fishstiz.packed_packs.gui.model.PackedPacksViewModel;
+import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
+import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
 import io.github.fishstiz.packed_packs.pack.PackAssetManager;
-import io.github.fishstiz.packed_packs.pack.PackFileOperations;
 import io.github.fishstiz.packed_packs.util.PackUtil;
-import io.github.fishstiz.packed_packs.util.ToastUtil;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.navigation.FocusNavigationEvent;
-import net.minecraft.client.gui.navigation.ScreenAxis;
-import net.minecraft.client.gui.navigation.ScreenDirection;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.CommonComponents;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.repository.Pack;
 import org.apache.commons.io.FilenameUtils;
 import org.jspecify.annotations.NonNull;
@@ -44,51 +39,41 @@ public class FileRenameModal extends Modal<LinearLayout> {
     private final FidgetzText<Void> title;
     private final ToggleableEditBox<Void> nameEditor;
     private final FidgetzButton<Void> saveButton;
-    private final PackFileOperations fileOps;
-    private final PackAssetManager assets;
-    private PackList packList;
-    private Pack pack;
+    private final PackedPacksViewModel viewModel;
     private String oldName;
 
-    public <S extends Screen & ToggleableDialogContainer & PackListEventListener> FileRenameModal(
-            S screen,
-            PackFileOperations fileOps,
-            PackAssetManager assets
-    ) {
-        super(Modal.builder(screen, LinearLayout.vertical().spacing(SPACING)).padding(SPACING));
-        this.fileOps = fileOps;
-        this.assets = assets;
+    public <S extends Screen & ToggleableDialogContainer> FileRenameModal(S screen, PackedPacksViewModel viewModel) {
+        super(Modal.builder(screen, LinearLayout.vertical().spacing(SPACING)).padding(SPACING).setFocusOnOpen(true));
+        this.viewModel = viewModel;
 
-        this.sprite = RenderableRectWidget.<Void>builder(PackAssetManager.DEFAULT_ICON)
+        this.sprite = this.addRenderableOnly(RenderableRectWidget.<Void>builder(PackAssetManager.DEFAULT_ICON)
                 .makeSquare()
-                .build();
-        this.title = FidgetzText.<Void>builder()
+                .build());
+        this.title = this.addRenderableOnly(FidgetzText.<Void>builder()
                 .makeSquare()
                 .setOffsetY(1)
                 .setShadow(true)
-                .build();
-        FidgetzButton<Void> closeButton = FidgetzButton.<Void>builder()
+                .build());
+        FidgetzButton<Void> closeButton = this.addRenderableWidget(FidgetzButton.<Void>builder()
                 .makeSquare()
                 .setOnPress(this::closeModal)
                 .setSprite(CROSS_SPRITE)
-                .build();
-
-        this.nameEditor = ToggleableEditBox.<Void>builder()
+                .build());
+        this.nameEditor = this.addRenderableWidget(ToggleableEditBox.<Void>builder()
                 .setWidth(CONTENT_WIDTH)
                 .setEditable(true)
                 .addListener(this::handleChange)
                 .setMaxLength(MAX_LENGTH)
                 .setFilter(this::testInput)
-                .build();
-
-        FidgetzButton<Void> cancelButton = FidgetzButton.<Void>builder()
+                .build());
+        FidgetzButton<Void> cancelButton = this.addRenderableWidget(FidgetzButton.<Void>builder()
                 .setOnPress(this::closeModal)
                 .setMessage(CommonComponents.GUI_CANCEL)
-                .build();
-        this.saveButton = FidgetzButton.<Void>builder()
+                .build());
+        this.saveButton = this.addRenderableWidget(FidgetzButton.<Void>builder()
                 .setOnPress(this::saveName)
                 .setMessage(CommonComponents.GUI_DONE)
-                .build();
+                .build());
 
         FlexLayout titleLayout = FlexLayout.horizontal(this::getContentWidth).spacing(SPACING);
         titleLayout.addChild(this.sprite);
@@ -103,9 +88,7 @@ public class FileRenameModal extends Modal<LinearLayout> {
         this.root().layout().addChild(this.nameEditor);
         this.root().layout().addChild(buttonLayout);
 
-        this.root().visitWidgets(this::addRenderableWidget);
-
-        this.addListener(this::onClose);
+        this.viewModel.subscribe(PackedPacksState::renamingPack, this::refresh);
     }
 
     private int getContentWidth() {
@@ -113,27 +96,39 @@ public class FileRenameModal extends Modal<LinearLayout> {
     }
 
     private void clearReferences() {
-        this.packList = null;
-        this.pack = null;
         this.oldName = null;
         this.sprite.setRenderableRect(PackAssetManager.DEFAULT_ICON);
         this.title.setMessage(CommonComponents.EMPTY);
         this.nameEditor.setValue("");
     }
 
-    public void open(PackList packList, Pack pack) {
-        this.packList = packList;
-        this.pack = pack;
-        this.sprite.setRenderableRect(this.assets.getIcon(pack));
-        this.title.setMessage(pack.getTitle());
+    @Override
+    public void setOpen(boolean open) {
+        var renameContext = this.viewModel.state().renamingPack();
+        if (!open && renameContext != null) {
+            this.viewModel.dispatch(new PackListIntent.CloseRename(renameContext.target(), renameContext.ctx()));
+        }
+    }
 
-        this.oldName = sanitizeNameForEdit(pack);
+    private void refresh(ActiveAction.@Nullable RenamingPack renameContext) {
+        if (renameContext == null) {
+            super.setOpen(false);
+            this.setFocused(null);
+            this.clearReferences();
+            return;
+        }
+
+        this.setFocused(this.nameEditor);
+        this.sprite.setRenderableRect(renameContext.ctx().sprite());
+        this.title.setMessage(renameContext.ctx().pack().getTitle());
+
+        this.oldName = sanitizeNameForEdit(renameContext.ctx().pack());
         this.nameEditor.setValue(this.oldName);
-        this.nameEditor.setSuggestion(PackUtil.isZipPack(pack) ? ZIP_PACK_EXTENSION : null);
+        this.nameEditor.setSuggestion(PackUtil.isZipPack(renameContext.ctx().pack()) ? ZIP_PACK_EXTENSION : null);
         this.saveButton.active = false;
 
         this.repositionElements();
-        this.setOpen(true);
+        super.setOpen(true);
     }
 
     private boolean testInput(String input) {
@@ -147,7 +142,8 @@ public class FileRenameModal extends Modal<LinearLayout> {
         if (input == null || input.isBlank()) {
             return false;
         }
-        if (this.pack == null || PackUtil.validatePackPath(pack) == null) {
+        var renameContext = this.viewModel.state().renamingPack();
+        if (renameContext == null || PackUtil.validatePackPath(renameContext.ctx().pack()) == null) {
             return false;
         }
         String trimmed = input.trim();
@@ -161,41 +157,18 @@ public class FileRenameModal extends Modal<LinearLayout> {
         this.saveButton.active = this.canSave(name);
     }
 
-    private void onClose(boolean open) {
-        if (open) return;
-
-        PackList target = this.packList;
-        Pack trigger = this.pack;
-
-        if (target != null) {
-            ((PackListEventListener) this.screen).onEvent(new FileRenameCloseEvent(target, trigger));
-        }
-
-        this.clearReferences();
-    }
-
-    private void saveName() {
+    private boolean saveName() {
         String newName = this.nameEditor.getValue();
-        if (!this.canSave(newName)) {
-            return;
+        if (!this.canSave(newName)) return false;
+
+        var renameContext = this.viewModel.state().renamingPack();
+        if (renameContext != null) {
+            String sanitizedName = sanitizeNameForSave(renameContext.ctx().pack(), newName);
+            this.viewModel.dispatch(new PackListIntent.Rename(renameContext.target(), renameContext.ctx(), sanitizedName));
+            return true;
         }
 
-        String sanitizedName = sanitizeNameForSave(this.pack, newName);
-        if (this.fileOps.renamePack(this.pack, sanitizedName)) {
-            Component sanitizedNameText = Component.literal(sanitizedName);
-            if (this.packList != null) {
-                PackList.Entry entry = this.packList.getEntry(this.pack);
-                if (entry != null) {
-                    entry.onRename(sanitizedNameText);
-                }
-            }
-
-            ((PackListEventListener) this.screen).onEvent(new FileRenameEvent(this.packList, this.pack, sanitizedNameText));
-            this.setOpen(false);
-            this.clearReferences();
-        } else {
-            ToastUtil.onFileFailToast(ToastUtil.getRenameFailText(pack.getTitle().getString(), newName));
-        }
+        return false;
     }
 
     private static String sanitizeNameForEdit(Pack pack) {
@@ -225,36 +198,21 @@ public class FileRenameModal extends Modal<LinearLayout> {
     @Override
     public boolean keyPressed(@NonNull KeyEvent keyEvent) {
         boolean keyPressed = super.keyPressed(keyEvent);
-        if (!keyPressed && this.isOpen() && keyEvent.key() == InputConstants.KEY_RETURN && this.canSave(this.nameEditor.getValue())) {
-            this.saveName();
-            return true;
+        if (!keyPressed && keyEvent.key() == InputConstants.KEY_RETURN && this.saveName()) {
+            GuiUtil.playClickSound();
+            return this.viewModel.state().renamingPack() != null;
         }
         return keyPressed;
     }
 
     @Override
-    public boolean charTyped(@NonNull CharacterEvent characterEvent) {
-        boolean charTyped = super.charTyped(characterEvent);
-
-        if (!charTyped && this.isOpen() && !this.nameEditor.isFocused()) {
-            this.setFocused(this.nameEditor);
-            return this.nameEditor.charTyped(characterEvent);
-        }
-
-        return charTyped;
-    }
-
-    @Override
     public @Nullable ComponentPath nextFocusPath(@NonNull FocusNavigationEvent event) {
-        if (this.nameEditor.isFocused() &&
-            event instanceof FocusNavigationEvent.ArrowNavigation(ScreenDirection direction) &&
-            direction.getAxis() == ScreenAxis.HORIZONTAL) {
-            if (!Minecraft.getInstance().hasShiftDown()) {
-                this.nameEditor.setHighlightPos(this.nameEditor.getCursorPosition());
-            }
+        if (this.viewModel.state().renamingPack() == null) {
+            return null;
+        }
+        if (event instanceof FocusNavigationEvent.InitialFocus) {
             return ComponentPath.path(this.nameEditor, this);
         }
-
         return super.nextFocusPath(event);
     }
 }
