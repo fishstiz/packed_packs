@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs.gui.model;
 
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
+import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
 import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.config.PackOverride;
 import io.github.fishstiz.packed_packs.gui.intents.PackListIntent;
@@ -136,6 +137,10 @@ public class PackListViewModel {
             case AVAILABLE -> new PackListIntent.Enable(this.target, pack, payload, 0);
             case ENABLED -> new PackListIntent.Disable(this.target, pack, payload);
         });
+    }
+
+    public boolean supportsTransferring() {
+        return this.target.depth() == 0;
     }
 
     public boolean supportsReordering() {
@@ -310,10 +315,6 @@ public class PackListViewModel {
             return PackListViewModel.this.canDisable(this.pack);
         }
 
-        public boolean canTransfer() {
-            return PackListViewModel.this.canTransfer(this.pack);
-        }
-
         public boolean unfixed() {
             return !PackListViewModel.this.ctx.options().isLocked() &&
                    !PackListViewModel.this.state.get().query().hasQuery() &&
@@ -356,23 +357,14 @@ public class PackListViewModel {
         }
 
         private List<Pack> createPayload(Predicate<Pack> filter) {
-            if (!filter.test(this.pack)) {
-                return Collections.emptyList();
-            }
-
-            if (!this.selected()) {
-                return List.of(this.pack);
-            }
-
             SequencedCollection<Pack> selection = PackListViewModel.this.state.get().selectedPacks();
-            List<Pack> payload = new ObjectArrayList<>(selection.size());
-            for (Pack pack : selection) {
-                if (filter.test(pack)) {
-                    payload.add(pack);
-                }
+            List<Pack> payload = CollectionsUtil.addIf(new ObjectArrayList<>(selection.size() + 1), selection, filter);
+
+            if (!selection.contains(this.pack) && filter.test(this.pack)) {
+                payload.addLast(this.pack);
             }
 
-            return List.copyOf(payload);
+            return payload;
         }
 
         private List<Pack> createPayload() {
