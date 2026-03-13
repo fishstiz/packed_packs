@@ -415,7 +415,7 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
         if (CollectionsUtil.anyMatch(this.dialogs, ToggleableDialog::isOpen)) {
             return false;
         }
-        if (codePoint != KEY_SPACE && noModifiers(modifiers)) {
+        if (codePoint != KEY_SPACE && (noModifiers(modifiers) || shiftOnly(modifiers))) {
             PackLayout packLayout = this.getFocusedOrHoveredLayout();
             if (packLayout != null && !packLayout.getSearchField().isFocused()) {
                 return this.focusSearchField(packLayout).charTyped(codePoint, modifiers);
