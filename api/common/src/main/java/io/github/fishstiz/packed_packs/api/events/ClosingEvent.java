@@ -7,11 +7,11 @@ import org.jetbrains.annotations.ApiStatus;
 /**
  * Fired when the screen is closing.
  */
-public final class ScreenClosingEvent extends ScreenEvent implements Event {
+public final class ClosingEvent extends ScreenEvent implements Event {
     private boolean committed;
 
     @ApiStatus.Internal
-    public ScreenClosingEvent(ScreenContext context) {
+    public ClosingEvent(ScreenContext context) {
         super(context);
     }
 

@@ -4,7 +4,7 @@ import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import io.github.fishstiz.fidgetz.gui.components.Fidgetz;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuilder;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuProvider;
-import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
+import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.compat.Mod;
 import io.github.fishstiz.packed_packs.compat.PackWrapperDelegatorAbstractionEpicModelEntry;
 import io.github.fishstiz.packed_packs.config.Config;
@@ -27,21 +27,21 @@ public class RespackoptsWidget extends AbstractButton implements ContextMenuProv
     private final LayoutElement container;
     private final @Nullable PreferenceToggle toggle;
 
-    private RespackoptsWidget(PreferenceRegistry.Key<Boolean> prefKey, LayoutElement container, ResourcePackEntryWidget wrapped, PackSelectionModel.Entry model) {
+    private RespackoptsWidget(Preference<Boolean> prefKey, LayoutElement container, ResourcePackEntryWidget wrapped, PackSelectionModel.Entry model) {
         super(0, 0, 0, 0, Component.literal(Mod.RESPACKOPTS.getId()));
-        this.toggle = Config.get().isDevMode() ? PreferenceToggle.fromKey(prefKey) : null;
+        this.toggle = Config.get().isDevMode() ? PreferenceToggle.tryWithInternalName(prefKey) : null;
         this.container = container;
         this.wrapped = wrapped;
         this.model = model;
     }
 
-    public static @Nullable RespackoptsWidget create(PreferenceRegistry.Key<Boolean> prefKey, LayoutElement container, Pack pack) {
+    public static @Nullable RespackoptsWidget create(Preference<Boolean> preference, LayoutElement container, Pack pack) {
         var widgets = ResourcePackEntryWidget.WIDGETS;
         if (!widgets.isEmpty()) {
             PackSelectionModel.Entry model = new PackWrapperDelegatorAbstractionEpicModelEntry(pack);
             for (ResourcePackEntryWidget widget : widgets) {
                 if (widget.isVisible(model, isSelectable(pack))) {
-                    return new RespackoptsWidget(prefKey, container, widget, model);
+                    return new RespackoptsWidget(preference, container, widget, model);
                 }
             }
         }
