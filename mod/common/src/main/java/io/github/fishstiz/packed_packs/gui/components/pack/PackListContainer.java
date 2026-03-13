@@ -77,10 +77,6 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
     private void updateState(GuiEventListener target) {
         this.children = List.of(target);
         this.setFocused(target);
-        ComponentPath path = target.nextFocusPath(new FocusNavigationEvent.InitialFocus());
-        if (path != null) {
-            path.applyFocus(true);
-        }
     }
 
     private void refresh() {
@@ -93,6 +89,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             Folder newFolder = new Folder(this.root == null ? this : this.root, this.viewModel.createFolderSlice());
             this.folder = newFolder;
             this.updateState(newFolder);
+            ObjectsUtil.ifPresent(newFolder.nextFocusPath(new FocusNavigationEvent.InitialFocus()), path -> path.applyFocus(true));
         } else {
             this.folder = null;
             this.updateState(this.packList);
