@@ -66,6 +66,7 @@ public class ProfilesSidebar extends ToggleableDialog<LayoutWrapper<FlexLayout>>
         this.root().layout().addChild(actions);
         this.root().layout().addFlexChild(contents, true);
 
+        this.refresh();
         this.viewModel.subscribe(ProfilesViewModel.Property.SELECTED, this::refresh);
     }
 
