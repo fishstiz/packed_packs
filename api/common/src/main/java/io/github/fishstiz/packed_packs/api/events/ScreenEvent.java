@@ -7,7 +7,7 @@ import io.github.fishstiz.packed_packs.api.context.ScreenContext;
  *
  * @see InitializeLayoutEvent
  * @see InitializePackEntryEvent
- * @see ScreenClosingEvent
+ * @see ClosingEvent
  * @see ContextMenuEvent
  * @see WatchEvent
  */

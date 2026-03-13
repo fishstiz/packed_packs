@@ -40,8 +40,8 @@ public final class PackedPacksApiImpl implements PackedPacksApi {
                     extension.onInitialize(api);
                 } catch (Throwable e) {
                     PackedPacks.LOGGER.error(
-                            "[packed_packs] PackedPacksInitializer implementation '{}' failed to initialize.",
-                            extension.getClass().getSimpleName(), e
+                            "[packed_packs] An error occurred while initializing PackedPacksInitializer implementation '{}'",
+                            extension.getClass().getName(), e
                     );
                 }
             }

@@ -3,7 +3,7 @@ package io.github.fishstiz.packed_packs.compat.vtdownloader;
 import io.github.fishstiz.fidgetz.gui.components.FidgetzButton;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import io.github.fishstiz.packed_packs.api.PackedPacksApi;
-import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
+import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
 import io.github.fishstiz.packed_packs.api.events.InitializeLayoutEvent;
@@ -32,13 +32,13 @@ public class VTDIntegration extends ModIntegration {
 
     @Override
     protected void onInitLoaded(PackedPacksApi api) {
-        PreferenceRegistry.Key<Boolean> vtdButtonPrefKey = api.preferences().register(ResourceUtil.id("vtd_button"), true);
-        PreferenceRegistry.Key<Boolean> vtdEditButtonPrefKey = api.preferences().register(ResourceUtil.id("vtd_edit_button"), true);
+        Preference<Boolean> vtdButton = api.preferences().register(ResourceUtil.id("vtd_button"), true);
+        Preference<Boolean> vtdEditButton = api.preferences().register(ResourceUtil.id("vtd_edit_button"), true);
 
         api.eventBus().register(InitializeLayoutEvent.class, this.id(), ModIntegration.id(Mod.ETF), event -> {
             ScreenContext ctx = event.screenContext();
             if (ctx.isClientResources()) {
-                var button = ctx.bindPreference(vtdButtonPrefKey, this.createButton(ctx.screen()));
+                var button = ctx.wrapWidget(vtdButton, null, this.createButton(ctx.screen()));
                 if (button != null) event.addWidget(InitializeLayoutEvent.Pos.AFTER_TITLE, button);
             }
         });
@@ -46,8 +46,8 @@ public class VTDIntegration extends ModIntegration {
         api.eventBus().register(InitializePackEntryEvent.class, this.id(), event -> {
             ScreenContext ctx = event.screenContext();
             if (ctx.isClientResources()) {
-                var button = ctx.bindPreference(vtdEditButtonPrefKey, VTDEditButtonWidget.create(
-                        vtdEditButtonPrefKey,
+                var button = ctx.wrapWidget(vtdEditButton, null, VTDEditButtonWidget.create(
+                        vtdEditButton,
                         ctx.screen(),
                         event.packContext().pack(),
                         event.packContext()::fileModifiable
@@ -58,8 +58,8 @@ public class VTDIntegration extends ModIntegration {
 
         api.eventBus().register(ContextMenuEvent.Preferences.class, this.id(), List.of(id(Mod.RESPACKOPTS), id(Mod.ETF)), event -> {
             if (event.screenContext().isClientResources()) {
-                event.addToggle(vtdButtonPrefKey, getWidgetPrefText(vtdButtonPrefKey));
-                event.addToggle(vtdEditButtonPrefKey, getWidgetPrefText(vtdEditButtonPrefKey));
+                event.addToggle(vtdButton, getWidgetPrefText(vtdButton));
+                event.addToggle(vtdEditButton, getWidgetPrefText(vtdEditButton));
             }
         });
     }
