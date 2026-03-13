@@ -546,14 +546,10 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
         @Override
         public boolean mouseClicked(@NonNull MouseButtonEvent mouseButtonEvent, boolean doubleClicked) {
             if (ContainerEventHandlerPatch.super.mouseClicked(mouseButtonEvent, doubleClicked) || isRightClick(mouseButtonEvent)) {
-                if (!PackList.this.viewModel.isFolderOpened()) {
-                    return true;
-                }
-                if (this.folderWidget != null) {
-                    // ideally folderWidget should return false on #shouldTakeFocusAfterInteraction,
-                    // but that does not exist on older versions
-                    this.folderWidget.setFocused(false);
-                }
+                if (!PackList.this.viewModel.isFolderOpened()) return true;
+                // ideally folderWidget should return false on #shouldTakeFocusAfterInteraction,
+                // but that does not exist on older versions
+                this.setFocused(null);
                 return false;
             }
 

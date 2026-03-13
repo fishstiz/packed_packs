@@ -26,7 +26,6 @@ import net.minecraft.client.gui.components.events.AbstractContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.layouts.LayoutElement;
-import net.minecraft.client.gui.layouts.LayoutSettings;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.navigation.FocusNavigationEvent;
 import net.minecraft.client.gui.navigation.ScreenAxis;
@@ -34,7 +33,6 @@ import net.minecraft.client.gui.navigation.ScreenDirection;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.CommonComponents;
-import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -43,9 +41,6 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import static io.github.fishstiz.packed_packs.util.constants.GuiConstants.*;
-import static io.github.fishstiz.packed_packs.util.constants.GuiConstants.DELETE_FILE_TEXT;
-import static io.github.fishstiz.packed_packs.util.constants.GuiConstants.OPEN_FILE_TEXT;
-import static io.github.fishstiz.packed_packs.util.constants.GuiConstants.OPEN_PARENT_TEXT;
 
 public class PackListContainer extends AbstractWidget implements FocusPathProvider, Layout, ContextMenuContainer, ContainerEventHandlerPatch {
     private final @Nullable PackListContainer root;
@@ -216,12 +211,14 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
     public void setX(int x) {
         super.setX(x);
         this.packList.setX(x);
+        this.repositionFolder();
     }
 
     @Override
     public void setY(int y) {
         super.setY(y);
         this.packList.setY(y);
+        this.repositionFolder();
     }
 
     @Override
@@ -236,6 +233,14 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         super.setPosition(x, y);
         this.setX(x);
         this.setY(y);
+    }
+
+    @Override
+    public boolean isMouseOver(double mouseX, double mouseY) {
+        if (this.root != null && this.viewModel.isFolderOpened() && this.folder != null) {
+            return this.root.isMouseOver(mouseX, mouseY);
+        }
+        return super.isMouseOver(mouseX, mouseY);
     }
 
     @Override
@@ -263,6 +268,10 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         if (this.folder != null) this.folder.arrangeElements();
     }
 
+    private void repositionFolder() {
+        if (this.folder != null) this.folder.repositionElements();
+    }
+
     int getMaxFolderWidth() {
         return this.getWidth() - SPACING * 2;
     }
@@ -272,13 +281,14 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
     }
 
     static class Folder extends AbstractContainerEventHandler implements FocusPathProvider, ContextMenuContainer, ContainerEventHandlerPatch, Renderable {
-        private static final Component BACK_TEXT = CommonComponents.GUI_BACK.copy().append(CommonComponents.ELLIPSIS);
+        private static final int HEADER_SIZE = 16;
+        private static final int LAYOUT_SPACING = SPACING / 2;
         private final PackListContainer root;
         private final RenderableRectWidget<Void> background;
         private final LayoutWrapper<FlexLayout> layout;
         private final FidgetzButton<Void> closeButton;
-        private final FidgetzText<Void> folderTitle;
         private final RenderableRectWidget<Void> folderIcon;
+        private final FidgetzText<Void> folderTitle;
         private final PackListViewModel.Module viewModel;
         private final PackListContainer listContainer;
         private final Runnable unsubscribe;
@@ -290,25 +300,30 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             this.viewModel = viewModel;
 
             this.background = RenderableRectWidget.<Void>builder(DrawUtil.DEMO_BACKGROUND).build();
-            this.folderIcon = RenderableRectWidget.<Void>builder(this.viewModel.sprite()).makeSquare().build();
-            this.folderTitle = FidgetzText.<Void>builder().setOffsetY(1).build();
+            this.folderIcon = RenderableRectWidget.<Void>builder(this.viewModel.sprite())
+                    .makeSquare(HEADER_SIZE)
+                    .build();
+            this.folderTitle = FidgetzText.<Void>builder()
+                    .setHeight(HEADER_SIZE)
+                    .setOffsetY(1)
+                    .build();
             this.closeButton = FidgetzButton.<Void>builder()
-                    .makeSquare()
+                    .makeSquare(HEADER_SIZE)
                     .setSprite(CROSS_SPRITE)
                     .setOnPress(this.viewModel::close)
                     .build();
             this.listContainer = new PackListContainer(root, viewModel);
 
-            FlexLayout header = FlexLayout.horizontal(this.root::getMaxFolderWidth).spacing(SPACING);
+            FlexLayout header = FlexLayout.horizontal(this.root::getMaxFolderWidth).spacing(LAYOUT_SPACING);
+            header.addChild(this.closeButton);
             header.addChild(this.folderIcon);
             header.addFlexChild(this.folderTitle);
-            header.addChild(this.closeButton);
 
-            FlexLayout contents = FlexLayout.horizontal(this.root::getMaxFolderWidth).spacing(SPACING);
+            FlexLayout contents = FlexLayout.horizontal(this.root::getMaxFolderWidth);
             contents.addFlexChild(this.listContainer, true);
 
-            FlexLayout body = FlexLayout.vertical(this.root::getMaxFolderHeight).spacing(SPACING);
-            body.addChild(header, LayoutSettings.defaults().paddingBottom(-(SPACING / 2)));
+            FlexLayout body = FlexLayout.vertical(this.root::getMaxFolderHeight).spacing(LAYOUT_SPACING);
+            body.addChild(header);
             body.addFlexChild(contents);
 
             this.layout = new LayoutWrapper<>(body);
@@ -363,20 +378,19 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
         @Override
         public void buildItems(ContextMenuItemBuilder builder, int mouseX, int mouseY) {
-            ContextMenuContainer.super.buildItems(
-                    builder.whenNonNull(this.viewModel.currentFolder())
-                            .ifTrue((folderPack, folderMenuBuilder) -> folderMenuBuilder
-                                    .add(new PackMenuHeader(folderPack, this.viewModel.sprite()))
-                                    .simpleItem(BACK_TEXT, this.viewModel::close)
+            ContextMenuContainer.super.buildItems(builder.whenNonNull(this.viewModel.currentFolder())
+                            .ifTrue((pack, menuBuilder) -> menuBuilder
+                                    .add(new PackMenuHeader(pack, this.viewModel.sprite()))
+                                    .simpleItem(CommonComponents.GUI_BACK.copy().append(CommonComponents.ELLIPSIS), this.viewModel::close)
                                     .when(this.getChildAt(mouseX, mouseY).isEmpty())
                                     .ifTrue(b -> b
-                                            .whenNonNull(ObjectsUtil.mapOrNull(folderPack, FilePack::packed_packs$getPath))
+                                            .whenNonNull(ObjectsUtil.mapOrNull(pack, FilePack::packed_packs$getPath))
                                             .ifTrue((path, operationsMenuBuilder) -> operationsMenuBuilder
                                                     .separator()
                                                     .simpleItem(RENAME_FILE_TEXT, this.viewModel::fileModifiable, this.viewModel::openRename)
                                                     .simpleItem(DELETE_FILE_TEXT, this.viewModel::fileModifiable, this.viewModel::delete)
-                                                    .simpleItem(OPEN_FILE_TEXT, () -> PackUtil.openPack(folderPack))
-                                                    .simpleItem(OPEN_PARENT_TEXT, () -> PackUtil.openParent(folderPack))
+                                                    .simpleItem(OPEN_FILE_TEXT, () -> PackUtil.openPack(pack))
+                                                    .simpleItem(OPEN_PARENT_TEXT, () -> PackUtil.openParent(pack))
                                             )
                                     )
                             ),
@@ -385,11 +399,17 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             );
         }
 
-        void arrangeElements() {
-            this.layout.arrangeElements();
+        void repositionElements() {
             this.layout.setPosition(this.root.getX(), this.root.getY());
             this.background.setPosition(this.root.getX(), this.root.getY());
-            this.background.setSize(this.root.getWidth(), this.root.getHeight());
+        }
+
+        void arrangeElements() {
+            if (this.layout.getWidth() != this.root.getWidth() || this.layout.getHeight() != this.root.getHeight()) {
+                this.layout.arrangeElements();
+                this.background.setSize(this.root.getWidth(), this.root.getHeight());
+                this.repositionElements();
+            }
         }
 
         @Override

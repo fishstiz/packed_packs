@@ -543,7 +543,7 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
             this.contextMenu.setOpen(false);
         }
 
-        if (!clicked) {
+        if (!clicked && this.hoveredElement == null) {
             ObjectsUtil.ifPresent(this.getCurrentFocusPath(), path -> path.applyFocus(false));
         }
 
