@@ -74,7 +74,7 @@ public class PackedPacksViewModel {
         this.reducer = new PackedPacksReducer();
         this.assetManager = new PackAssetManager(minecraft, minecraft.getTextureManager());
         this.reload = args.output();
-        this.additionalFolders = Collections.emptyList();
+        this.additionalFolders = this.resolveAdditionalFolders();
     }
 
     private static PackedPacksState buildInitialState(InitMode initMode, PackRepositoryManager repository, PackConfigs configs) {
