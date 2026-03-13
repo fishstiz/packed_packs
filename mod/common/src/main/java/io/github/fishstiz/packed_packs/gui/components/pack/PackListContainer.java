@@ -1,5 +1,6 @@
 package io.github.fishstiz.packed_packs.gui.components.pack;
 
+import com.mojang.blaze3d.platform.cursor.CursorType;
 import io.github.fishstiz.fidgetz.gui.components.*;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuContainer;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuilder;
@@ -355,6 +356,9 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
         @Override
         public void render(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+            if (this.isMouseOver(mouseX, mouseY)) {
+                guiGraphics.requestCursor(CursorType.DEFAULT);
+            }
             for (Renderable renderable : this.renderables) {
                 renderable.render(guiGraphics, mouseX, mouseY, partialTick);
             }
