@@ -30,7 +30,7 @@ public class DrawUtil {
             boolean shadow
     ) {
         int textWidth = font.width(text);
-        int textY = (startY + endY - 9) / 2 + 1;
+        int textY = (startY + endY - font.lineHeight) / 2 + 1;
         int availableWidth = endX - startX;
 
         if (textWidth > availableWidth) {
