@@ -65,6 +65,20 @@ public record PackListState(
         return new PackListState(this.packs, this.visiblePacks, Collections.unmodifiableSequencedSet(newSelectedPacks), this.query, this.folder);
     }
 
+    public PackListState withPacksAndSelectedLast(List<Pack> newPacks, Pack selectedLast, PackOptions options) {
+        if (this.packs() == newPacks) return this;
+
+        if (!this.selectedPacks().contains(selectedLast)) {
+            return this.with(newPacks, List.of(selectedLast), options);
+        } else if (this.selectedPacks().getLast() != selectedLast) {
+            ObjectLinkedOpenHashSet<Pack> newSelection = new ObjectLinkedOpenHashSet<>(this.selectedPacks());
+            newSelection.addAndMoveToLast(selectedLast);
+            return this.with(newPacks, newSelection, options);
+        }
+
+        return this.withPacks(newPacks, options);
+    }
+
     public PackListState withFolder(PackListState.@Nullable Folder newFolder) {
         return new PackListState(this.packs, this.visiblePacks, this.selectedPacks, this.query, newFolder);
     }
