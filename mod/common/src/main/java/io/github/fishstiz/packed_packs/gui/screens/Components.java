@@ -95,7 +95,9 @@ record Components(
         List<ToggleableDialog<?>> dialogs = this.aliasModal != null
                 ? List.of(this.optionsModal, this.contextMenu, this.aliasModal, this.renameModal, this.profilesSidebar)
                 : List.of(this.optionsModal, this.contextMenu, this.renameModal, this.profilesSidebar);
-        for (int i = 0; i < dialogs.size(); i++) dialogs.get(i).setZ((dialogs.size() - i));
+        for (int i = 0; i < dialogs.size(); i++) {
+            dialogs.get(i).setZ((dialogs.size() - i) + 1);
+        }
         return dialogs;
     }
 }
