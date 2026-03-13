@@ -55,7 +55,7 @@ public final class ObjectsUtil {
         return mapOrDefault(obj, null, mapper);
     }
 
-    public static <T> void ifPresent(T obj, Consumer<T> consumer) {
+    public static <T> void ifPresent(T obj, Consumer<@NotNull T> consumer) {
         if (obj != null) consumer.accept(obj);
     }
 
