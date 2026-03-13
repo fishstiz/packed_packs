@@ -4,7 +4,7 @@ import io.github.fishstiz.fidgetz.gui.components.SpriteButton;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.GuiSprite;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.PackedPacksApi;
-import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
+import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
 import io.github.fishstiz.packed_packs.api.events.InitializeLayoutEvent;
@@ -27,16 +27,16 @@ public class PolytoneIntegration extends ModIntegration {
 
     @Override
     public void onInitLoaded(PackedPacksApi api) {
-        PreferenceRegistry.Key<Boolean> prefKey = api.preferences().register(ResourceUtil.id("polytone_button"), true);
+        Preference<Boolean> buttonEnabled = api.preferences().register(ResourceUtil.id("polytone_button"), true);
 
         api.eventBus().register(InitializeLayoutEvent.class, this.id(), event -> {
             if (!event.screenContext().isClientResources()) return;
-            var button = event.screenContext().bindPreference(prefKey, ButtonFactory.create(event.screenContext()));
+            var button = event.screenContext().wrapWidget(buttonEnabled, getWidgetPrefText(buttonEnabled), ButtonFactory.create(event.screenContext()));
             if (button != null) event.addWidget(InitializeLayoutEvent.Pos.AFTER_TITLE, button);
         });
 
         api.eventBus().register(ContextMenuEvent.Preferences.class, this.id(), event -> {
-            if (event.screenContext().isClientResources()) event.addToggle(prefKey, getWidgetPrefText(prefKey));
+            if (event.screenContext().isClientResources()) event.addToggle(buttonEnabled, getWidgetPrefText(buttonEnabled));
         });
     }
 

@@ -33,7 +33,6 @@ import org.apache.commons.lang3.mutable.MutableObject;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -63,11 +62,11 @@ public class PackedPacksViewModel {
     private PackWatcher watcher;
     private List<Path> additionalFolders;
 
-    public PackedPacksViewModel(Minecraft minecraft, PackSelectionScreenArgs args, InitMode initMode) {
+    public PackedPacksViewModel(Minecraft minecraft, PackSelectionScreenArgs args) {
         this.mainThreadExecutor = minecraft;
         this.configs = PackConfigs.get(args.packType());
         this.repository = new PackRepositoryManager(args.repository(), args.packDir());
-        this.initialStateFuture = CompletableFuture.supplyAsync(() -> buildInitialState(initMode, this.repository, this.configs), Util.backgroundExecutor());
+        this.initialStateFuture = CompletableFuture.supplyAsync(() -> buildInitialState(new InitMode.Default(), this.repository, this.configs), Util.backgroundExecutor());
         this.options = new PackOptionsContext(() -> this.state.profiles().selectedProfile(), () -> this.state.profiles().defaultProfile());
         this.fileOps = new PackFileOperations(this.options, this.repository);
         this.history = new HistoryManager<>(this.state);
@@ -258,7 +257,7 @@ public class PackedPacksViewModel {
 
         if (prev.profiles().selectedProfile() != current.profiles().selectedProfile()) {
             Profile previousProfile = prev.profiles().selectedProfile();
-            if (previousProfile != null) {
+            if (previousProfile != null && current.profiles().profiles().contains(previousProfile)) {
                 previousProfile.setPacks(prev.enabled().packs());
                 this.configs.profiles().save(previousProfile);
             }
@@ -394,7 +393,7 @@ public class PackedPacksViewModel {
     public void refreshRepository() {
         this.cancelRefresh();
         this.refreshFuture = CompletableFuture.runAsync(this.repository::refresh, Util.backgroundExecutor())
-                .thenRunAsync(this::syncRepository, this.mainThreadExecutor);
+                .thenRunAsync(this::syncStateWithRepository, this.mainThreadExecutor);
     }
 
     public void refreshRepository(boolean blocking) {
@@ -404,10 +403,10 @@ public class PackedPacksViewModel {
         }
         this.cancelRefresh();
         this.repository.refresh();
-        this.syncRepository();
+        this.syncStateWithRepository();
     }
 
-    public void syncRepository() {
+    private void syncStateWithRepository() {
         PackGroup validated = this.repository.validatePacks(
                 state.available().packs(),
                 state.enabled().packs(),
@@ -500,8 +499,6 @@ public class PackedPacksViewModel {
     }
 
     public void toggleDevMode() {
-        Profile selectedProfile = this.state.profiles().selectedProfile();
-        if (selectedProfile != null) selectedProfile.setPacks(this.state.enabled().packs());
         Config.get().setDevMode(!Config.get().isDevMode());
         ToastUtil.onDevModeToggleToast(Config.get().isDevMode());
     }
@@ -570,7 +567,14 @@ public class PackedPacksViewModel {
         this.replaceState(state.withPackLists(state.available(), state.enabled().withQuery(Query.empty(), state.profiles().options())));
     }
 
-    public void onMounted() {
+    public void prepareInitialState(InitMode initMode) {
+        if (this.initialStateFuture != null) {
+            this.initialStateFuture.cancel(true);
+        }
+        this.initialStateFuture = CompletableFuture.completedFuture(buildInitialState(initMode, this.repository, this.configs));
+    }
+
+    public void initializeState() {
         if (this.initialStateFuture != null) {
             this.replaceState(this.initialStateFuture.join());
             this.initialStateFuture = null;
@@ -580,14 +584,15 @@ public class PackedPacksViewModel {
         this.additionalFolders = this.resolveAdditionalFolders();
     }
 
-    public void onUnmounted() {
+    public void saveState() {
         if (this.initialStateFuture != null) {
             this.state = this.initialStateFuture.join();
             this.initialStateFuture = null;
         }
 
-        Config.get().setHideIncompatible(this.state.available().query().hideIncompatible());
-        Config.get().setSort(this.state.available().query().sort());
+        Query query = this.state.available().query();
+        Config.get().setSort(query.sort() == null ? Query.SortOption.VANILLA : query.sort());
+        Config.get().setHideIncompatible(query.hideIncompatible());
 
         this.syncSelectedProfile();
         this.configs.profiles().setLastViewed(this.state.profiles().selectedProfile());

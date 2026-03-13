@@ -4,7 +4,7 @@ import io.github.fishstiz.fidgetz.util.lang.FunctionsUtil;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.PackedPacksApi;
 import io.github.fishstiz.packed_packs.api.PackedPacksInitializer;
-import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
+import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -34,7 +34,7 @@ public abstract class ModIntegration implements PackedPacksInitializer {
         return ResourceUtil.id(mod.getId());
     }
 
-    public static Component getWidgetPrefText(PreferenceRegistry.Key<?> key) {
+    public static Component getWidgetPrefText(Preference<?> key) {
         return ResourceUtil.getText("preferences.widgets." + key.id().getPath());
     }
 

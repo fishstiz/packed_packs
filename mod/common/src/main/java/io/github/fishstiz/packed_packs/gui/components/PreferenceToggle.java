@@ -7,7 +7,7 @@ import io.github.fishstiz.fidgetz.gui.components.contextmenu.MenuItem;
 import io.github.fishstiz.fidgetz.gui.renderables.RenderableRect;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import io.github.fishstiz.fidgetz.util.DrawUtil;
-import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
+import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.config.Preferences;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
@@ -24,25 +24,29 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
-public record PreferenceToggle(Preferences.Option<Boolean> option, Component text) implements RenderableRect, MenuItem {
-    public PreferenceToggle(Preferences.Option<Boolean> preference) {
-        this(preference, ResourceUtil.getText("preferences.widgets." + preference.getKey()));
+public record PreferenceToggle(Preference<Boolean> option, Component text) implements RenderableRect, MenuItem {
+    public static PreferenceToggle withInternalName(Preferences.Option<Boolean> preference) {
+        return new PreferenceToggle(preference, ResourceUtil.getText("preferences.widgets." + preference.getKey()));
     }
 
-    public static @Nullable PreferenceToggle fromKey(PreferenceRegistry.Key<Boolean> key) {
-        Preferences.Option<Boolean> option = PackedPacksApiImpl.getInstance().preferences().getOption(key);
+    public static @Nullable PreferenceToggle tryWithInternalName(Preference<Boolean> preference) {
+        Preferences.Option<Boolean> option = PackedPacksApiImpl.getInstance().preferences().getInternal(preference);
         if (option == null) return null;
-        return new PreferenceToggle(option);
+        return withInternalName(option);
     }
 
     public static List<PreferenceToggle> standardOptions() {
         return List.of(
-                new PreferenceToggle(Preferences.ORIGINAL_SCREEN_WIDGET),
-                new PreferenceToggle(Preferences.OPTIONS_WIDGET),
-                new PreferenceToggle(Preferences.ACTION_BAR_WIDGET),
-                new PreferenceToggle(Preferences.INCOMPATIBLE_TOGGLE_WIDGET),
-                new PreferenceToggle(Preferences.FOLDER_PACK_WIDGET)
+                withInternalName(Preferences.ORIGINAL_SCREEN_WIDGET),
+                withInternalName(Preferences.OPTIONS_WIDGET),
+                withInternalName(Preferences.ACTION_BAR_WIDGET),
+                withInternalName(Preferences.INCOMPATIBLE_TOGGLE_WIDGET),
+                withInternalName(Preferences.FOLDER_PACK_WIDGET)
         );
+    }
+
+    public static void resetStandardOptions() {
+        standardOptions().forEach(toggle -> toggle.option.reset());
     }
 
     @Override
@@ -63,7 +67,7 @@ public record PreferenceToggle(Preferences.Option<Boolean> option, Component tex
     }
 
     @Override
-    public @Nullable RenderableRect background() {
+    public RenderableRect background() {
         return GuiConstants.DEVELOPER_MODE_ITEM_BACKGROUND;
     }
 
@@ -84,21 +88,25 @@ public record PreferenceToggle(Preferences.Option<Boolean> option, Component tex
         return enabled ? Theme.GREEN_500.getARGB() : Theme.RED_700.getARGB();
     }
 
-    public static @Nullable AbstractWidget wrap(Preferences.@Nullable Option<Boolean> option, @Nullable AbstractWidget widget) {
+    public static @Nullable AbstractWidget wrap(Preferences.@Nullable Option<Boolean> option, @Nullable Component text, @Nullable AbstractWidget widget) {
         if (widget == null || option == null) {
             return null;
         }
         if (Config.get().isDevMode()) {
-            return new Wrapped(new PreferenceToggle(option), widget);
+            return new Wrapped(text == null ? withInternalName(option) : new PreferenceToggle(option, text), widget);
         }
-        if (Boolean.TRUE.equals(option.get())) {
+        if (option.get()) {
             return widget;
         }
         return null;
     }
 
-    public static @Nullable AbstractWidget wrap(PreferenceRegistry.Key<Boolean> key, @Nullable AbstractWidget widget) {
-        return wrap(PackedPacksApiImpl.getInstance().preferences().getOption(key), widget);
+    public static @Nullable AbstractWidget wrap(Preferences.@Nullable Option<Boolean> option, @Nullable AbstractWidget widget) {
+        return wrap(option, null, widget);
+    }
+
+    public static @Nullable AbstractWidget wrap(Preference<Boolean> key, Component text, @Nullable AbstractWidget widget) {
+        return wrap(PackedPacksApiImpl.getInstance().preferences().getInternal(key), text, widget);
     }
 
     public static <T> Optional<Bound<T>> bind(Preferences.Option<Boolean> option, T obj) {
@@ -106,9 +114,9 @@ public record PreferenceToggle(Preferences.Option<Boolean> option, Component tex
             return Optional.empty();
         }
         if (Config.get().isDevMode()) {
-            return Optional.of(new Bound<>(obj, new PreferenceToggle(option)));
+            return Optional.of(new Bound<>(obj, withInternalName(option)));
         }
-        if (Boolean.TRUE.equals(option.get())) {
+        if (option.get()) {
             return Optional.of(new Bound<>(obj, null));
         }
         return Optional.empty();

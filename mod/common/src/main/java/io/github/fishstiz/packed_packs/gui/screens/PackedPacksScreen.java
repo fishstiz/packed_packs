@@ -4,14 +4,17 @@ import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import io.github.fishstiz.fidgetz.gui.components.*;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenu;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuContainer;
+import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuilder;
 import io.github.fishstiz.fidgetz.gui.layouts.FlexLayout;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
 import io.github.fishstiz.fidgetz.util.lang.ObjectsUtil;
+import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
+import io.github.fishstiz.packed_packs.api.events.InitializeEvent;
 import io.github.fishstiz.packed_packs.api.events.InitializeLayoutEvent;
-import io.github.fishstiz.packed_packs.api.events.ScreenClosingEvent;
+import io.github.fishstiz.packed_packs.api.events.ClosingEvent;
 import io.github.fishstiz.packed_packs.config.*;
 import io.github.fishstiz.packed_packs.gui.FocusTarget;
 import io.github.fishstiz.packed_packs.gui.UiEffect;
@@ -36,8 +39,10 @@ import io.github.fishstiz.packed_packs.util.PackUtil;
 import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import io.github.fishstiz.packed_packs.util.constants.Theme;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.AlertScreen;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.NoticeWithLinkScreen;
@@ -53,6 +58,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -92,8 +98,8 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
 
         this.previous = previous;
         this.original = original;
-        this.viewModel = new PackedPacksViewModel(this.minecraft, original, initMode);
-        this.context = new ScreenContextImpl(previous, this, this.viewModel, original, Config.get().isDevMode());
+        this.viewModel = new PackedPacksViewModel(this.minecraft, original);
+        this.context = new ScreenContextImpl(previous, this, this.viewModel, original);
         this.viewModel.startWatcher(this.context);
 
         Components components = Components.create(this, this.context, this.viewModel);
@@ -126,7 +132,7 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
     @Override
     public void added() {
         if (this.initialized) {
-            this.viewModel.onMounted();
+            this.viewModel.initializeState();
             this.viewModel.refreshRepository();
             this.viewModel.startWatcher(this.context);
         }
@@ -134,13 +140,17 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
 
     @Override
     public void removed() {
+        this.viewModel.cancelRefresh();
         this.viewModel.stopWatcher();
-        this.viewModel.onUnmounted();
+        this.viewModel.saveState();
     }
 
     @Override
     protected void init() {
         if (this.initialized) return;
+
+        List<Consumer<InitializeEvent.Post>> postActions = new ArrayList<>();
+        PackedPacksApiImpl.getInstance().eventBus().post(new InitializeEvent.Pre(this.context, postActions::add));
 
         InitializeLayoutEvent event = PackedPacksApiImpl.getInstance().eventBus().post(new InitializeLayoutEvent(this.context));
         this.layout.layout().addChild(this.createHeader(event));
@@ -152,10 +162,15 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
         CollectionsUtil.forEachReverse(this.dialogs, this::addRenderableOnly);
         this.repositionElements();
 
-        this.viewModel.onMounted();
+        this.viewModel.initializeState();
         if (this.refreshOnInit) this.viewModel.refreshRepository();
 
+        this.refreshOnInit = true;
         this.initialized = true;
+
+        InitializeEvent.Post postInit = new InitializeEvent.Post(this.context);
+        postActions.forEach(listener -> listener.accept(postInit));
+        PackedPacksApiImpl.getInstance().eventBus().post(postInit);
     }
 
     private void addExtensions(FlexLayout layout, InitializeLayoutEvent.Pos pos, InitializeLayoutEvent extensions) {
@@ -217,32 +232,24 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
 
     private FlexLayout createFooter(InitializeLayoutEvent extensions) {
         FlexLayout footer = FlexLayout.horizontal(this::getMaxWidth).spacing(SPACING);
-        FlexLayout firstColumn = FlexLayout.horizontal().spacing(SPACING);
-        FlexLayout secondColumn = FlexLayout.horizontal().spacing(SPACING);
-
-        this.addExtensions(firstColumn, InitializeLayoutEvent.Pos.BEFORE_FOOTER, extensions);
-
-        firstColumn.addFlexChild(FidgetzButton.builder()
+        FlexLayout leftColumn = FlexLayout.horizontal().spacing(SPACING);
+        FlexLayout rightColumn = FlexLayout.horizontal().spacing(SPACING);
+        this.addExtensions(leftColumn, InitializeLayoutEvent.Pos.BEFORE_FOOTER, extensions);
+        leftColumn.addFlexChild(FidgetzButton.builder()
                 .setMessage(OPEN_FOLDER_TEXT)
                 .setTooltip(Tooltip.create(Component.translatable("pack.folderInfo")))
                 .setOnPress(this.viewModel::openBaseDir)
                 .build());
-
-        this.addExtensions(firstColumn, InitializeLayoutEvent.Pos.AFTER_LEFT_FOOTER, extensions);
-
+        this.addExtensions(leftColumn, InitializeLayoutEvent.Pos.AFTER_LEFT_FOOTER, extensions);
+        this.addExtensions(rightColumn, InitializeLayoutEvent.Pos.BEFORE_RIGHT_FOOTER, extensions);
         if (this.context.isClientResources()) {
-            secondColumn.addFlexChild(FidgetzButton.builder().setMessage(ResourceUtil.getText("apply")).setOnPress(this.viewModel::commit).build());
+            rightColumn.addFlexChild(FidgetzButton.builder().setMessage(ResourceUtil.getText("apply")).setOnPress(this.viewModel::commit).build());
         }
-
-        this.addExtensions(secondColumn, InitializeLayoutEvent.Pos.BEFORE_RIGHT_FOOTER, extensions);
-
-        secondColumn.addFlexChild(FidgetzButton.builder().setMessage(CommonComponents.GUI_DONE).setOnPress(this::onClose).build());
-
-        this.addExtensions(secondColumn, InitializeLayoutEvent.Pos.AFTER_FOOTER, extensions);
-
-        footer.addFlexChild(firstColumn);
-        footer.addFlexChild(secondColumn);
-
+        this.addExtensions(rightColumn, InitializeLayoutEvent.Pos.BETWEEN_RIGHT_FOOTER, extensions);
+        rightColumn.addFlexChild(FidgetzButton.builder().setMessage(CommonComponents.GUI_DONE).setOnPress(this::onClose).build());
+        this.addExtensions(rightColumn, InitializeLayoutEvent.Pos.AFTER_FOOTER, extensions);
+        footer.addFlexChild(leftColumn);
+        footer.addFlexChild(rightColumn);
         return footer;
     }
 
@@ -274,17 +281,21 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
     }
 
     @Override
-    protected void rebuildWidgets() {
-        PackedPacksScreen screen;
+    public void rebuildWidgets() {
+        if (!this.initialized) return;
+        this.viewModel.cancelRefresh();
+        this.clearWidgets();
+        this.viewModel.saveSelectedProfile();
         Profile profile = this.viewModel.getSelectedProfile();
-        if (profile != null) {
-            screen = new PackedPacksScreen(this.previous, this.original, profile);
-        } else {
-            PackGroup packs = new PackGroup(this.viewModel.getEnabledPacks(), this.viewModel.getAvailablePacks());
-            screen = new PackedPacksScreen(this.previous, this.original, packs);
-        }
-        screen.refreshOnInit = false;
-        this.minecraft.setScreen(screen);
+        InitMode initMode = profile == null
+                ? new InitMode.WithPacks(new PackGroup(this.viewModel.getEnabledPacks(), this.viewModel.getAvailablePacks()))
+                : new InitMode.WithProfile(profile);
+        this.viewModel.saveState();
+        this.viewModel.prepareInitialState(initMode);
+        this.layout.setLayout(FlexLayout.vertical(this::getMaxHeight).spacing(SPACING));
+        this.refreshOnInit = false;
+        this.initialized = false;
+        this.init();
     }
 
     @Override
@@ -322,7 +333,7 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
 
     @Override
     public void onClose() {
-        var closingEvent = PackedPacksApiImpl.getInstance().eventBus().post(new ScreenClosingEvent(this.context));
+        var closingEvent = PackedPacksApiImpl.getInstance().eventBus().post(new ClosingEvent(this.context));
         if (closingEvent.isCommitted() || this.viewModel.shouldCommitOnClose()) {
             this.viewModel.commit();
         }
@@ -476,13 +487,13 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
         if (this.contextMenu.isMouseOver(mouseX, mouseY)) return;
 
         var extensions = ContextMenuEventImpl.postScreen(this.context);
-        var prefExtensions = ContextMenuEventImpl.postPreferences(this.context);
-
-        this.buildItems(mouseX, mouseY)
+        new ContextMenuItemBuilder()
                 .whenNonNull(extensions.getItems(ContextMenuEvent.Screen.Pos.TOP))
                 .ifTrue((items, b) -> b.addAll(items))
-                .when(Config.get().isDevMode())
-                .ifTrue(dev -> dev.separatorIfNonEmpty()
+                .then(b -> this.buildItems(b, mouseX, mouseY))
+                .whenNonNull(this.context.devMode() ? ContextMenuEventImpl.postPreferences(this.context) : null)
+                .ifTrue((ext, dev) -> dev
+                        .separatorIfNonEmpty()
                         .whenNonNull(this.viewModel.getSelectedProfile())
                         .ifTrue(b -> b.
                                 add(devItem(ResourceUtil.getText("profile.save"))
@@ -491,16 +502,18 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
                                 .separator())
                         .parent(children -> devItem(ResourceUtil.getText("preferences"))
                                 .addChildren(children)
-                                .build(), builder -> builder
-                                .whenNonNull(prefExtensions.getItems(ContextMenuEvent.Preferences.Pos.TOP))
+                                .build(), prefsBuilder -> prefsBuilder
+                                .whenNonNull(ext.getItems(ContextMenuEvent.Preferences.Pos.TOP))
                                 .ifTrue((items, b) -> b.addAll(items))
                                 .addAll(PreferenceToggle.standardOptions())
-                                .whenNonNull(prefExtensions.getItems(ContextMenuEvent.Preferences.Pos.BOTTOM))
+                                .whenNonNull(ext.getItems(ContextMenuEvent.Preferences.Pos.BOTTOM))
                                 .ifTrue((items, b) -> b.addAll(items))
                                 .add(devItem(ResourceUtil.getText("preferences.reset"))
-                                        .action(Preferences::reset)
-                                        .build()))
-                )
+                                        .closeOnInteract(false)
+                                        .action(() -> {
+                                            PreferenceToggle.resetStandardOptions();
+                                            ext.getPreferences().forEach(Preference::reset);
+                                        }).build())))
                 .separatorIfNonEmpty()
                 .simpleItem(ResourceUtil.getText("reset_enabled"), this.viewModel::isUnlocked, this.viewModel::resetChanges)
                 .simpleItem(ResourceUtil.getText("refresh"), this.viewModel::canRefresh, this.viewModel::refreshRepository)
@@ -613,5 +626,25 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
             guiGraphics.drawString(this.font, ResourceUtil.getText("dev_mode", DEV_MODE_SHORTCUT), 0, y, Theme.WHITE.getARGB());
             guiGraphics.pose().popMatrix();
         }
+    }
+
+    @Override
+    public <T extends GuiEventListener & NarratableEntry> @NonNull T addWidget(@NonNull T widget) {
+        return super.addWidget(widget);
+    }
+
+    @Override
+    public <T extends Renderable> @NonNull T addRenderableOnly(@NonNull T renderable) {
+        return super.addRenderableOnly(renderable);
+    }
+
+    @Override
+    public <T extends GuiEventListener & Renderable & NarratableEntry> @NonNull T addRenderableWidget(@NonNull T widget) {
+        return super.addRenderableWidget(widget);
+    }
+
+    @Override
+    public void removeWidget(@NonNull GuiEventListener widget) {
+        super.removeWidget(widget);
     }
 }

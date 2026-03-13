@@ -2,7 +2,7 @@ package io.github.fishstiz.packed_packs.compat.vtdownloader;
 
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import io.github.fishstiz.fidgetz.gui.components.Fidgetz;
-import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
+import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.gui.components.PreferenceToggle;
 import net.minecraft.client.gui.GuiGraphics;
@@ -38,16 +38,16 @@ public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
     private final BooleanSupplier editable;
     private final @Nullable PreferenceToggle toggle;
 
-    private VTDEditButtonWidget(PreferenceRegistry.Key<Boolean> prefKey, Screen previous, Pack pack, BooleanSupplier editable) {
+    private VTDEditButtonWidget(Preference<Boolean> prefKey, Screen previous, Pack pack, BooleanSupplier editable) {
         super(0, 0, PENCIL_SIZE, PENCIL_SIZE, CommonComponents.EMPTY);
-        this.toggle = Config.get().isDevMode() ? PreferenceToggle.fromKey(prefKey) : null;
+        this.toggle = Config.get().isDevMode() ? PreferenceToggle.tryWithInternalName(prefKey) : null;
         this.previous = previous;
         this.pack = pack;
         this.editable = editable;
         this.active = this.editable.getAsBoolean();
     }
 
-    public static @Nullable VTDEditButtonWidget create(PreferenceRegistry.Key<Boolean> prefKey, Screen previous, Pack pack, BooleanSupplier editable) {
+    public static @Nullable VTDEditButtonWidget create(Preference<Boolean> prefKey, Screen previous, Pack pack, BooleanSupplier editable) {
         return pack.getDescription().getString().contains(VT_DESCRIPTION_MARKER) ? new VTDEditButtonWidget(prefKey, previous, pack, editable) : null;
     }
 

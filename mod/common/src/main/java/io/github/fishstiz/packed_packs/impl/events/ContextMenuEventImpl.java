@@ -2,35 +2,28 @@ package io.github.fishstiz.packed_packs.impl.events;
 
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuilder;
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.MenuItem;
-import io.github.fishstiz.fidgetz.gui.components.contextmenu.MenuItemBuilder;
-import io.github.fishstiz.fidgetz.gui.renderables.sprites.GuiSprite;
-import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
+import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.api.context.PackContext;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
+import io.github.fishstiz.packed_packs.api.gui.ContextMenuItemSpec;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
-import io.github.fishstiz.packed_packs.util.constants.GuiConstants;
-import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
-import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.network.chat.CommonComponents;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
-import org.jspecify.annotations.Nullable;
+import io.github.fishstiz.packed_packs.impl.gui.ContextMenuItemSpecImpl;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.BooleanSupplier;
+import java.util.*;
 import java.util.function.Consumer;
 
-public final class ContextMenuEventImpl<P extends Enum<P>> extends ContextMenuEvent<P> {
+public final class ContextMenuEventImpl<P extends Enum<P>> extends ContextMenuEvent.Positioned<P> {
     private final Map<P, ContextMenuItemBuilder> menuBuilders;
-    private final boolean preferences;
+    private final boolean preferenceEvent;
+    private Set<Preference<?>> preferences = Collections.emptySet();
 
-    ContextMenuEventImpl(ScreenContext context, Class<P> positions, boolean preferences) {
+    ContextMenuEventImpl(ScreenContext context, Class<P> positions, boolean preferenceEvent) {
         super(context);
         this.menuBuilders = new EnumMap<>(positions);
-        this.preferences = preferences;
+        this.preferenceEvent = preferenceEvent;
     }
 
     ContextMenuEventImpl(ScreenContext context, Class<P> positions) {
@@ -38,43 +31,29 @@ public final class ContextMenuEventImpl<P extends Enum<P>> extends ContextMenuEv
     }
 
     public static ContextMenuEventImpl<Screen.Pos> postScreen(ScreenContext context) {
-        var delegate = new ContextMenuEventImpl<>(context, Screen.Pos.class);
+        ContextMenuEventImpl<Screen.Pos> delegate = new ContextMenuEventImpl<>(context, Screen.Pos.class);
         PackedPacksApiImpl.getInstance().eventBus().post(new Screen(delegate));
         return delegate;
     }
 
     public static ContextMenuEventImpl<Preferences.Pos> postPreferences(ScreenContext context) {
-        var delegate = new ContextMenuEventImpl<>(context, Preferences.Pos.class, true);
-        PreferenceRegistry registry = PackedPacksApiImpl.getInstance().preferences();
-        PackedPacksApiImpl.getInstance().eventBus().post(new Preferences(registry, delegate));
+        ContextMenuEventImpl<Preferences.Pos> delegate = new ContextMenuEventImpl<>(context, Preferences.Pos.class, true);
+        delegate.preferences = new ObjectOpenHashSet<>();
+        PackedPacksApiImpl.getInstance().eventBus().post(new Preferences(delegate, delegate.preferences::add));
         return delegate;
     }
 
     public static ContextMenuEventImpl<PackEntry.Pos> postPackEntry(ScreenContext context, PackContext packContext) {
-        var delegate = new ContextMenuEventImpl<>(context, PackEntry.Pos.class);
+        ContextMenuEventImpl<PackEntry.Pos> delegate = new ContextMenuEventImpl<>(context, PackEntry.Pos.class);
         PackedPacksApiImpl.getInstance().eventBus().post(new PackEntry(delegate, packContext));
         return delegate;
     }
 
     @Override
-    public void addItem(P pos, Consumer<Item> itemConsumer) {
-        ContextMenuItemImpl itemWrapper = new ContextMenuItemImpl();
-        itemConsumer.accept(itemWrapper);
-        this.menuBuilders.computeIfAbsent(pos, k -> new ContextMenuItemBuilder())
-                .when(itemWrapper.separatorAbove)
-                .ifTrue(ContextMenuItemBuilder::separator)
-                .add(itemWrapper.itemBuilder.build())
-                .when(itemWrapper.separatorBelow)
-                .ifTrue(ContextMenuItemBuilder::separator);
-    }
-
-    @Override
-    public void addToggle(P pos, Component label, BooleanSupplier valueSupplier, BooleanConsumer onChange) {
-        MenuItemBuilder builder = MenuItem.builder(label)
-                .icon(() -> GuiConstants.getToggleIcon(valueSupplier.getAsBoolean()))
-                .action(() -> onChange.accept(!valueSupplier.getAsBoolean()));
-        if (this.preferences) builder.background(GuiConstants.DEVELOPER_MODE_ITEM_BACKGROUND).closeOnInteract(false);
-        this.menuBuilders.computeIfAbsent(pos, k -> new ContextMenuItemBuilder()).add(builder.build());
+    public void addItem(P pos, Consumer<ContextMenuItemSpec> configurator) {
+        ContextMenuItemSpecImpl itemSpec = new ContextMenuItemSpecImpl(this.preferenceEvent);
+        configurator.accept(itemSpec);
+        this.menuBuilders.computeIfAbsent(pos, k -> new ContextMenuItemBuilder()).then(itemSpec::apply);
     }
 
     public @Nullable List<MenuItem> getItems(P pos) {
@@ -83,63 +62,12 @@ public final class ContextMenuEventImpl<P extends Enum<P>> extends ContextMenuEv
         return menuBuilder.build();
     }
 
-    static final class ContextMenuItemImpl implements Item {
-        final MenuItemBuilder itemBuilder;
-        boolean separatorBelow;
-        boolean separatorAbove;
+    public Set<Preference<?>> getPreferences() {
+        return this.preferences;
+    }
 
-        ContextMenuItemImpl() {
-            this.itemBuilder = MenuItem.builder(CommonComponents.EMPTY);
-        }
-
-        @Override
-        public Item setLabel(Component label) {
-            this.itemBuilder.text(label);
-            return this;
-        }
-
-        @Override
-        public Item setAction(Runnable action) {
-            this.itemBuilder.action(action);
-            return null;
-        }
-
-        @Override
-        public Item setIcon(Identifier sprite) {
-            this.itemBuilder.icon(new GuiSprite(sprite, 16, 16));
-            return this;
-        }
-
-        @Override
-        public Item setTooltip(Tooltip tooltip) {
-            this.itemBuilder.tooltip(tooltip);
-            return this;
-        }
-
-        @Override
-        public Item addChild(Consumer<Item> itemConsumer) {
-            var item = new ContextMenuItemImpl();
-            itemConsumer.accept(item);
-            this.itemBuilder.addChild(item.itemBuilder.build());
-            return this;
-        }
-
-        @Override
-        public Item addSeparatorBelow() {
-            this.separatorBelow = true;
-            return this;
-        }
-
-        @Override
-        public Item addSeparatorAbove() {
-            this.separatorAbove = true;
-            return this;
-        }
-
-        @Override
-        public Item applyDevStyle() {
-            this.itemBuilder.background(GuiConstants.DEVELOPER_MODE_ITEM_BACKGROUND);
-            return this;
-        }
+    @Override
+    protected P defaultPosition() {
+        throw new UnsupportedOperationException("defaultPosition called from ContextMenuEventImpl, which should not happen");
     }
 }

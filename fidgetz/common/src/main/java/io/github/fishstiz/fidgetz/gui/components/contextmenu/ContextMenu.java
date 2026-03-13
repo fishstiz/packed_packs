@@ -40,8 +40,7 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
     private static final int ITEM_HEIGHT = 20;
     private static final int MAX_HEIGHT = ITEM_HEIGHT * 10;
     private static final int MIN_WIDTH = 150;
-    private static final int MENU_POINT_OFFSET = 1;
-    private static final int DROP_SHADOW_SIZE = 16;
+    private static final int DROP_SHADOW_SIZE = 24;
     private final Builder builder;
     private final List<ContextMenu> childMenus = new ArrayList<>();
     private final int spacing;
@@ -96,7 +95,9 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
             MenuItem next = (i + 1 < items.size()) ? items.get(i + 1) : null;
 
             if (current == MenuItem.SEPARATOR) {
-                content.addChild(new Separator(MIN_WIDTH, this.borderColor));
+                if (i > 0 && next != null && next != MenuItem.SEPARATOR) {
+                    content.addChild(new Separator(MIN_WIDTH, this.borderColor));
+                }
                 continue;
             }
 
@@ -162,7 +163,7 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
         }
 
         GuiRectangle bounds = this.getBoundingBox();
-        if (GuiUtil.containsPoint(bounds.getX() + MENU_POINT_OFFSET, bounds.getY(), bounds.getWidth(), bounds.getHeight(), mouseX, mouseY)) {
+        if (GuiUtil.containsPoint(bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(), mouseX, mouseY)) {
             guiGraphics.requestCursor(CursorType.DEFAULT);
         }
     }
@@ -273,7 +274,6 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
 
     private static class ItemWidget extends AbstractWidget implements Fidgetz {
         private static final int HOVER_OVERLAY_COLOR = ARGBColor.withAlpha(ARGBColor.WHITE, 0.1f);
-        private final FidgetzText<Void> text;
         protected final ContextMenu parent;
         protected final MenuItem item;
         protected final int spacing;
@@ -281,12 +281,6 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
         private ItemWidget(int width, int spacing, MenuItem item, ContextMenu parent) {
             super(0, 0, width, ITEM_HEIGHT, item.text());
             this.spacing = spacing;
-            this.text = FidgetzText.<Void>builder()
-                    .setOffsetY(MENU_POINT_OFFSET)
-                    .setShadow(true)
-                    .setMessage(item.text())
-                    .setColor(item.textColor())
-                    .build();
             this.parent = parent;
             this.item = item;
         }
@@ -323,9 +317,8 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
         }
 
         protected void renderText(GuiGraphics guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
-            this.text.setPosition(x, y);
-            this.text.setSize(width, height);
-            this.text.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+            Font font = Minecraft.getInstance().font;
+            DrawUtil.renderScrollingStringLeftAlign(guiGraphics, font , this.item.text(), x, y + 1, x + width, y + height + 1, this.item.textColor());
         }
 
         protected void renderHighlight(GuiGraphics guiGraphics, int x, int y, int right, int bottom, boolean hovered, float partialTick) {
@@ -365,7 +358,7 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
             int textWidth = this.item.icon() != null ? innerWidth - size - this.spacing : innerWidth;
 
             this.renderIcon(guiGraphics, innerX, iconY, size, size, partialTick);
-            this.renderText(guiGraphics, textX, innerY, textWidth, innerHeight, mouseX, mouseY, partialTick);
+            this.renderText(guiGraphics, textX, y, textWidth, height, mouseX, mouseY, partialTick);
             this.renderForeground(guiGraphics, x, y, width, height, this.isHovered, mouseX, mouseY, partialTick);
         }
 
@@ -440,18 +433,19 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
 
         @Override
         protected void renderText(GuiGraphics guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
-            int textWidth = width - (height + this.spacing);
+            int innerHeight = this.getHeight() - this.spacing * 2;
+            int textWidth = width - (innerHeight + this.spacing);
             super.renderText(guiGraphics, x, y, textWidth, height, mouseX, mouseY, partialTick);
 
             if (this.item.active()) {
                 Font font = Minecraft.getInstance().font;
                 int caretWidth = font.width(CARET_RIGHT);
                 int caretHeight = font.lineHeight;
-                int caretX = (x + textWidth + this.spacing) + (height - caretWidth) / 2;
+                int caretX = (x + textWidth + this.spacing) + (innerHeight - caretWidth) / 2;
                 int caretY = y + (height - caretHeight) / 2;
                 int color = this.item.textColor();
 
-                guiGraphics.drawString(font, CARET_RIGHT, caretX, caretY, color, false);
+                guiGraphics.drawString(font, CARET_RIGHT, caretX, caretY + 1, color, false);
             }
         }
 

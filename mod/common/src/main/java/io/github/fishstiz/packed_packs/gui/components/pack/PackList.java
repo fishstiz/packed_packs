@@ -467,7 +467,9 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
         }
 
         private void init() {
-            this.packWidget = this.addRenderableOnly(new PackWidget(PackList.this.minecraft, this.viewModel, ITEM_HEIGHT - ROW_GAP, H_SPACING));
+            if (this.initialized) return;
+
+            this.packWidget = Objects.requireNonNull(this.addRenderableOnly(new PackWidget(PackList.this.minecraft, this.viewModel, ITEM_HEIGHT - ROW_GAP, H_SPACING)));
             this.folderWidget = this.addTopLayer(this.viewModel.folder().flatMap(pack ->
                     PreferenceToggle.bind(Preferences.FOLDER_PACK_WIDGET, FidgetzButton.<Void>builder())
                             .map(bound -> bound.value().setTooltip(FOLDER_OPEN_INFO)
@@ -478,15 +480,15 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
                                     .setSprite(HAMBURGER_SPRITE)
                                     .setOnPress(this.viewModel::openFolder)
                                     .build())).orElse(null));
-
-            if (PackList.this.screenContext.devMode()) {
-                this.devMenu = this.viewModel.devMenu(PackList.this.minecraft);
-            }
-
+            this.devMenu = PackList.this.screenContext.devMode() ? this.viewModel.devMenu(PackList.this.minecraft) : null;
             this.initialized = true;
 
-            InitializePackEntryEvent event = new InitializePackEntryEvent(PackList.this.screenContext, this.viewModel, this, this::addTopLayer);
-            PackedPacksApiImpl.getInstance().eventBus().post(event);
+            PackedPacksApiImpl.getInstance().eventBus().post(new InitializePackEntryEvent(
+                    PackList.this.screenContext,
+                    this.viewModel,
+                    this.packWidget,
+                    this::addTopLayer
+            ));
         }
 
         public Pack pack() {
@@ -511,8 +513,7 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
             return renderable;
         }
 
-        public <T extends GuiEventListener & Renderable> T addTopLayer(T widget) {
-            if (widget == null) return null;
+        public <T extends GuiEventListener & Renderable> @Nullable T addTopLayer(@Nullable T widget) {
             return this.addTopRenderableOnly(this.prependWidget(widget));
         }
 
@@ -759,7 +760,7 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
                                     .simpleItem(OPEN_FILE_TEXT, () -> PackUtil.openPack(this.pack()))
                                     .simpleItem(OPEN_PARENT_TEXT, () -> PackUtil.openParent(this.pack()))
                             )
-                            .whenNonNull(extensions.getItems(ContextMenuEvent.PackEntry.Pos.AFTER_HEADER))
+                            .whenNonNull(extensions.getItems(ContextMenuEvent.PackEntry.Pos.AFTER_PACK))
                             .ifTrue((items, b) -> b.addAll(items)),
                     mouseX,
                     mouseY

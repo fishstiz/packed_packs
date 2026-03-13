@@ -1,9 +1,14 @@
 package io.github.fishstiz.packed_packs.api.context;
 
-import io.github.fishstiz.packed_packs.api.PreferenceRegistry;
+import io.github.fishstiz.packed_packs.api.Preference;
+import io.github.fishstiz.packed_packs.api.gui.ContextMenuSink;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
@@ -11,6 +16,7 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.function.BiConsumer;
 
 /**
  * Provides contextual information to the current screen state.
@@ -87,15 +93,56 @@ public interface ScreenContext {
     boolean devMode();
 
     /**
-     * Binds a widget to a {@code boolean} preference.
+     * Rebuilds the {@link #screen}
+     */
+    void rebuild();
+
+    /**
+     * Adds a widget to the {@link #screen}
+     */
+    <T extends GuiEventListener & NarratableEntry> T addWidget(T widget);
+
+    /**
+     * Adds a renderable to the {@link #screen}
+     */
+    <T extends Renderable> T addRenderableOnly(T renderable);
+
+    /**
+     * Adds a renderable widget to the {@link #screen}
+     */
+    <T extends GuiEventListener & NarratableEntry & Renderable> T addRenderableWidget(T widget);
+
+    /**
+     * Removes a widget from the {@link #screen}
+     */
+    void removeWidget(GuiEventListener widget);
+
+    /**
+     * Returns the widget if the preference is enabled, or {@code null} if disabled.
      * <p>
-     * When in {@link #devMode()} wraps the widget with a colored overlay that reflects the preference value.
-     * Otherwise, it returns the widget if the preference is enabled, and {@code null} if it is disabled.
+     * When in {@link #devMode()}, always returns the widget wrapped with an overlay
+     * indicating that it is toggleable, and a context menu item to toggle the preference
+     * when right-clicked.
      *
-     * @param key    the preference key to check
-     * @param widget the widget to bind
-     * @return the bound widget, or {@code null} if it should be hidden
+     * @param key    the boolean preference key to check
+     * @param widget the widget to wrap
+     * @return the widget, a wrapped widget in dev mode, or {@code null} if disabled
      */
     @Nullable
-    AbstractWidget bindPreference(PreferenceRegistry.Key<Boolean> key, @Nullable AbstractWidget widget);
+    AbstractWidget wrapWidget(Preference<Boolean> key, Component label, @Nullable AbstractWidget widget);
+
+    /**
+     * Wraps a widget with a context menu that appears when it is right-clicked.
+     * <p>
+     * The provided {@code configurator} receives both the widget and the context menu sink,
+     * allowing context menu items to be configured based on the widget's state.
+     * <p>
+     * <b>Note:</b> The widget must be a direct child of a non-injected {@link GuiEventListener},
+     * or another {@code wrapWithContextMenu} wrapped widget.
+     *
+     * @param widget       the widget to wrap
+     * @param configurator a consumer to configure the context menu, receiving the widget and the context menu sink
+     * @return the wrapped widget
+     */
+    <T extends AbstractWidget> AbstractWidget wrapWithContextMenu(T widget, BiConsumer<T, ContextMenuSink> configurator);
 }

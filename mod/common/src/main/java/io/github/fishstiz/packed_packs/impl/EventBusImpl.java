@@ -1,9 +1,10 @@
 package io.github.fishstiz.packed_packs.impl;
 
 import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
+import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.Event;
 import io.github.fishstiz.packed_packs.api.EventBus;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.minecraft.resources.Identifier;
 
@@ -45,14 +46,20 @@ public final class EventBusImpl implements EventBus {
     }
 
     private static class Collector implements Delegate {
-        private final Map<Class<? extends Event>, List<Listener<Event>>> eventListeners = new Reference2ReferenceOpenHashMap<>();
+        private final Map<Class<? extends Event>, Set<Listener<Event>>> eventListeners = new Reference2ReferenceOpenHashMap<>();
 
         Collector() {
         }
 
         @SuppressWarnings("unchecked")
-        private void register(Class<? extends Event> eventClass, Listener<? extends Event> listeners) {
-            this.eventListeners.computeIfAbsent(eventClass, e -> new ObjectArrayList<>()).add((Listener<Event>) listeners);
+        private void register(Class<? extends Event> eventClass, Listener<? extends Event> listener) {
+            Set<Listener<Event>> listeners = this.eventListeners.computeIfAbsent(eventClass, e -> new ObjectOpenHashSet<>());
+            if (!listeners.add((Listener<Event>) listener)) {
+                PackedPacks.LOGGER.warn(
+                        "[packed_packs] Skipping duplicate event listener with id '{}' found for event '{}'",
+                        listener.id, eventClass.getName()
+                );
+            }
         }
 
         @Override
@@ -86,10 +93,10 @@ public final class EventBusImpl implements EventBus {
 
             for (var entry : this.eventListeners.entrySet()) {
                 Class<? extends Event> eventClass = entry.getKey();
-                List<Listener<Event>> raw = entry.getValue();
+                Set<Listener<Event>> raw = entry.getValue();
                 List<Listener<Event>> sorted = (raw.size() > 1)
                         ? CollectionsUtil.topoSort(raw, Listener::id, Listener::dependencies)
-                        : raw;
+                        : List.copyOf(raw);
 
                 @SuppressWarnings("unchecked")
                 Consumer<Event>[] bakedArray = new Consumer[sorted.size()];
@@ -106,6 +113,15 @@ public final class EventBusImpl implements EventBus {
         }
 
         record Listener<T extends Event>(Identifier id, Consumer<T> consumer, Identifier... dependencies) {
+            @Override
+            public boolean equals(Object obj) {
+                return obj instanceof Listener<?> that && this.id.equals(that.id);
+            }
+
+            @Override
+            public int hashCode() {
+                return this.id.hashCode();
+            }
         }
     }
 

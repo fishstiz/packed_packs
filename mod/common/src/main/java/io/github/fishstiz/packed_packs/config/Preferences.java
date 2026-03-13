@@ -2,10 +2,12 @@ package io.github.fishstiz.packed_packs.config;
 
 import com.google.gson.Gson;
 import io.github.fishstiz.packed_packs.PackedPacks;
+import io.github.fishstiz.packed_packs.api.Preference;
+import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
+import net.minecraft.resources.Identifier;
 
 import java.io.*;
-import java.lang.reflect.Type;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Function;
@@ -27,7 +29,7 @@ public final class Preferences {
     }
 
     public static <T> Option<T> register(String key, Class<T> type, T defaultValue, Function<String, T> deserializer, Function<T, String> serializer) {
-        return INSTANCE.newOption(key, type, defaultValue, serializer, deserializer);
+        return INSTANCE.createAndRegister(key, type, defaultValue, serializer, deserializer);
     }
 
     @SuppressWarnings("unchecked")
@@ -35,10 +37,6 @@ public final class Preferences {
         return type == String.class
                 ? (Option<T>) register(key, String.class, (String) defaultValue, Function.identity(), Function.identity())
                 : register(key, type, defaultValue, json -> GSON.fromJson(json, type), GSON::toJson);
-    }
-
-    public static void reset() {
-        INSTANCE.options.forEach(Option::reset);
     }
 
     public static void save() {
@@ -59,17 +57,19 @@ public final class Preferences {
         }
     }
 
-    private <T> Option<T> newOption(String key, Class<T> type, T defaultValue, Function<T, String> serializer, Function<String, T> deserializer) {
-        return new Option<>(key, type, defaultValue, serializer, deserializer);
+    private <T> Option<T> createAndRegister(String key, Class<T> type, T defaultValue, Function<T, String> serializer, Function<String, T> deserializer) {
+        Option<T> option = new Option<>(key, type, defaultValue, serializer, deserializer);
+        this.options.add(option);
+        return option;
     }
 
     private Preferences() {
     }
 
-    public class Option<T> {
+    public static class Option<T> implements Preference<T> {
         private static final Properties CACHE;
         private final String key;
-        private final Type type;
+        private final Class<T> type;
         private final T defaultValue;
         private final Function<T, String> serializer;
         private T value;
@@ -93,7 +93,6 @@ public final class Preferences {
             this.defaultValue = defaultValue;
             this.serializer = serializer;
             this.value = resolveFromCache(key, defaultValue, deserializer);
-            Preferences.this.options.add(this);
         }
 
         private static <T> T resolveFromCache(String key, T fallback, Function<String, T> deserializer) {
@@ -108,10 +107,17 @@ public final class Preferences {
             }
         }
 
+        @Override
+        public Identifier id() {
+            return ResourceUtil.id(this.key);
+        }
+
+        @Override
         public void set(T value) {
             this.value = value;
         }
 
+        @Override
         public T get() {
             return this.value;
         }
@@ -120,15 +126,18 @@ public final class Preferences {
             return this.key;
         }
 
+        @Override
         public T getDefault() {
             return this.defaultValue;
         }
 
+        @Override
         public void reset() {
             this.set(this.getDefault());
         }
 
-        public Type type() {
+        @Override
+        public Class<T> type() {
             return this.type;
         }
 
