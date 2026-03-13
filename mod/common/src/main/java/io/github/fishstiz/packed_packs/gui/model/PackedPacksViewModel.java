@@ -284,7 +284,9 @@ public class PackedPacksViewModel {
 
         if (intent instanceof PackListIntent packListIntent) {
             if (this.emitNavigationEffects(prev, current, packListIntent)) return;
-            if (intent instanceof PackListIntent.Entry entryIntent && this.emitMoveEffects(prev, current, entryIntent)) return;
+            if (intent instanceof PackListIntent.Entry entryIntent && this.emitMoveEffects(prev, current, entryIntent)) {
+                return;
+            }
             this.emitTransferEffects(prev, current, packListIntent);
         }
     }
@@ -313,7 +315,7 @@ public class PackedPacksViewModel {
         PackListState prevList = prev.targetList(intent.target());
         PackListState currentList = current.targetList(intent.target());
         if (prevList != null && currentList != null && prevList.visiblePacks() != currentList.visiblePacks()) {
-            if (intent instanceof PackListIntent.Drop drop && drop.destination() != null) {
+            if (intent instanceof PackListIntent.Drop drop && Objects.equals(drop.destination(), drop.target())) {
                 this.emitEffect(new UiEffect.Focus(drop.destination().type()));
                 return true;
             }
@@ -331,7 +333,8 @@ public class PackedPacksViewModel {
         switch (intent) {
             case PackListIntent.Drag ignored ->
                     this.emitEffect(new UiEffect.ScrollToLastSelected(PackListType.ENABLED));
-            case PackListIntent.Drop drop -> this.emitEffect(new UiEffect.Focus(drop.target().type()));
+            case PackListIntent.Drop drop when drop.destination() != null ->
+                    this.emitEffect(new UiEffect.Focus(drop.destination().type(), drop.index() == -1));
             case PackListIntent.Enable ignored -> {
                 this.emitEffect(new UiEffect.Focus(PackListType.ENABLED, true));
                 GuiUtil.playClickSound();
