@@ -129,6 +129,10 @@ public class InputUtil {
         return modifiers == MOD_CONTROL || modifiers == MOD_ALT;
     }
 
+    public static boolean shiftOnly(int modifiers) {
+        return modifiers == MOD_SHIFT;
+    }
+
     public static boolean isRangeModifierActive() {
         return Minecraft.getInstance().hasShiftDown();
     }
