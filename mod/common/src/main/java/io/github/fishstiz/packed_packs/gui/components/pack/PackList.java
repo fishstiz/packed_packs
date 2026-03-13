@@ -408,10 +408,12 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
 
     @Override
     protected void renderListItems(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        if (this.viewModel.isFolderOpened()) return;
+
         super.renderListItems(guiGraphics, mouseX, mouseY, partialTick);
 
         Entry focused = this.getFocused();
-        if (focused != null && focused.isFocused() && this.children().contains(focused)) {
+        if (focused != null && this.children().contains(focused)) {
             int outlineTop = focused.getY();
             int outlineHeight = focused.getHeight() + Y_OFFSET;
             DrawUtil.renderOutline(guiGraphics, focused.getX(), outlineTop, focused.getWidth(), outlineHeight, Theme.WHITE.getARGB());

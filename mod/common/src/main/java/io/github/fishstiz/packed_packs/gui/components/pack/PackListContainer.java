@@ -203,19 +203,9 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
     }
 
     @Override
-    public int getHeight() {
-        return this.height;
-    }
-
-    @Override
     public void setHeight(int height) {
         super.setHeight(height);
         this.packList.setHeight(height);
-    }
-
-    @Override
-    public int getWidth() {
-        return this.width;
     }
 
     @Override
@@ -225,19 +215,9 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
     }
 
     @Override
-    public int getX() {
-        return this.packList.getX();
-    }
-
-    @Override
     public void setX(int x) {
         super.setX(x);
         this.packList.setX(x);
-    }
-
-    @Override
-    public int getY() {
-        return this.packList.getY();
     }
 
     @Override
