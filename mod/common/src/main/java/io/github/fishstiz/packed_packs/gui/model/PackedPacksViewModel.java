@@ -284,7 +284,7 @@ public class PackedPacksViewModel {
 
         if (intent instanceof PackListIntent packListIntent) {
             if (this.emitNavigationEffects(prev, current, packListIntent)) return;
-            if (this.emitMoveEffects(prev, current, packListIntent)) return;
+            if (intent instanceof PackListIntent.Entry entryIntent && this.emitMoveEffects(prev, current, entryIntent)) return;
             this.emitTransferEffects(prev, current, packListIntent);
         }
     }
@@ -309,7 +309,7 @@ public class PackedPacksViewModel {
         };
     }
 
-    private boolean emitMoveEffects(PackedPacksState prev, PackedPacksState current, PackListIntent intent) {
+    private boolean emitMoveEffects(PackedPacksState prev, PackedPacksState current, PackListIntent.Entry intent) {
         PackListState prevList = prev.targetList(intent.target());
         PackListState currentList = current.targetList(intent.target());
         if (prevList != null && currentList != null && prevList.visiblePacks() != currentList.visiblePacks()) {
@@ -318,7 +318,7 @@ public class PackedPacksViewModel {
                 return true;
             }
             if (intent instanceof PackListIntent.MoveUp || intent instanceof PackListIntent.MoveDown) {
-                this.emitEffect(new UiEffect.ScrollToLastSelected(PackListType.ENABLED));
+                this.emitEffect(new UiEffect.Focus(PackListType.ENABLED, intent.ctx().pack().getId(), true));
                 GuiUtil.playClickSound();
                 return true;
             }
@@ -332,8 +332,14 @@ public class PackedPacksViewModel {
             case PackListIntent.Drag ignored ->
                     this.emitEffect(new UiEffect.ScrollToLastSelected(PackListType.ENABLED));
             case PackListIntent.Drop drop -> this.emitEffect(new UiEffect.Focus(drop.target().type()));
-            case PackListIntent.Enable ignored -> this.emitEffect(new UiEffect.Focus(PackListType.ENABLED, true));
-            case PackListIntent.Disable ignored -> this.emitEffect(new UiEffect.Focus(PackListType.AVAILABLE));
+            case PackListIntent.Enable ignored -> {
+                this.emitEffect(new UiEffect.Focus(PackListType.ENABLED, true));
+                GuiUtil.playClickSound();
+            }
+            case PackListIntent.Disable ignored -> {
+                this.emitEffect(new UiEffect.Focus(PackListType.AVAILABLE));
+                GuiUtil.playClickSound();
+            }
             default -> {
                 if (intent.target().type().available()) {
                     this.emitEffect(new UiEffect.ScrollToLastSelected(PackListType.ENABLED));
