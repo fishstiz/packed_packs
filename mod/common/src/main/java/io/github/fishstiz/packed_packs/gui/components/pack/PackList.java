@@ -607,12 +607,10 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
                 this.viewModel.openFolder();
                 return true;
             }
-            if (isTransfer(keyCode, modifiers) && this.viewModel.canTransfer()) {
+            if (isTransfer(keyCode, modifiers) && PackList.this.viewModel.supportsTransferring()) {
                 this.viewModel.transfer();
                 return true;
             }
-            // we only check #supportsReordering rather than #canMoveDown or #canMoveUp
-            // as the entry may not be movable, but the selection might.
             if (isMoveDown(keyCode, modifiers) && PackList.this.viewModel.supportsReordering()) {
                 this.viewModel.moveDown();
                 return true;
