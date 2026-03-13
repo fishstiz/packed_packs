@@ -250,19 +250,11 @@ public class PackedPacksReducer {
                 yield newPacks.equals(state.packs()) ? state : state.withPacks(newPacks, options);
             }
             case PackListIntent.MoveUp moveUp -> {
-                List<Pack> newPacks = moveUp.payload().size() == 1
-                        ? this.moveUp(state, moveUp.payload().getFirst(), options)
-                        : !moveUp.payload().isEmpty()
-                        ? this.moveSelectionUp(state, moveUp.payload(), options)
-                        : state.packs();
+                List<Pack> newPacks = moveUp.payload().isEmpty() ? state.packs() : this.movePacks(state, moveUp.payload(), true, options);
                 yield state.withPacksAndSelectedLast(newPacks, moveUp.ctx().pack(), options);
             }
             case PackListIntent.MoveDown moveDown -> {
-                List<Pack> newPacks = moveDown.payload().size() == 1
-                        ? this.moveDown(state, moveDown.payload().getFirst(), options)
-                        : !moveDown.payload().isEmpty()
-                        ? this.moveSelectionDown(state, moveDown.payload(), options)
-                        : state.packs();
+                List<Pack> newPacks = moveDown.payload().isEmpty() ? state.packs() : this.movePacks(state, moveDown.payload(), false, options);
                 yield state.withPacksAndSelectedLast(newPacks, moveDown.ctx().pack(), options);
             }
             case PackListIntent.OpenFolder open ->
@@ -279,56 +271,32 @@ public class PackedPacksReducer {
         };
     }
 
-    private void move(ArrayList<Pack> currentPacks, Pack pack, int index, PackOptions options) {
-        if (options.isFixed(pack)) return;
-        int from = currentPacks.indexOf(pack);
-        if (from == -1 || index < 0 || index >= currentPacks.size() || from == index) return;
-        currentPacks.remove(from);
-        currentPacks.add(index, pack);
-    }
+    private List<Pack> movePacks(PackListState state, SequencedCollection<Pack> payload, boolean up, PackOptions options) {
+        Set<Pack> validPacks = new ObjectOpenHashSet<>(state.packs());
+        List<Pack> newPacks = new ObjectArrayList<>(state.packs());
+        List<Pack> sorted;
+        ToIntTriFunction<List<Pack>, Pack, PackOptions> indexFn;
 
-    private List<Pack> moveUp(PackListState state, Pack pack, PackOptions options) {
-        return this.movePack(state, PackListUtils::getMoveUpIndex, pack, options);
-    }
+        if (up) {
+            sorted = sortByOrderOf(state.visiblePacks(), payload);
+            indexFn = PackListUtils::getMoveUpIndex;
+        } else {
+            sorted = sortByOrderOf(state.visiblePacks(), payload).reversed();
+            indexFn = PackListUtils::getMoveDownIndex;
+        }
 
-    private List<Pack> moveDown(PackListState state, Pack pack, PackOptions options) {
-        return this.movePack(state, PackListUtils::getMoveDownIndex, pack, options);
-    }
-
-    private List<Pack> movePack(PackListState state, ToIntTriFunction<List<Pack>, Pack, PackOptions> moveIndexFn, Pack pack, PackOptions options) {
-        if (state.packs().contains(pack)) {
-            ArrayList<Pack> newPacks = new ArrayList<>(state.packs());
-            int targetIndex = moveIndexFn.applyAsInt(newPacks, pack, options);
-            if (targetIndex > -1) {
-                this.move(newPacks, pack, targetIndex, options);
-                return newPacks;
+        for (int i = 0; i < sorted.size(); i++) {
+            Pack pack = sorted.get(i);
+            if (!validPacks.contains(pack)) continue;
+            int targetIndex = indexFn.applyAsInt(newPacks, pack, options);
+            if (targetIndex > -1 && targetIndex < newPacks.size() && !options.isFixed(pack)) {
+                newPacks.remove(pack);
+                newPacks.add(targetIndex, pack);
+            } else if (i == 0) {
+                return state.packs();
             }
         }
-        return state.packs();
-    }
 
-    private List<Pack> moveSelectionUp(PackListState state, SequencedCollection<Pack> selection, PackOptions options) {
-        return this.moveSelection(PackListUtils::getMoveUpIndex, state, sortByOrderOf(state.visiblePacks(), selection), options);
-    }
-
-    private List<Pack> moveSelectionDown(PackListState state, SequencedCollection<Pack> selection, PackOptions options) {
-        return this.moveSelection(PackListUtils::getMoveDownIndex, state, sortByOrderOf(state.visiblePacks(), selection).reversed(), options);
-    }
-
-    private List<Pack> moveSelection(ToIntTriFunction<List<Pack>, Pack, PackOptions> moveIndexFn, PackListState state, List<Pack> selection, PackOptions options) {
-        ArrayList<Pack> newPacks = new ArrayList<>(state.packs());
-        Set<Pack> packSet = new HashSet<>(state.packs());
-        for (int i = 0; i < selection.size(); i++) {
-            Pack pack = selection.get(i);
-            if (packSet.contains(pack)) {
-                int index = moveIndexFn.applyAsInt(newPacks, pack, options);
-                if (index > -1 && index < newPacks.size()) {
-                    this.move(newPacks, pack, index, options);
-                } else if (i == 0) {
-                    return state.packs();
-                }
-            }
-        }
         return newPacks;
     }
 
