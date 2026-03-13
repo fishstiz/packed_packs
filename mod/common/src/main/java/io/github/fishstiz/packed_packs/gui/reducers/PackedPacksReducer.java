@@ -255,7 +255,7 @@ public class PackedPacksReducer {
                         : !moveUp.payload().isEmpty()
                         ? this.moveSelectionUp(state, moveUp.payload(), options)
                         : state.packs();
-                yield newPacks == state.packs() ? state : state.withPacks(newPacks, options);
+                yield state.withPacksAndSelectedLast(newPacks, moveUp.ctx().pack(), options);
             }
             case PackListIntent.MoveDown moveDown -> {
                 List<Pack> newPacks = moveDown.payload().size() == 1
@@ -263,7 +263,7 @@ public class PackedPacksReducer {
                         : !moveDown.payload().isEmpty()
                         ? this.moveSelectionDown(state, moveDown.payload(), options)
                         : state.packs();
-                yield newPacks == state.packs() ? state : state.withPacks(newPacks, options);
+                yield state.withPacksAndSelectedLast(newPacks, moveDown.ctx().pack(), options);
             }
             case PackListIntent.OpenFolder open ->
                     state.withFolder(new PackListState.Folder(open.folderPack(), new PackListState(open.contents())));

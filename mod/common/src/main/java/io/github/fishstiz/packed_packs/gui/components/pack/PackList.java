@@ -46,7 +46,6 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 
-import static io.github.fishstiz.fidgetz.util.GuiUtil.playClickSound;
 import static io.github.fishstiz.packed_packs.util.InputUtil.*;
 import static io.github.fishstiz.packed_packs.util.ResourceUtil.getVanilla;
 import static io.github.fishstiz.packed_packs.util.constants.GuiConstants.*;
@@ -564,25 +563,21 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
 
                 if (this.viewModel.canEnable() && this.mouseOverIcon(relativeX, relativeY, ICON_SIZE)) {
                     this.viewModel.enable();
-                    playClickSound();
                     return false;
                 }
 
                 if (this.viewModel.canDisable() && this.mouseOverLeftHalf(relativeX, relativeY, ICON_SIZE)) {
                     this.viewModel.disable();
-                    playClickSound();
                     return false;
                 }
 
                 if (this.viewModel.canMoveUp() && this.mouseOverTopRightQuarter(relativeX, relativeY, ICON_SIZE)) {
                     this.viewModel.moveUp();
-                    playClickSound();
                     return false;
                 }
 
                 if (this.viewModel.canMoveDown() && this.mouseOverBottomRightQuarter(relativeX, relativeY, ICON_SIZE)) {
                     this.viewModel.moveDown();
-                    playClickSound();
                     return false;
                 }
             }
