@@ -436,12 +436,6 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
         entry.render(guiGraphics, index, top, left, width, height, mouseX, mouseY, Objects.equals(this.getHovered(), entry), partialTick);
     }
 
-    @Override
-    public int maxScrollAmount() {
-        int maxScrollAmount = super.maxScrollAmount();
-        return maxScrollAmount > 0 ? maxScrollAmount + Y_OFFSET : maxScrollAmount;
-    }
-
     public class Entry extends AbstractFixedListWidget<Entry>.Entry implements SelectableEntry, ContainerEventHandlerPatch, ContextMenuContainer {
         private static final int BACKGROUND_MARGIN = 1;
         private static final int H_SPACING = 2;
