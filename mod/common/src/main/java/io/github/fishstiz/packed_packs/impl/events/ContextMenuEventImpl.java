@@ -10,7 +10,7 @@ import io.github.fishstiz.packed_packs.api.gui.ContextMenuItemSpec;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.impl.gui.ContextMenuItemSpecImpl;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.Consumer;

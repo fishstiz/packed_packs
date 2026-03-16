@@ -7,9 +7,55 @@ plugins {
 
 class LoaderExtension {
     String common = ':common'
+    SourceSet[] sources
+
+    LoaderExtension(SourceSet source) {
+        this.sources = new SourceSet[]{source}
+    }
 }
 
-def loaderExtension = extensions.create('loader', LoaderExtension)
+def loaderExtension = extensions.create('loader', LoaderExtension, sourceSets.main)
+
+def configureSourceSet(String sourceSetName, String commonPath) {
+    def isMain = sourceSetName == 'main'
+    def suffix = isMain ? '' : sourceSetName.capitalize()
+    def javaConfig = commonJavaConfig(sourceSetName) as String
+    def resourcesConfig = commonResourcesConfig(sourceSetName) as String
+
+    configurations.create(javaConfig) { canBeResolved = true }
+    configurations.create(resourcesConfig) { canBeResolved = true }
+
+    dependencies {
+        if (isMain) {
+            compileOnly project(path: commonPath)
+        } else {
+            def commonSourceSet = project(commonPath).sourceSets.findByName(sourceSetName);
+            if (commonSourceSet) {
+                "${sourceSetName}CompileOnly" commonSourceSet.output
+            }
+        }
+
+        add(javaConfig, project(path: commonPath, configuration: javaConfig))
+        add(resourcesConfig, project(path: commonPath, configuration: resourcesConfig))
+    }
+
+    tasks.named("compile${suffix}Java", JavaCompile) {
+        dependsOn(configurations.named(javaConfig))
+        source(configurations.named(javaConfig))
+    }
+
+    tasks.named("process${suffix}Resources") {
+        dependsOn(configurations.named(resourcesConfig))
+        from(configurations.named(resourcesConfig))
+    }
+
+    tasks.named('sourcesJar', Jar) {
+        dependsOn(configurations.named(javaConfig))
+        from(configurations.named(javaConfig))
+        dependsOn(configurations.named(resourcesConfig))
+        from(configurations.named(resourcesConfig))
+    }
+}
 
 afterEvaluate {
     def common = loaderExtension.common
@@ -18,36 +64,8 @@ afterEvaluate {
         throw new GradleException("loader.common not configured for loader ${project.path}")
     }
 
-    configurations {
-        commonJava {
-            canBeResolved = true
-        }
-        commonResources {
-            canBeResolved = true
-        }
-    }
-
-    dependencies {
-        compileOnly(project(path: common))
-        add("commonJava", project(path: common, configuration: 'commonJava'))
-        add("commonResources", project(path: common, configuration: 'commonResources'))
-    }
-
-    tasks.named('compileJava', JavaCompile) {
-        dependsOn(configurations.commonJava)
-        source(configurations.commonJava)
-    }
-
-    processResources {
-        dependsOn(configurations.commonResources)
-        from(configurations.commonResources)
-    }
-
-    tasks.named('sourcesJar', Jar) {
-        dependsOn(configurations.commonJava)
-        from(configurations.commonJava)
-        dependsOn(configurations.commonResources)
-        from(configurations.commonResources)
+    loaderExtension.sources.each { sourceSet ->
+        configureSourceSet(sourceSet.getName(), common)
     }
 
     processResources {
