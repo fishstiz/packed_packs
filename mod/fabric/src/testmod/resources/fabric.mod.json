@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "testmod",
+  "version": "1.0.0",
+  "name": "Test Mod",
+  "environment": "client",
+  "mixins": [
+    {
+      "environment": "client",
+      "config": "testmod.mixins.json"
+    }
+  ],
+  "entrypoints": {
+    "packed_packs": [
+      "io.github.fishstiz.testmod.PackedPacksApiTest"
+    ]
+  }
+}

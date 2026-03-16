@@ -11,6 +11,54 @@ plugins {
     id 'publish-local'
 }
 
+sourceSets {
+    testmod {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.runtimeClasspath
+    }
+}
+
+loader {
+    sources = [sourceSets.main, sourceSets.testmod]
+}
+
+loom {
+    def aw = file("src/main/resources/${mod_id}.accesswidener")
+    if (aw.exists()) {
+        accessWidenerPath.set(aw)
+    }
+
+    mixin {
+        defaultRefmapName.set("${mod_id}.refmap.json")
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
+        testmod {
+            sourceSet sourceSets.testmod
+        }
+    }
+
+    runs {
+        client {
+            client()
+            setConfigName('Fabric Client')
+            ideConfigGenerated(true)
+            runDir('run/client')
+            source sourceSets.main
+        }
+        testmodClient {
+            client()
+            setConfigName('Fabric Client Test')
+            ideConfigGenerated(true)
+            runDir('run/testmod')
+            source sourceSets.testmod
+        }
+    }
+}
+
 repositories {
     maven {
         name = "Terraformers"
@@ -55,24 +103,6 @@ dependencies {
     compileOnly "maven.modrinth:resourcify:$resourcify_version"
     compileOnly "maven.modrinth:respackopts:$respackopts_version"
     compileOnly "io.gitlab.jfronny.libjf:libjf-resource-pack-entry-widgets-forge:$libjf_resource_pack_entry_widgets_version"
-}
-
-loom {
-    def aw = file("src/main/resources/${mod_id}.accesswidener")
-    if (aw.exists()) {
-        accessWidenerPath.set(aw)
-    }
-    mixin {
-        defaultRefmapName.set("${mod_id}.refmap.json")
-    }
-    runs {
-        client {
-            client()
-            setConfigName('Fabric Client')
-            ideConfigGenerated(true)
-            runDir('run/client')
-        }
-    }
 }
 
 publishMods {
