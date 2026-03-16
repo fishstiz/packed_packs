@@ -93,3 +93,5 @@ processResources {
     inputs.properties(expandProps)
 }
 
+ext.commonJavaConfig = { String sourceSetName -> "common${sourceSetName.capitalize()}Java" }
+ext.commonResourcesConfig = { String sourceSetName -> "common${sourceSetName.capitalize()}Resources" }
