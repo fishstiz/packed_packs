@@ -2,18 +2,34 @@ plugins {
     id 'multiloader-common'
 }
 
-configurations {
-    commonJava {
-        canBeConsumed = true
-        canBeResolved = false
-    }
-    commonResources {
-        canBeConsumed = true
-        canBeResolved = false
+class CommonProviderExtension {
+    SourceSet[] sources
+
+    CommonProviderExtension(SourceSet source) {
+        this.sources = new SourceSet[]{source}
     }
 }
 
-artifacts {
-    add(configurations.commonJava.name, sourceSets.main.java.sourceDirectories.singleFile)
-    add(configurations.commonResources.name, sourceSets.main.resources.sourceDirectories.singleFile)
+def providerExtension = extensions.create('commonProvider', CommonProviderExtension, sourceSets.main)
+
+afterEvaluate {
+    providerExtension.sources.each { sourceSet ->
+        def sourceSetName = sourceSet.getName()
+        def javaConfig = commonJavaConfig(sourceSetName) as String
+        def resourcesConfig = commonResourcesConfig(sourceSetName) as String
+
+        configurations.create(javaConfig) {
+            canBeConsumed = true
+            canBeResolved = false
+        }
+        configurations.create(resourcesConfig) {
+            canBeConsumed = true
+            canBeResolved = false
+        }
+
+        artifacts {
+            add(javaConfig, sourceSets.named(sourceSetName).map { it.java.sourceDirectories.singleFile })
+            add(resourcesConfig, sourceSets.named(sourceSetName).map { it.resources.sourceDirectories.singleFile })
+        }
+    }
 }
