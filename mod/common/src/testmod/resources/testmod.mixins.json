@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "io.github.fishstiz.testmod.mixin",
+  "refmap": "${mod_id}.refmap.json",
+  "compatibilityLevel": "JAVA_21",
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "client": [
+    "MinecraftMixin",
+    "CreateWorldScreenMixin"
+  ]
+}

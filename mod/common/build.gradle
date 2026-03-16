@@ -4,6 +4,17 @@ plugins {
     id 'publish-local'
 }
 
+sourceSets {
+    testmod {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.runtimeClasspath
+    }
+}
+
+commonProvider {
+    sources = [sourceSets.main, sourceSets.testmod]
+}
+
 neoForge {
     neoFormVersion = neo_form_version
 
