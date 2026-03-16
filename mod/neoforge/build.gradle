@@ -11,6 +11,17 @@ plugins {
     id 'publish-local'
 }
 
+sourceSets {
+    testmod {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.runtimeClasspath
+    }
+}
+
+loader {
+    sources = [sourceSets.main, sourceSets.testmod]
+}
+
 neoForge {
     version = neoforge_version
 
@@ -28,13 +39,24 @@ neoForge {
         "${mod_id}" {
             sourceSet sourceSets.main
         }
+        testmod {
+            sourceSet sourceSets.testmod
+        }
     }
 
     runs {
         client {
             type = "client"
             gameDirectory = project.file('run/client')
-            ideName = "NeoForge Client ($project.name)"
+            ideName = "NeoForge Client ($project.path)"
+            sourceSet = sourceSets.main
+            loadedMods = [mods."$mod_id"]
+        }
+        testmodClient {
+            type = "client"
+            gameDirectory = project.file('run/testmod')
+            ideName = "NeoForge Client Test ($project.path)"
+            sourceSet = sourceSets.testmod
         }
     }
 }

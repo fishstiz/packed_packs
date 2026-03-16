@@ -1,0 +1,12 @@
+modLoader = "javafml" #mandatory
+loaderVersion = "${neoforge_loader_version_range}" #mandatory
+license = "${license}" # Review your options at https://choosealicense.com/.
+
+[[mixins]]
+config = "testmod.mixins.json"
+
+[[mods]] #mandatory
+modId = "testmod" #mandatory
+version = "1.0.0" #mandatory
+displayName = "Test Mod" #mandatory
+description = ""
