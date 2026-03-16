@@ -535,6 +535,14 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
             return true;
         }
 
+        @Override
+        public void setFocused(boolean focused) {
+            super.setFocused(focused);
+            if (!focused && this.getFocused() != null) {
+                this.getFocused().setFocused(false);
+            }
+        }
+
         private boolean isFocusedOrSelected() {
             return PackList.this.getFocused() == null ? this.viewModel.selectedLast() : this.isFocused();
         }
