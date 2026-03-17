@@ -133,7 +133,7 @@ public final class EventBusImpl implements EventBus {
         }
 
         private static void throwFrozenError() {
-            throw new IllegalArgumentException("EventBus is already frozen. Cannot register listener.");
+            throw new IllegalStateException("EventBus is already frozen. Cannot register listener.");
         }
 
         @Override
