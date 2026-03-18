@@ -8,11 +8,14 @@ import io.github.fishstiz.fidgetz.util.LogUtil;
 import io.github.fishstiz.fidgetz.util.text.TextStylizer;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.navigation.FocusNavigationEvent;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.List;
@@ -30,7 +33,7 @@ public class ToggleableEditBox<E> extends EditBox implements Fidgetz, Metadata<E
     private E metadata;
     private int focusedTextColor;
     private String previousValue;
-    private Component inactiveText = Component.empty();
+    private Component inactiveText = CommonComponents.EMPTY;
 
     private ToggleableEditBox(Builder<E> builder) {
         super(builder.font, builder.x, builder.y, builder.width, builder.height, Component.literal(builder.value));
@@ -74,6 +77,7 @@ public class ToggleableEditBox<E> extends EditBox implements Fidgetz, Metadata<E
         this.moveCursorToStart(false);
         this.active = enabled;
         this.updateInactiveText(this.getValue());
+        if (!enabled) this.setFocused(false);
     }
 
     public Component getInactiveText() {
@@ -185,6 +189,17 @@ public class ToggleableEditBox<E> extends EditBox implements Fidgetz, Metadata<E
         }
 
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        return this.isEditing() && super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public @Nullable ComponentPath nextFocusPath(FocusNavigationEvent event) {
+        if (!this.isEditing()) return null;
+        return super.nextFocusPath(event);
     }
 
     @Override
