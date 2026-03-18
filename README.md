@@ -19,6 +19,7 @@ controls.
 - [Mouse](#mouse-controls) and [keyboard](#keyboard-controls) controls.
 - [Configuration](#configuration).
 - [Developer Mode](#developer-mode).
+- [Java API](#java-api).
 - Explicit [compatibility](#compatibility) with certain mods.
 - History (undo and redo).
 
@@ -27,7 +28,8 @@ controls.
 <summary><b>📂 Additional Folders</b></summary>
 
 - Add extra folders for pack discovery.
-- Configure in `config/packed_packs/config.json` by adding paths under the `additionalFolders` array inside `resourcepacks` or
+- Configure in `config/packed_packs/config.json` by adding paths under the `additionalFolders` array inside
+  `resourcepacks` or
   `datapacks`.
 - If the array doesn’t exist, create it manually or open and close the Packed Packs screen to update the config.
 - Paths can be absolute or relative to the game directory.
@@ -134,6 +136,24 @@ controls.
 
 </details>
 
+<a id="java-api"></a>
+<details>
+<summary><b>♨️ Java API</b></summary>
+
+The Java API, designed as an optional dependency, allows mods to extend functionality or add compatibility with 
+Packed Packs. This includes subscribing to various events and registering custom preferences
+to add configurable widgets at certain positions of the screen.
+
+You can find example implementations in the [**testmod**](https://github.com/fishstiz/packed_packs/tree/master/mod/common/src/testmod), 
+and in the [**compat**](https://github.com/fishstiz/packed_packs/tree/mc/1.21.11/mod/common/src/main/java/io/github/fishstiz/packed_packs/compat) 
+package of the **main** source set. 
+
+You may also view the [**javadocs**](https://github.com/fishstiz/packed_packs/tree/mc/1.21.11/api/common/src/main/java/io/github/fishstiz/packed_packs/api) from the source code.
+
+Visit the [wiki page](https://fishstiz.github.io/packed_packs-wiki/java-api/getting-started) for more details.
+
+</details>
+
 <a id="compatibility"></a>
 <details>
 <summary><b>🔗 Compatibility</b></summary>
@@ -143,8 +163,14 @@ Explicit compatibility is added for:
 - Resourcify
 - Respackopts
 - VTDownloader
+- Entity Texture Features
+- Polytone
 
 [Submit an issue](https://github.com/fishstiz/packed_packs/issues) if the above mods have become incompatible. Make sure
 to verify that the correct mod version is used for the target minecraft version, and if the issue only occurs with
 Packed Packs installed.
+
+<b>Note:</b> Compatibility for the above mods were added before the Java API was made.
+It would be better for other mods to make use of the Java API instead for better long
+term compatibility. If the above mods make enough breaking changes, it may have to be dropped.
 </details>
