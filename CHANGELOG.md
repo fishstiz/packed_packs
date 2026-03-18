@@ -1,4 +1,4 @@
-- Added a formal Java API mainly to support adding simple widgets. Refer to the new Wiki page for more details.
+- Added a formal Java API mainly to support adding simple widgets. Refer to the new [Wiki](https://fishstiz.github.io/packed_packs-wiki/java-api/getting-started) page for more details.
 - Added Polytone button ([#43](https://github.com/fishstiz/packed_packs/issues/43)) to the Packed Packs screen.
     - **Note**: Mod developers can use the new API for custom implementations to ensure better long-term compatibility.
 - Added Simplified Chinese Translation ([#46](https://github.com/fishstiz/packed_packs/pull/46)
