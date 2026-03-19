@@ -46,6 +46,8 @@ repositories {
 dependencies {
     compileOnlyApi project(path: ":fidgetz:common")
     compileOnlyApi project(path: ":api:common")
+    
+    testmodCompileOnly project(":api:common")
 
     compileOnly group: 'org.spongepowered', name: 'mixin', version: "$mixin_version"
     compileOnly group: 'io.github.llamalad7', name: 'mixinextras-common', version: "$mixinextras_version"
