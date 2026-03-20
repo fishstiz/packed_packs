@@ -50,6 +50,7 @@ public class PackAliasModal extends Modal<PackAliasModal.DelegatedLayout> {
             return;
         }
 
+        this.root().layout().init();
         this.root().layout().refresh(editContext, this::addRenderableWidget, this::addRenderableOnly);
         this.repositionElements();
         super.setOpen(true);
@@ -75,24 +76,41 @@ public class PackAliasModal extends Modal<PackAliasModal.DelegatedLayout> {
         private static final int LIST_WIDTH = 296;
         private static final int LIST_HEIGHT = 128;
         private static final int MAX_ALIAS_LENGTH = 255;
-        private final Pattern unescapedForwardSlash = Pattern.compile("(?<!\\\\)/");
-        private final Pattern unclosedParenthesis = Pattern.compile("(?<!\\\\)\\((?=[^)]*$)");
-        private final Pattern unclosedBracket = Pattern.compile("(?<!\\\\)\\[(?![^]\\[]*])");
-        private final Pattern danglingBackslash = Pattern.compile("(?<=(?<!\\\\)(\\\\\\\\){0,128})\\\\$");
-        private final Pattern boundary = Pattern.compile("(?<!(?<!\\\\)(\\\\\\\\){0,128}\\[[^]]{0,255})(?<=(?<!\\\\)(\\\\\\\\){0,128})(?<=(?<!\\\\)(\\\\\\\\){0,128})[$^]|(\\\\[bB])");
-        private final Pattern anyChar = Pattern.compile("\\\\[wWdDsS]|(?<!(?<!\\\\)(\\\\\\\\){0,128}\\[[^]]{0,255})(?<=(?<!\\\\)(\\\\\\\\){0,128})(?<=(?<!\\\\)(\\\\\\\\){0,128})\\.");
-        private final Pattern escapedChar = Pattern.compile("(\\\\u[0-9a-fA-F]{4})|(\\\\([0-3][0-7]{2}|[0-7]{1,2}))|(\\\\[^wWdDsS])");
-        private final Pattern quantifier = Pattern.compile("(?<!(?<!\\\\)(\\\\\\\\){0,128}\\[[^]]{0,255})(?<=(?<!\\\\)(\\\\\\\\){0,128})(?<=(?<!\\\\)(\\\\\\\\){0,128})(\\{\\d+,?\\d*}|[+*?])");
-        private final Pattern openCharSet = Pattern.compile("(?<=(?<!\\\\)(\\\\\\\\){0,128})\\[\\^?(?=[^]]*(?<=(?<!\\\\)(\\\\\\\\){0,128})])");
-        private final Pattern openCaptureGroup = Pattern.compile("(?<=(?<!\\\\)(\\\\\\\\){0,128})\\((\\?(<\\w+>|:|!|=|<!|<=))?(?=.*(?<=(?<!\\\\)(\\\\\\\\){0,128})\\))");
-        private final Pattern alternation = Pattern.compile("(?<!(?<!\\\\)(\\\\\\\\){0,128}\\[[^]]{0,255})(?<=(?<!\\\\)(\\\\\\\\){0,128})\\|");
+        private Pattern unescapedForwardSlash;
+        private Pattern unclosedParenthesis;
+        private Pattern unclosedBracket;
+        private Pattern danglingBackslash;
+        private Pattern boundary;
+        private Pattern anyChar;
+        private Pattern escapedChar;
+        private Pattern quantifier;
+        private Pattern openCharSet;
+        private Pattern openCaptureGroup;
+        private Pattern alternation;
         private final Consumer<PackListIntent.CloseAliases> onClose;
         private final LinearLayout stubLayout = LinearLayout.vertical();
         private LinearLayout layout = this.stubLayout;
         private @Nullable EditableList<String> aliases;
+        private boolean initialized;
 
         DelegatedLayout(Consumer<PackListIntent.CloseAliases> onClose) {
             this.onClose = onClose;
+        }
+
+        void init() {
+            if (this.initialized) return;
+            this.unescapedForwardSlash = Pattern.compile("(?<!\\\\)/");
+            this.unclosedParenthesis = Pattern.compile("(?<!\\\\)\\((?=[^)]*$)");
+            this.unclosedBracket = Pattern.compile("(?<!\\\\)\\[(?![^]\\[]*])");
+            this.danglingBackslash = Pattern.compile("(?<=(?<!\\\\)(\\\\\\\\){0,128})\\\\$");
+            this.boundary = Pattern.compile("(?<!(?<!\\\\)(\\\\\\\\){0,128}\\[[^]]{0,255})(?<=(?<!\\\\)(\\\\\\\\){0,128})(?<=(?<!\\\\)(\\\\\\\\){0,128})[$^]|(\\\\[bB])");
+            this.anyChar = Pattern.compile("\\\\[wWdDsS]|(?<!(?<!\\\\)(\\\\\\\\){0,128}\\[[^]]{0,255})(?<=(?<!\\\\)(\\\\\\\\){0,128})(?<=(?<!\\\\)(\\\\\\\\){0,128})\\.");
+            this.escapedChar = Pattern.compile("(\\\\u[0-9a-fA-F]{4})|(\\\\([0-3][0-7]{2}|[0-7]{1,2}))|(\\\\[^wWdDsS])");
+            this.quantifier = Pattern.compile("(?<!(?<!\\\\)(\\\\\\\\){0,128}\\[[^]]{0,255})(?<=(?<!\\\\)(\\\\\\\\){0,128})(?<=(?<!\\\\)(\\\\\\\\){0,128})(\\{\\d+,?\\d*}|[+*?])");
+            this.openCharSet = Pattern.compile("(?<=(?<!\\\\)(\\\\\\\\){0,128})\\[\\^?(?=[^]]*(?<=(?<!\\\\)(\\\\\\\\){0,128})])");
+            this.openCaptureGroup = Pattern.compile("(?<=(?<!\\\\)(\\\\\\\\){0,128})\\((\\?(<\\w+>|:|!|=|<!|<=))?(?=.*(?<=(?<!\\\\)(\\\\\\\\){0,128})\\))");
+            this.alternation = Pattern.compile("(?<!(?<!\\\\)(\\\\\\\\){0,128}\\[[^]]{0,255})(?<=(?<!\\\\)(\\\\\\\\){0,128})\\|");
+            this.initialized = true;
         }
 
         void clear() {
@@ -105,6 +123,7 @@ public class PackAliasModal extends Modal<PackAliasModal.DelegatedLayout> {
                 UnaryOperator<AbstractWidget> widgetAdder,
                 UnaryOperator<AbstractWidget> renderableAdder
         ) {
+            if (!this.initialized) return;
             this.aliases = EditableList.builder(editAction.aliases())
                     .setDimensions(LIST_WIDTH, LIST_HEIGHT)
                     .setMaxTextLength(MAX_ALIAS_LENGTH)
