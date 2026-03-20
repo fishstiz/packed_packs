@@ -15,7 +15,6 @@ import io.github.fishstiz.packed_packs.gui.model.PackedPacksViewModel;
 import io.github.fishstiz.packed_packs.util.constants.Theme;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -34,7 +33,7 @@ record Components(
         FileRenameModal renameModal,
         ContextMenu contextMenu,
         Modal<OptionsLayout> optionsModal,
-        @Nullable PackAliasModal aliasModal
+        PackAliasModal aliasModal
 ) {
     private static boolean warmed = false;
 
@@ -78,8 +77,7 @@ record Components(
                 .build();
     }
 
-    private static @Nullable PackAliasModal buildAliasModal(PackedPacksScreen screen, PackedPacksViewModel viewModel) {
-        if (!Config.get().isDevMode()) return null;
+    private static PackAliasModal buildAliasModal(PackedPacksScreen screen, PackedPacksViewModel viewModel) {
         return new PackAliasModal(screen, viewModel);
     }
 
@@ -92,9 +90,7 @@ record Components(
     }
 
     List<ToggleableDialog<?>> dialogs() {
-        List<ToggleableDialog<?>> dialogs = this.aliasModal != null
-                ? List.of(this.optionsModal, this.contextMenu, this.aliasModal, this.renameModal, this.profilesSidebar)
-                : List.of(this.optionsModal, this.contextMenu, this.renameModal, this.profilesSidebar);
+        List<ToggleableDialog<?>> dialogs = List.of(this.optionsModal, this.contextMenu, this.aliasModal, this.renameModal, this.profilesSidebar);
         for (int i = 0; i < dialogs.size(); i++) {
             dialogs.get(i).setZ((dialogs.size() - i) + 1);
         }
