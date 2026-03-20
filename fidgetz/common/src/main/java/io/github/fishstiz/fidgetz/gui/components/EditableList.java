@@ -7,7 +7,7 @@ import io.github.fishstiz.fidgetz.util.debounce.SimplePollingDebouncer;
 import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
 import io.github.fishstiz.fidgetz.util.text.TextStylizer;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.CommonComponents;
@@ -77,8 +77,8 @@ public class EditableList<T> extends AbstractFixedListWidget<EditableList<T>.Abs
     }
 
     @Override
-    public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+    public void extractWidgetRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        super.extractWidgetRenderState(guiGraphics, mouseX, mouseY, partialTick);
         this.updateListener.poll();
     }
 
@@ -125,13 +125,13 @@ public class EditableList<T> extends AbstractFixedListWidget<EditableList<T>.Abs
         }
 
         @Override
-        public void renderContent(GuiGraphics guiGraphics, int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void extractContent(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, boolean hovering, float partialTick) {
             this.editBox.setWidth(this.getWidth() - this.actionButton.getWidth());
             this.editBox.setPosition(this.getX(), this.getY());
             this.actionButton.setPosition(this.editBox.getRight(), this.getY());
 
-            this.editBox.render(guiGraphics, mouseX, mouseY, partialTick);
-            this.actionButton.render(guiGraphics, mouseX, mouseY, partialTick);
+            this.editBox.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
+            this.actionButton.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         }
 
         @Override

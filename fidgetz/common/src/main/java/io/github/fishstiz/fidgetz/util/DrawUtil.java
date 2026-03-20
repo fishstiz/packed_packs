@@ -4,7 +4,7 @@ import io.github.fishstiz.fidgetz.gui.renderables.sprites.GuiSprite;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import net.minecraft.util.Util;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -19,7 +19,7 @@ public class DrawUtil {
     }
 
     public static void renderScrollingStringLeftAlign(
-            GuiGraphics guiGraphics,
+            GuiGraphicsExtractor guiGraphics,
             Font font,
             Component text,
             int startX,
@@ -41,15 +41,15 @@ public class DrawUtil {
             double scrollOffset = Mth.lerp(scrollFactor, 0.0, overflowWidth);
 
             guiGraphics.enableScissor(startX, startY, endX, endY);
-            guiGraphics.drawString(font, text, startX - (int) scrollOffset, textY, color, shadow);
+            guiGraphics.text(font, text, startX - (int) scrollOffset, textY, color, shadow);
             guiGraphics.disableScissor();
         } else {
-            guiGraphics.drawString(font, text, startX, textY, color, shadow);
+            guiGraphics.text(font, text, startX, textY, color, shadow);
         }
     }
 
     public static void renderScrollingStringLeftAlign(
-            GuiGraphics guiGraphics,
+            GuiGraphicsExtractor guiGraphics,
             Font font,
             Component text,
             int startX,
@@ -61,7 +61,7 @@ public class DrawUtil {
         renderScrollingStringLeftAlign(guiGraphics, font, text, startX, startY, endX, endY, color, true);
     }
 
-    public static void renderDropShadow(GuiGraphics guiGraphics, int x, int y, int width, int height, int shadowSize) {
+    public static void renderDropShadow(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, int shadowSize) {
         float scale = (float) shadowSize / SHADOW_BORDER;
         int offset = Math.round(SHADOW_BORDER * scale);
         renderSprite(
@@ -74,14 +74,14 @@ public class DrawUtil {
         );
     }
 
-    public static void renderOutline(GuiGraphics guiGraphics, int x, int y, int width, int height, int color) {
+    public static void renderOutline(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, int color) {
         guiGraphics.fill(x, y, x + width, y + 1, color);
         guiGraphics.fill(x, y + height - 1, x + width, y + height, color);
         guiGraphics.fill(x, y + 1, x + 1, y + height - 1, color);
         guiGraphics.fill(x + width - 1, y + 1, x + width, y + height - 1, color);
     }
 
-    public static void renderTexture(GuiGraphics guiGraphics, Identifier texture, int textureWidth, int textureHeight, int x, int y, int width, int height) {
+    public static void renderTexture(GuiGraphicsExtractor guiGraphics, Identifier texture, int textureWidth, int textureHeight, int x, int y, int width, int height) {
         guiGraphics.blit(
                 RenderPipelines.GUI_TEXTURED,
                 texture,
@@ -93,7 +93,7 @@ public class DrawUtil {
         );
     }
 
-    public static void renderSprite(GuiGraphics guiGraphics, Identifier sprite, int x, int y, int width, int height) {
+    public static void renderSprite(GuiGraphicsExtractor guiGraphics, Identifier sprite, int x, int y, int width, int height) {
         guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, width, height);
     }
 }

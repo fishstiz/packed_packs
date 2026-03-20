@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Coerce;
 public abstract class ScrollableLayoutMixin implements UnpaddedScrollableLayout {
     @Shadow
     @Final
-    Layout content;
+    private Layout content;
 
     @Shadow
     private int maxHeight;

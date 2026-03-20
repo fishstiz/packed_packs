@@ -2,7 +2,7 @@ package io.github.fishstiz.fidgetz.gui.components;
 
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.ButtonSprites;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
@@ -91,7 +91,7 @@ public class ToggleButton<E> extends FidgetzButton<E> {
     }
 
     @Override
-    protected void renderSprite(GuiGraphics guiGraphics, int x, int y, int width, int height, float partialTick) {
+    protected void renderSprite(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, float partialTick) {
         if (this.toggleSprites == null) {
             super.renderSprite(guiGraphics, x, y, width, height, partialTick);
             return;

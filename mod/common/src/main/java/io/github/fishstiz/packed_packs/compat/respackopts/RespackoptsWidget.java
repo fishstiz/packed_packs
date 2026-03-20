@@ -10,18 +10,21 @@ import io.github.fishstiz.packed_packs.compat.PackWrapperDelegatorAbstractionEpi
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.gui.components.PreferenceToggle;
 import io.gitlab.jfronny.libjf.entrywidgets.api.v0.ResourcePackEntryWidget;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.client.input.InputWithModifiers;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 public class RespackoptsWidget extends AbstractButton implements ContextMenuProvider, Fidgetz {
+    private static final Identifier CONFIGURE_SPRITE = Identifier.fromNamespaceAndPath("modmenu", "textures/gui/configure_button.png");
     private final ResourcePackEntryWidget wrapped;
     private final PackSelectionModel.Entry model;
     private final LayoutElement container;
@@ -54,7 +57,7 @@ public class RespackoptsWidget extends AbstractButton implements ContextMenuProv
     }
 
     @Override
-    protected void renderContents(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractContents(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         int width = this.wrapped.getWidth(this.model);
         int height = this.wrapped.getHeight(this.model, this.container.getHeight());
         int marginRight = this.wrapped.getXMargin(this.model);
@@ -66,7 +69,10 @@ public class RespackoptsWidget extends AbstractButton implements ContextMenuProv
 
         this.isHovered = this.isHovered && Fidgetz.super.isMouseOver(mouseX, mouseY);
 
-        this.wrapped.render(this.model, guiGraphics, this.getX(), this.getY(), this.isHovered, partialTick);
+        // this.wrapped.render(this.model, guiGraphics, this.getX(), this.getY(), this.isHovered, partialTick);
+        // copied https://git.jfronny.dev/JfMods/Respackopts/src/branch/master/common/src/client/java/io/gitlab/jfronny/respackopts/RespackoptsPackWidget.java
+        // there was no version of libjf that accepts GuiGraphicsExtractor in ResourcePackEntryWidget#render by the time this was written
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, CONFIGURE_SPRITE, this.getX(), this.getY(), 0, this.isHovered ? 20 : 0, 20, 20, 32, 64);
 
         if (this.toggle != null) {
             this.toggle.render(guiGraphics, this.getX(), this.getY(), this.getWidth(), this.getHeight(), partialTick);

@@ -5,7 +5,7 @@ import io.github.fishstiz.fidgetz.util.GuiUtil;
 import io.github.fishstiz.testmod.TestFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
@@ -23,7 +23,7 @@ public class HoveredElementRenderer extends TestFeatureRenderer {
     }
 
     @Override
-    protected int renderFeature(GuiGraphics guiGraphics, int mouseX, int mouseY, int y, float partialTick) {
+    protected int renderFeature(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, int y, float partialTick) {
         Screen screen = minecraft.screen;
         if (screen == null) return y;
 
@@ -35,8 +35,8 @@ public class HoveredElementRenderer extends TestFeatureRenderer {
         int labelX = clampX(minecraft.getWindow(), minecraft.font, bounds.left() + 2, label);
         int labelY = bounds.top() + 2;
 
-        guiGraphics.renderOutline(bounds.left(), bounds.top(), bounds.width(), bounds.height(), COLOR);
-        guiGraphics.drawString(minecraft.font, label, labelX, labelY, COLOR);
+        guiGraphics.outline(bounds.left(), bounds.top(), bounds.width(), bounds.height(), COLOR);
+        guiGraphics.text(minecraft.font, label, labelX, labelY, COLOR);
 
         return y;
     }

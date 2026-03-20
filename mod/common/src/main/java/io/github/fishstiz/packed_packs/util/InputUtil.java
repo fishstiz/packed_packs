@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs.util;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 
@@ -139,5 +140,11 @@ public class InputUtil {
 
     public static boolean isSelectModifierActive() {
         return Minecraft.getInstance().hasControlDown();
+    }
+
+    public static boolean canAutoFocusSearchField(CharacterEvent characterEvent) {
+        return characterEvent.codepoint() != KEY_SPACE &&
+               !Minecraft.getInstance().hasControlDown() &&
+               !Minecraft.getInstance().hasAltDown();
     }
 }

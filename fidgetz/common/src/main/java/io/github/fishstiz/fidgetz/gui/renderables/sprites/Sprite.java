@@ -3,7 +3,7 @@ package io.github.fishstiz.fidgetz.gui.renderables.sprites;
 import io.github.fishstiz.fidgetz.gui.renderables.RenderableRect;
 import io.github.fishstiz.fidgetz.gui.shapes.Line;
 import io.github.fishstiz.fidgetz.gui.shapes.Size;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
@@ -47,7 +47,7 @@ public class Sprite implements RenderableRect {
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int x, int y, int width, int height, float partialTick) {
+    public void render(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, float partialTick) {
         guiGraphics.blit(
                 RenderPipelines.GUI_TEXTURED,
                 this.location,
@@ -59,11 +59,11 @@ public class Sprite implements RenderableRect {
         );
     }
 
-    public void render(GuiGraphics guiGraphics, int x, int y) {
+    public void render(GuiGraphicsExtractor guiGraphics, int x, int y) {
         this.render(guiGraphics, x, y, this.width, this.height, 0);
     }
 
-    public void renderClamped(GuiGraphics guiGraphics, int x, int y, int width, int height, float partialTick) {
+    public void renderClamped(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, float partialTick) {
         int drawWidth = Math.min(width, this.width);
         int drawHeight = Math.min(height, this.height);
 

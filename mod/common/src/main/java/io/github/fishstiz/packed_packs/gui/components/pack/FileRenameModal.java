@@ -12,7 +12,7 @@ import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
 import io.github.fishstiz.packed_packs.pack.PackAssetManager;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import net.minecraft.client.gui.ComponentPath;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.navigation.FocusNavigationEvent;
 import net.minecraft.client.gui.screens.Screen;
@@ -190,7 +190,7 @@ public class FileRenameModal extends Modal<LinearLayout> {
     }
 
     @Override
-    protected void renderBackground(GuiGraphics guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
+    protected void renderBackground(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
         DrawUtil.renderDropShadow(guiGraphics, x, y, width, height, SHADOW_SIZE);
         super.renderBackground(guiGraphics, x, y, width, height, mouseX, mouseY, partialTick);
     }

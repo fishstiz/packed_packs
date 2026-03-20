@@ -14,7 +14,7 @@ import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import io.github.fishstiz.packed_packs.util.constants.GuiConstants;
 import io.github.fishstiz.packed_packs.util.constants.Theme;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.NonNull;
@@ -50,7 +50,7 @@ public record PreferenceToggle(Preference<Boolean> option, Component text) imple
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int x, int y, int width, int height, float partialTick) {
+    public void render(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, float partialTick) {
         final boolean toggled = this.option.get();
         guiGraphics.fill(x, y, x + width, y + height, getForeground(toggled));
         DrawUtil.renderOutline(guiGraphics, x, y, width, height, getBorder(toggled));
@@ -143,8 +143,8 @@ public record PreferenceToggle(Preference<Boolean> option, Component text) imple
         }
 
         @Override
-        protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-            super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+        protected void extractWidgetRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+            super.extractWidgetRenderState(guiGraphics, mouseX, mouseY, partialTick);
             this.overlay.render(guiGraphics, this.getX(), this.getY(), this.getWidth(), this.getHeight(), partialTick);
         }
     }

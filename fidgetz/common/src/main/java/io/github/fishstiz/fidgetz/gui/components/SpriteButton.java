@@ -2,7 +2,7 @@ package io.github.fishstiz.fidgetz.gui.components;
 
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.ButtonSprites;
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
@@ -22,7 +22,7 @@ public class SpriteButton<E> extends FidgetzButton<E> {
     }
 
     @Override
-    protected void renderContents(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractContents(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.sprites.get(this.active).get(this.isHoveredOrFocused()).render(guiGraphics, this.getX(), this.getY());
         this.renderForeground(guiGraphics, this.getX(), this.getY(), this.getWidth(), this.getHeight(), partialTick);
         this.updateCursor(guiGraphics);

@@ -38,7 +38,7 @@ import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionScreenAccess
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import io.github.fishstiz.packed_packs.util.constants.Theme;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -63,7 +63,6 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import static com.mojang.blaze3d.platform.InputConstants.KEY_BACKSPACE;
-import static com.mojang.blaze3d.platform.InputConstants.KEY_SPACE;
 import static io.github.fishstiz.packed_packs.util.InputUtil.*;
 import static io.github.fishstiz.packed_packs.util.PackUtil.joinPackNames;
 import static io.github.fishstiz.packed_packs.util.PackUtil.validatePaths;
@@ -93,7 +92,7 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
         Util.backgroundExecutor().execute(PackedPacksApiImpl::getInstance);
     }
 
-    private PackedPacksScreen(Screen previous, PackSelectionScreenArgs original, InitMode initMode) {
+    public PackedPacksScreen(Screen previous, PackSelectionScreenArgs original) {
         super(ResourceUtil.getModName());
 
         this.previous = previous;
@@ -115,18 +114,6 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
         this.layout.setPadding(SPACING);
 
         this.viewModel.addEffectListener(this::onUiEffect);
-    }
-
-    public PackedPacksScreen(Screen previous, PackSelectionScreenArgs original) {
-        this(previous, original, new InitMode.Default());
-    }
-
-    public PackedPacksScreen(Screen previous, PackSelectionScreenArgs original, Profile profile) {
-        this(previous, original, new InitMode.WithProfile(profile));
-    }
-
-    public PackedPacksScreen(Screen previous, PackSelectionScreenArgs original, PackGroup packs) {
-        this(previous, original, new InitMode.WithPacks(packs));
     }
 
     @Override
@@ -417,7 +404,7 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
         if (CollectionsUtil.anyMatch(this.dialogs, ToggleableDialog::isOpen)) {
             return false;
         }
-        if (charEvent.codepoint() != KEY_SPACE && (noModifiers(charEvent.modifiers()) || shiftOnly(charEvent.modifiers()))) {
+        if (canAutoFocusSearchField(charEvent)) {
             PackLayout packLayout = this.getFocusedOrHoveredLayout();
             if (packLayout != null && !packLayout.getSearchField().isFocused()) {
                 return this.focusSearchField(packLayout).charTyped(charEvent);
@@ -596,10 +583,10 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
     }
 
     @Override
-    public void render(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.hoveredElement = this.findHovered(mouseX, mouseY);
 
-        super.render(guiGraphics, mouseX, mouseY, partialTick);
+        super.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
 
         if (this.viewModel.isDragging()) {
             if (this.viewModel.isUnlocked()) {
@@ -623,7 +610,7 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
 
             guiGraphics.pose().pushMatrix();
             guiGraphics.pose().scale(scale);
-            guiGraphics.drawString(this.font, ResourceUtil.getText("dev_mode", DEV_MODE_SHORTCUT), 0, y, Theme.WHITE.getARGB());
+            guiGraphics.text(this.font, ResourceUtil.getText("dev_mode", DEV_MODE_SHORTCUT), 0, y, Theme.WHITE.getARGB());
             guiGraphics.pose().popMatrix();
         }
     }

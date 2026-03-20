@@ -1,6 +1,6 @@
 package io.github.fishstiz.fidgetz.gui.renderables.sprites;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 public record ButtonSprites(Sprite active, Sprite inactive, boolean clamped) {
     public ButtonSprites(Sprite active, Sprite inactive) {
@@ -23,7 +23,7 @@ public record ButtonSprites(Sprite active, Sprite inactive, boolean clamped) {
         return active ? this.active : this.inactive;
     }
 
-    public void render(GuiGraphics guiGraphics, int x, int y, int width, int height, boolean active, float partialTick) {
+    public void render(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, boolean active, float partialTick) {
         Sprite sprite = this.get(active);
         if (this.clamped) {
             sprite.renderClamped(guiGraphics, x, y, width, height, partialTick);

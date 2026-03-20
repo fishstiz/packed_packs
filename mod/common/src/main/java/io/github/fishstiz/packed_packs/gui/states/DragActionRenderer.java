@@ -6,7 +6,7 @@ import io.github.fishstiz.fidgetz.util.DrawUtil;
 import io.github.fishstiz.packed_packs.gui.components.pack.PackListContainer;
 import io.github.fishstiz.packed_packs.util.constants.Theme;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.jspecify.annotations.Nullable;
 
 public final class DragActionRenderer {
@@ -29,7 +29,7 @@ public final class DragActionRenderer {
             PackListContainer available,
             PackListContainer enabled,
             ActiveAction.@Nullable Dragging dragging,
-            GuiGraphics guiGraphics,
+            GuiGraphicsExtractor guiGraphics,
             int mouseX,
             int mouseY,
             float partialTick
@@ -46,7 +46,7 @@ public final class DragActionRenderer {
         guiGraphics.requestCursor(validDrop ? CursorTypes.RESIZE_ALL : CursorTypes.NOT_ALLOWED);
     }
 
-    private void renderDragging(ActiveAction.@Nullable Dragging dragging, GuiGraphics guiGraphics, int mouseX, int mouseY) {
+    private void renderDragging(ActiveAction.@Nullable Dragging dragging, GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
         String sizeString = Integer.toString(dragging.payload().size());
         int sizeStringWidth = this.font.width(sizeString);
         int iconX = mouseX - ICON_OFFSET_X;
@@ -59,7 +59,7 @@ public final class DragActionRenderer {
         dragging.ctx().sprite().render(guiGraphics, iconX, iconY, ICON_SIZE, ICON_SIZE);
         this.overlay.render(guiGraphics, iconX, iconY, ICON_SIZE, ICON_SIZE);
         this.numberBackground.render(guiGraphics, numX, numY, numWidth, NUM_SIZE);
-        guiGraphics.drawString(this.font, sizeString, numX + numWidth / 2 - sizeStringWidth / 2, numY + NUM_SIZE / 2 - this.font.lineHeight / 2, Theme.WHITE.getARGB());
+        guiGraphics.text(this.font, sizeString, numX + numWidth / 2 - sizeStringWidth / 2, numY + NUM_SIZE / 2 - this.font.lineHeight / 2, Theme.WHITE.getARGB());
         DrawUtil.renderOutline(guiGraphics, iconX, iconY, ICON_SIZE, ICON_SIZE, Theme.WHITE.getARGB());
         DrawUtil.renderOutline(guiGraphics, numX, numY, numWidth, NUM_SIZE, Theme.WHITE.getARGB());
     }

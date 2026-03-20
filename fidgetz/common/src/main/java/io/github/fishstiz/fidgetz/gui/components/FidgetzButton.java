@@ -10,7 +10,7 @@ import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import io.github.fishstiz.fidgetz.util.DrawUtil;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.gui.ActiveTextCollector;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.input.InputWithModifiers;
@@ -76,26 +76,26 @@ public class FidgetzButton<E> extends Button.Plain implements Fidgetz, ContextMe
         return this.sprites != null;
     }
 
-    protected void renderSprite(GuiGraphics guiGraphics, int x, int y, int width, int height, float partialTick) {
+    protected void renderSprite(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, float partialTick) {
         this.sprites.render(guiGraphics, x, y, width, height, this.active, partialTick);
     }
 
-    protected void renderBorder(GuiGraphics guiGraphics, int x, int y, int width, int height, float partialTick) {
+    protected void renderBorder(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, float partialTick) {
         DrawUtil.renderOutline(guiGraphics, x, y, width, height, this.focusedBorder);
     }
 
-    protected void renderForeground(GuiGraphics guiGraphics, int x, int y, int width, int height, float partialTick) {
+    protected void renderForeground(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, float partialTick) {
         if (this.foreground != null) {
             this.foreground.render(guiGraphics, x, y, width, height, partialTick);
         }
     }
 
     @Override
-    protected void renderContents(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractContents(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.isHovered = this.isHovered && this.isHovered(mouseX, mouseY);
 
         if (!this.spriteOnly) {
-            super.renderContents(guiGraphics, mouseX, mouseY, partialTick);
+            super.extractContents(guiGraphics, mouseX, mouseY, partialTick);
         }
 
         if (this.hasSprite()) {
@@ -121,16 +121,16 @@ public class FidgetzButton<E> extends Button.Plain implements Fidgetz, ContextMe
         return this.visible && Fidgetz.super.isMouseOver(mouseX, mouseY);
     }
 
-    protected void updateCursor(GuiGraphics guiGraphics) {
+    protected void updateCursor(GuiGraphicsExtractor guiGraphics) {
         if (this.isHovered()) {
             guiGraphics.requestCursor(this.isActive() ? CursorTypes.POINTING_HAND : CursorTypes.NOT_ALLOWED);
         }
     }
 
     @Override
-    protected void renderDefaultLabel(@NonNull ActiveTextCollector activeTextCollector) {
+    protected void extractDefaultLabel(@NonNull ActiveTextCollector activeTextCollector) {
         if (!this.hasSprite()) {
-            super.renderDefaultLabel(activeTextCollector);
+            super.extractDefaultLabel(activeTextCollector);
         }
     }
 

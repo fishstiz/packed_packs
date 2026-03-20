@@ -30,7 +30,7 @@ import io.github.fishstiz.packed_packs.util.constants.Theme;
 import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.gui.ComponentPath;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.SelectableEntry;
 import net.minecraft.client.gui.components.Tooltip;
@@ -202,7 +202,7 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
         return this.viewModel.canDrop(dragging.target(), dragging.ctx().pack(), dragging.payload(), index);
     }
 
-    private void renderDropIndex(GuiGraphics guiGraphics, int x, int width, int index) {
+    private void renderDropIndex(GuiGraphicsExtractor guiGraphics, int x, int width, int index) {
         int rowTop = Math.clamp(
                 this.getRowTop(index != -1 ? index : this.children().size()),
                 this.getY() + this.offsetY + DROP_INDEX_PADDING,
@@ -215,7 +215,7 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
         guiGraphics.disableScissor();
     }
 
-    private void renderDroppableSlots(GuiGraphics guiGraphics, ActiveAction.Dragging dragging, int mouseX, int mouseY, float partialTick) {
+    private void renderDroppableSlots(GuiGraphicsExtractor guiGraphics, ActiveAction.Dragging dragging, int mouseX, int mouseY, float partialTick) {
         int x = this.getX();
         int y = this.getY();
         int width = this.scrollbarVisible() ? this.getWidth() - this.scrollbarOffset : this.getWidth();
@@ -245,7 +245,7 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
         DrawUtil.renderOutline(guiGraphics, x, y, width, height, dropTheme.getARGB());
     }
 
-    private void renderDroppableRect(GuiGraphics guiGraphics, ActiveAction.Dragging dragging, int mouseX, int mouseY, float partialTick) {
+    private void renderDroppableRect(GuiGraphicsExtractor guiGraphics, ActiveAction.Dragging dragging, int mouseX, int mouseY, float partialTick) {
         if (this.canDropAt(dragging, mouseX, mouseY, 0)) {
             if (this.isMouseOver(mouseX, mouseY)) {
                 this.dropRect.render(guiGraphics, this.getX(), this.getY(), width, this.getHeight(), partialTick);
@@ -254,7 +254,7 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
         }
     }
 
-    public void renderDroppableZone(GuiGraphics guiGraphics, ActiveAction.Dragging dragging, int mouseX, int mouseY, float partialTick) {
+    public void renderDroppableZone(GuiGraphicsExtractor guiGraphics, ActiveAction.Dragging dragging, int mouseX, int mouseY, float partialTick) {
         if (!this.viewModel.locked() && PackListUtils.canInteract(dragging.target(), this.key())) {
             if (this.viewModel.supportsReordering()) {
                 this.renderDroppableSlots(guiGraphics, dragging, mouseX, mouseY, partialTick);
@@ -319,7 +319,7 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
             case FocusNavigationEvent.TabNavigation ignored -> this.isFocused()
                     ? null
                     : Objects.requireNonNullElse(this.getSelected(), this.children().getFirst());
-            case FocusNavigationEvent.ArrowNavigation(ScreenDirection direction) -> this.isFocused()
+            case FocusNavigationEvent.ArrowNavigation(ScreenDirection direction, _) -> this.isFocused()
                     ? this.getNextEntryAt(direction)
                     : Objects.requireNonNullElse(this.getSelected(), this.children().getFirst());
             default -> null;
@@ -406,10 +406,10 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
     }
 
     @Override
-    protected void renderListItems(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractListItems(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         if (this.viewModel.isFolderOpened()) return;
 
-        super.renderListItems(guiGraphics, mouseX, mouseY, partialTick);
+        super.extractListItems(guiGraphics, mouseX, mouseY, partialTick);
 
         Entry focused = this.getFocused();
         if (focused != null && this.children().contains(focused)) {
@@ -420,9 +420,9 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
     }
 
     @Override
-    protected void renderItem(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, Entry item) {
+    protected void extractItem(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick, Entry item) {
         item.ensureInitialized();
-        super.renderItem(guiGraphics, mouseX, mouseY, partialTick, item);
+        super.extractItem(guiGraphics, mouseX, mouseY, partialTick, item);
     }
 
     @Override
@@ -640,7 +640,7 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
             return false;
         }
 
-        public void renderBack(GuiGraphics guiGraphics, int top, int left, int width, int height) {
+        public void renderBack(GuiGraphicsExtractor guiGraphics, int top, int left, int width, int height) {
             if (!this.pack().getCompatibility().isCompatible() && !this.viewModel.incompatibleWarningsHidden()) {
                 int backgroundLeft = left + BACKGROUND_MARGIN;
                 int backgroundTop = top + BACKGROUND_MARGIN;
@@ -651,13 +651,13 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
             }
         }
 
-        private void updateCursor(GuiGraphics guiGraphics, boolean hovered) {
+        private void updateCursor(GuiGraphicsExtractor guiGraphics, boolean hovered) {
             if (hovered) {
                 guiGraphics.requestCursor(CursorTypes.POINTING_HAND);
             }
         }
 
-        private void renderForeground(GuiGraphics guiGraphics, int top, int left, int mouseX, int mouseY, boolean hovering) {
+        private void renderForeground(GuiGraphicsExtractor guiGraphics, int top, int left, int mouseX, int mouseY, boolean hovering) {
             if (!hovering && !this.viewModel.selectedLast()) return;
 
             int x = left + H_SPACING;
@@ -691,26 +691,26 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
             }
         }
 
-        private void renderSelection(GuiGraphics guiGraphics, int top, int left, int width, int height) {
+        private void renderSelection(GuiGraphicsExtractor guiGraphics, int top, int left, int width, int height) {
             if (this.viewModel.selected()) {
                 pick(this.viewModel.selectedLast(), WHITE_OVERLAY, SELECTED_OVERLAY).render(guiGraphics, left, top, width, height);
                 DrawUtil.renderOutline(guiGraphics, left, top, width, height, Theme.BLUE_500.getARGB());
             }
         }
 
-        private void renderTop(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        private void renderTop(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
             if (this.folderWidget != null) {
                 int folderWidgetY = this.getBottom() - this.folderWidget.getHeight() - BACKGROUND_MARGIN;
                 this.folderWidget.setPosition(this.packWidget.getContentLeft(), folderWidgetY);
             }
 
             for (Renderable renderable : this.topRenderables) {
-                renderable.render(guiGraphics, mouseX, mouseY, partialTick);
+                renderable.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
             }
         }
 
         @Override
-        public void renderContent(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void extractContent(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, boolean hovering, float partialTick) {
             hovering = hovering && PackList.this.beforeScrollbarX(mouseX) && GuiUtil.isHovered(this, mouseX, mouseY);
 
             int left = this.getX();
@@ -728,7 +728,7 @@ public class PackList extends AbstractFixedListWidget<PackList.Entry> implements
             this.packWidget.checkCompatibility(hovering || this.isFocusedOrSelected());
 
             for (Renderable renderable : this.renderables) {
-                renderable.render(guiGraphics, mouseX, mouseY, partialTick);
+                renderable.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
             }
 
             this.renderSelection(guiGraphics, top, left, width, height + Y_OFFSET);

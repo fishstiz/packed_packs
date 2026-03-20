@@ -4,7 +4,7 @@ import io.github.fishstiz.packed_packs.api.PackedPacksApi;
 import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.api.events.InitializeLayoutEvent;
 import io.github.fishstiz.testmod.TestFeature;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.InputWithModifiers;
@@ -129,9 +129,9 @@ public final class PreferenceRegistryTest {
         }
 
         @Override
-        protected void renderContents(@NonNull GuiGraphics guiGraphics, int i, int i1, float v) {
-            renderDefaultSprite(guiGraphics);
-            renderDefaultLabel(guiGraphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
+        protected void extractContents(@NonNull GuiGraphicsExtractor guiGraphics, int i, int i1, float v) {
+            extractDefaultSprite(guiGraphics);
+            extractDefaultLabel(guiGraphics.textRendererForWidget(this, GuiGraphicsExtractor.HoveredTextEffects.NONE));
         }
 
         @Override

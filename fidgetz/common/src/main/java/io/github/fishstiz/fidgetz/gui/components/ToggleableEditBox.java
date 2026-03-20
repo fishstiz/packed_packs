@@ -10,7 +10,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.navigation.FocusNavigationEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -215,9 +215,9 @@ public class ToggleableEditBox<E> extends EditBox implements Fidgetz, Metadata<E
     }
 
     @Override
-    public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void extractWidgetRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.isHovered = this.isHovered && Fidgetz.super.isHovered(mouseX, mouseY);
-        super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+        super.extractWidgetRenderState(guiGraphics, mouseX, mouseY, partialTick);
     }
 
     @Override

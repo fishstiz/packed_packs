@@ -13,7 +13,7 @@ import io.github.fishstiz.fidgetz.util.ARGBColor;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ScrollableLayout;
@@ -149,17 +149,17 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
     }
 
     @Override
-    protected void renderBackground(GuiGraphics guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
+    protected void renderBackground(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
         DrawUtil.renderDropShadow(guiGraphics, x, y, width, height, DROP_SHADOW_SIZE);
         super.renderBackground(guiGraphics, x, y, width, height, mouseX, mouseY, partialTick);
     }
 
     @Override
-    protected void renderForeground(GuiGraphics guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
+    protected void renderForeground(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
         DrawUtil.renderOutline(guiGraphics, x, y, width, height, this.borderColor);
 
         for (ContextMenu childMenu : this.childMenus) {
-            childMenu.render(guiGraphics, mouseX, mouseY, partialTick);
+            childMenu.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         }
 
         GuiRectangle bounds = this.getBoundingBox();
@@ -302,38 +302,38 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
             }
         }
 
-        protected void renderBackground(GuiGraphics guiGraphics, int x, int y, int width, int height, float partialTick) {
+        protected void renderBackground(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, float partialTick) {
             RenderableRect background = this.item.background();
             if (background != null) {
                 background.render(guiGraphics, x, y, width, height, partialTick);
             }
         }
 
-        protected void renderIcon(GuiGraphics guiGraphics, int x, int y, int width, int height, float partialTick) {
+        protected void renderIcon(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, float partialTick) {
             Sprite icon = this.item.icon();
             if (icon != null) {
                 icon.render(guiGraphics, x, y, width, height, partialTick);
             }
         }
 
-        protected void renderText(GuiGraphics guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
+        protected void renderText(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
             Font font = Minecraft.getInstance().font;
             DrawUtil.renderScrollingStringLeftAlign(guiGraphics, font , this.item.text(), x, y + 1, x + width, y + height + 1, this.item.textColor());
         }
 
-        protected void renderHighlight(GuiGraphics guiGraphics, int x, int y, int right, int bottom, boolean hovered, float partialTick) {
+        protected void renderHighlight(GuiGraphicsExtractor guiGraphics, int x, int y, int right, int bottom, boolean hovered, float partialTick) {
             if (hovered && this.item.active()) {
                 guiGraphics.fill(x, y, right, bottom, HOVER_OVERLAY_COLOR);
             }
         }
 
         @SuppressWarnings("unused")
-        protected void renderForeground(@NonNull GuiGraphics guiGraphics, int x, int y, int width, int height, boolean hovered, double mouseX, double mouseY, float partialTick) {
+        protected void renderForeground(@NonNull GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, boolean hovered, double mouseX, double mouseY, float partialTick) {
             // for subclass
         }
 
         @Override
-        protected void renderWidget(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
             this.setTooltip(this.item.tooltip());
 
             this.isHovered = this.isHovered && this.isMouseOver(mouseX, mouseY);
@@ -432,7 +432,7 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
         }
 
         @Override
-        protected void renderText(GuiGraphics guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
+        protected void renderText(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
             int innerHeight = this.getHeight() - this.spacing * 2;
             int textWidth = width - (innerHeight + this.spacing);
             super.renderText(guiGraphics, x, y, textWidth, height, mouseX, mouseY, partialTick);
@@ -445,18 +445,18 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
                 int caretY = y + (height - caretHeight) / 2;
                 int color = this.item.textColor();
 
-                guiGraphics.drawString(font, CARET_RIGHT, caretX, caretY + 1, color, false);
+                guiGraphics.text(font, CARET_RIGHT, caretX, caretY + 1, color, false);
             }
         }
 
         @Override
-        protected void renderHighlight(GuiGraphics guiGraphics, int x, int y, int right, int bottom, boolean hovered, float partialTick) {
+        protected void renderHighlight(GuiGraphicsExtractor guiGraphics, int x, int y, int right, int bottom, boolean hovered, float partialTick) {
             super.renderHighlight(guiGraphics, x, y, right, bottom, hovered || this.child.isOpen(), partialTick);
         }
 
         @Override
-        protected void renderWidget(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-            super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+        protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+            super.extractWidgetRenderState(guiGraphics, mouseX, mouseY, partialTick);
 
             if (!this.item.active()) {
                 if (this.child.isOpen()) this.closeChildren();
@@ -499,8 +499,8 @@ public class ContextMenu extends ToggleableDialog<LayoutWrapper<ScrollableLayout
         }
 
         @Override
-        protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-            guiGraphics.hLine(this.getX(), this.getRight() - 1, this.getMidY(), this.color);
+        protected void extractWidgetRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+            guiGraphics.horizontalLine(this.getX(), this.getRight() - 1, this.getMidY(), this.color);
         }
 
         @Override

@@ -19,7 +19,7 @@ import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import net.minecraft.client.gui.ComponentPath;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.AbstractContainerEventHandler;
@@ -93,7 +93,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
     }
 
-    public boolean renderDroppableZone(ActiveAction.Dragging dragging, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public boolean renderDroppableZone(ActiveAction.Dragging dragging, GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         if (this.folder != null) {
             return this.folder.listContainer.renderDroppableZone(dragging, guiGraphics, mouseX, mouseY, partialTick);
         }
@@ -105,10 +105,10 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
     }
 
     @Override
-    protected void renderWidget(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        this.packList.render(guiGraphics, mouseX, mouseY, partialTick);
+    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        this.packList.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         if (this.folder != null) {
-            this.folder.render(guiGraphics, mouseX, mouseY, partialTick);
+            this.folder.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         }
     }
 
@@ -367,12 +367,12 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
 
         @Override
-        public void render(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        public void extractRenderState(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
             if (this.isMouseOver(mouseX, mouseY)) {
                 guiGraphics.requestCursor(CursorType.DEFAULT);
             }
             for (Renderable renderable : this.renderables) {
-                renderable.render(guiGraphics, mouseX, mouseY, partialTick);
+                renderable.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
             }
         }
 
@@ -429,7 +429,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             }
 
             if (!this.isFocused() &&
-                event instanceof FocusNavigationEvent.ArrowNavigation(ScreenDirection direction) &&
+                event instanceof FocusNavigationEvent.ArrowNavigation(ScreenDirection direction, _) &&
                 direction.getAxis() == ScreenAxis.HORIZONTAL) {
                 ComponentPath path = this.listContainer.nextFocusPath(event);
                 if (path != null) {

@@ -8,7 +8,7 @@ import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalBooleanRef;
 import io.github.fishstiz.fidgetz.gui.components.ToggleableEditBox;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
@@ -43,12 +43,12 @@ public abstract class EditBoxMixin extends AbstractWidget implements EditBoxAcce
         this.fidgetz$allowPastingSectionSign = allow;
     }
 
-    @WrapOperation(method = "renderWidget", at = @At(
+    @WrapOperation(method = "extractWidgetRenderState", at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/GuiGraphics;drawString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/util/FormattedCharSequence;IIIZ)V",
+            target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;text(Lnet/minecraft/client/gui/Font;Lnet/minecraft/util/FormattedCharSequence;IIIZ)V",
             ordinal = 0
     ))
-    public void drawScrollingString(GuiGraphics guiGraphics, Font font, FormattedCharSequence text, int x, int y, int color, boolean shadow, Operation<Integer> original) {
+    public void drawScrollingString(GuiGraphicsExtractor guiGraphics, Font font, FormattedCharSequence text, int x, int y, int color, boolean shadow, Operation<Integer> original) {
         if ((EditBox) (Object) this instanceof ToggleableEditBox<?> toggleableEditBox && !this.isEditable()) {
             renderScrollingStringLeftAlign(
                     guiGraphics,
@@ -67,12 +67,12 @@ public abstract class EditBoxMixin extends AbstractWidget implements EditBoxAcce
         original.call(guiGraphics, font, text, x, y, color, shadow);
     }
 
-    @WrapWithCondition(method = "renderWidget", at = @At(
+    @WrapWithCondition(method = "extractWidgetRenderState", at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/gui/GuiGraphics;drawString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/util/FormattedCharSequence;IIIZ)V",
+            target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;text(Lnet/minecraft/client/gui/Font;Lnet/minecraft/util/FormattedCharSequence;IIIZ)V",
             ordinal = 1
     ))
-    public boolean isToggled(GuiGraphics instance, Font font, FormattedCharSequence text, int x, int y, int color, boolean shadow) {
+    public boolean isToggled(GuiGraphicsExtractor instance, Font font, FormattedCharSequence text, int x, int y, int color, boolean shadow) {
         return !((EditBox) (Object) this instanceof ToggleableEditBox) || this.isEditable();
     }
 

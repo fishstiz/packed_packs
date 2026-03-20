@@ -2,7 +2,7 @@ package io.github.fishstiz.fidgetz.gui.components;
 
 import io.github.fishstiz.fidgetz.gui.Metadata;
 import io.github.fishstiz.fidgetz.gui.renderables.RenderableRect;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.sounds.SoundManager;
@@ -21,7 +21,7 @@ public class RenderableRectWidget<E> extends AbstractWidget implements Metadata<
     }
 
     @Override
-    protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractWidgetRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.isHovered = this.isHovered && Fidgetz.super.isHovered(mouseX, mouseY);
         this.renderableRect.render(guiGraphics, this.getX(), this.getY(), this.getWidth(), this.getHeight(), partialTick);
     }

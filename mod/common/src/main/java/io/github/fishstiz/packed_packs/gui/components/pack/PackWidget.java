@@ -5,7 +5,7 @@ import io.github.fishstiz.fidgetz.gui.components.FidgetzText;
 import io.github.fishstiz.packed_packs.gui.model.PackListViewModel;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.MultiLineTextWidget;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.network.chat.Component;
@@ -76,7 +76,7 @@ class PackWidget extends AbstractLayoutElement implements Renderable {
         return this.nameWidget.getX();
     }
 
-    protected void renderSprite(GuiGraphics guiGraphics) {
+    protected void renderSprite(GuiGraphicsExtractor guiGraphics) {
         int x = this.getX() + this.spacing;
         int y = this.getY();
         int size = this.getIconSize();
@@ -84,7 +84,7 @@ class PackWidget extends AbstractLayoutElement implements Renderable {
     }
 
     @Override
-    public void render(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.renderSprite(guiGraphics);
 
         int lineHeight = this.minecraft.font.lineHeight;
@@ -92,10 +92,10 @@ class PackWidget extends AbstractLayoutElement implements Renderable {
         int startY = this.getY() + (this.getHeight() - totalContentHeight) / 2;
 
         this.nameWidget.setY(startY);
-        this.nameWidget.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+        this.nameWidget.extractWidgetRenderState(guiGraphics, mouseX, mouseY, partialTick);
 
         this.descriptionWidget.setPosition(this.nameWidget.getX(), startY + lineHeight + this.spacing);
-        this.descriptionWidget.render(guiGraphics, mouseX, mouseY, partialTick);
+        this.descriptionWidget.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
     }
 
     public void checkCompatibility(boolean showWarning) {

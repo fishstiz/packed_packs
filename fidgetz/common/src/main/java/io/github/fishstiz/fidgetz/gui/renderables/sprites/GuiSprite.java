@@ -1,6 +1,6 @@
 package io.github.fishstiz.fidgetz.gui.renderables.sprites;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
@@ -18,7 +18,7 @@ public class GuiSprite extends Sprite {
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int x, int y, int width, int height, float partialTick) {
+    public void render(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, float partialTick) {
         guiGraphics.blitSprite(RenderPipelines.GUI_TEXTURED, this.location, x, y, width, height);
     }
 }

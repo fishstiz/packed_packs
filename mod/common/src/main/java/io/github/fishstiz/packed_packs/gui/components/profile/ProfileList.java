@@ -17,7 +17,7 @@ import io.github.fishstiz.packed_packs.gui.model.ProfilesViewModel;
 import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import io.github.fishstiz.packed_packs.util.constants.GuiConstants;
 import io.github.fishstiz.packed_packs.util.constants.Theme;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -66,13 +66,13 @@ class ProfileList extends AbstractFixedListWidget<ProfileList.Entry> implements 
     }
 
     @Override
-    public void renderWidget(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void extractWidgetRenderState(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.debouncedRefresh.poll();
 
-        super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+        super.extractWidgetRenderState(guiGraphics, mouseX, mouseY, partialTick);
 
         if (this.children().isEmpty()) {
-            this.renderScrollingStringOverContents(guiGraphics.textRenderer(), EMPTY_TEXT, 0);
+            this.extractScrollingStringOverContents(guiGraphics.textRenderer(), EMPTY_TEXT, 0);
         }
     }
 
@@ -119,7 +119,7 @@ class ProfileList extends AbstractFixedListWidget<ProfileList.Entry> implements 
         }
 
         @Override
-        public void renderContent(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void extractContent(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, boolean hovering, float partialTick) {
             int left = this.getX();
             int top = this.getY();
 
@@ -127,8 +127,8 @@ class ProfileList extends AbstractFixedListWidget<ProfileList.Entry> implements 
             this.selectButton.setPosition(left + this.deleteButton.getWidth(), top);
             this.selectButton.setWidth(width - this.deleteButton.getWidth());
 
-            this.deleteButton.render(guiGraphics, mouseX, mouseY, partialTick);
-            this.selectButton.render(guiGraphics, mouseX, mouseY, partialTick);
+            this.deleteButton.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
+            this.selectButton.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
 
             if (Config.get().isDevMode()) {
                 boolean hasProperty = true;

@@ -1,6 +1,6 @@
 package io.github.fishstiz.testmod.gui;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Renderable;
 import org.jspecify.annotations.NonNull;
 
@@ -16,7 +16,7 @@ public class TestFeatureRendererCoordinator implements Renderable {
     }
 
     @Override
-    public void render(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         int y = 0;
 
         for (TestFeatureRenderer renderer : renderers) {

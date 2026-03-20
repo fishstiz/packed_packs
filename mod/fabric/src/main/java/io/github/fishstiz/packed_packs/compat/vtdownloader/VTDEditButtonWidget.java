@@ -5,7 +5,7 @@ import io.github.fishstiz.fidgetz.gui.components.Fidgetz;
 import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.gui.components.PreferenceToggle;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.Screen;
@@ -52,7 +52,7 @@ public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
     }
 
     @Override
-    protected void renderContents(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractContents(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.active = this.editable.getAsBoolean();
         this.isHovered = this.isHovered && Fidgetz.super.isHovered(mouseX, mouseY);
 

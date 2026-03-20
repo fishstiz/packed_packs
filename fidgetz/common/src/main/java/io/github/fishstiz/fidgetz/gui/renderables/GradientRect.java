@@ -1,10 +1,10 @@
 package io.github.fishstiz.fidgetz.gui.renderables;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 public record GradientRect(int colorFrom, int colorTo, Direction direction) implements RenderableRect {
     @Override
-    public void render(GuiGraphics guiGraphics, int x, int y, int width, int height, float partialTick) {
+    public void render(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, float partialTick) {
         int x2 = x + width;
         int y2 = y + height;
 

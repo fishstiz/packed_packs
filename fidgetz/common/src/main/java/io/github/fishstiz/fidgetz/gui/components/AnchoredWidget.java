@@ -1,9 +1,10 @@
 package io.github.fishstiz.fidgetz.gui.components;
 
 import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuContainer;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.layouts.LayoutElement;
+import org.jspecify.annotations.NonNull;
 
 public class AnchoredWidget extends ContainedWidget implements ContextMenuContainer {
     private final LayoutElement container;
@@ -84,8 +85,8 @@ public class AnchoredWidget extends ContainedWidget implements ContextMenuContai
     }
 
     @Override
-    protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractWidgetRenderState(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.updatePosition();
-        super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+        super.extractWidgetRenderState(guiGraphics, mouseX, mouseY, partialTick);
     }
 }

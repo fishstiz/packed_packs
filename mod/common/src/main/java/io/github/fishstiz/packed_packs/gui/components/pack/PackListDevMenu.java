@@ -16,7 +16,7 @@ import io.github.fishstiz.packed_packs.util.PackUtil;
 import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import io.github.fishstiz.packed_packs.util.constants.Theme;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
@@ -66,7 +66,7 @@ public class PackListDevMenu implements ContextMenuProvider, RenderableRect {
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int top, int left, int width, int height, float partialTick) {
+    public void render(GuiGraphicsExtractor guiGraphics, int top, int left, int width, int height, float partialTick) {
         int size = DEV_SPRITE_SIZE;
         int iconX = (left + width) - size - DEV_SPRITE_MARGIN_RIGHT;
 

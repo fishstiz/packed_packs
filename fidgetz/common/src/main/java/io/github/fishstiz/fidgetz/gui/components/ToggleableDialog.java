@@ -10,7 +10,7 @@ import io.github.fishstiz.fidgetz.util.debounce.PollingDebouncer;
 import io.github.fishstiz.fidgetz.util.debounce.SimplePollingDebouncer;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.gui.ComponentPath;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.TabOrderedElement;
 import net.minecraft.client.gui.components.events.AbstractContainerEventHandler;
@@ -178,23 +178,23 @@ public class ToggleableDialog<T extends LayoutElement> extends AbstractContainer
         return this.closeOnEscape;
     }
 
-    protected void renderBackdrop(GuiGraphics guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
+    protected void renderBackdrop(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
         if (this.backdrop != null) {
             this.backdrop.render(guiGraphics, x, y, width, height, partialTick);
         }
     }
 
-    protected void renderBackground(GuiGraphics guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
+    protected void renderBackground(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
         if (this.background != null) {
             this.background.render(guiGraphics, x, y, width, height, partialTick);
         }
     }
 
-    protected void renderForeground(GuiGraphics guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
+    protected void renderForeground(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, int mouseX, int mouseY, float partialTick) {
     }
 
     @Override
-    public final void render(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public final void extractRenderState(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.hovered = this.isMouseOverBounds(mouseX, mouseY);
 
         if (this.isOpen()) {
@@ -212,7 +212,7 @@ public class ToggleableDialog<T extends LayoutElement> extends AbstractContainer
             this.renderBackdrop(guiGraphics, 0, 0, this.screen.width, this.screen.height, mouseX, mouseY, partialTick);
             this.renderBackground(guiGraphics, x, y, width, height, mouseX, mouseY, partialTick);
             for (Renderable renderable : this.renderables) {
-                renderable.render(guiGraphics, mouseX, mouseY, partialTick);
+                renderable.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
             }
             this.renderForeground(guiGraphics, x, y, width, height, mouseX, mouseY, partialTick);
         }

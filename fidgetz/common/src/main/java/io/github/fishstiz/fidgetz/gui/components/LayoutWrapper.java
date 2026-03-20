@@ -1,7 +1,7 @@
 package io.github.fishstiz.fidgetz.gui.components;
 
 import io.github.fishstiz.fidgetz.gui.shapes.Padding;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.layouts.LayoutElement;
@@ -142,7 +142,7 @@ public class LayoutWrapper<T extends Layout> extends AbstractWidget implements L
     }
 
     @Override
-    protected final void renderWidget(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    protected final void extractWidgetRenderState(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
     }
 
     @Override

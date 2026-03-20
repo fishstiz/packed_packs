@@ -88,7 +88,7 @@ dependencies {
 
     // Mod Compatibility
     compileOnly "com.terraformersmc:modmenu:$modmenu_version"
-    localRuntime "com.terraformersmc:modmenu:$modmenu_version"
+//    localRuntime "com.terraformersmc:modmenu:$modmenu_version"
 
     compileOnly "maven.modrinth:resourcify:$resourcify_version"
     compileOnly "maven.modrinth:respackopts:$respackopts_version"

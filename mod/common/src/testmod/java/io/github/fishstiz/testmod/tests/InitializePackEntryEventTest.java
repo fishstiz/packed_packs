@@ -4,7 +4,7 @@ import io.github.fishstiz.packed_packs.api.PackedPacksApi;
 import io.github.fishstiz.packed_packs.api.events.InitializePackEntryEvent;
 import io.github.fishstiz.testmod.TestFeature;
 import io.github.fishstiz.testmod.TestMod;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -36,13 +36,13 @@ public final class InitializePackEntryEventTest {
             switch (packId) {
                 case "vanilla" -> event.addDetachedWidget(container -> new AbstractButton(0, 0, 60, 16, Component.literal("DETACHED WIDGET")) {
                     @Override
-                    protected void renderContents(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+                    protected void extractContents(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
                         int height = getHeight();
                         int x = container.getX() + 36;
                         int y = (container.getY() + container.getHeight()) - height;
                         setPosition(x, y);
-                        renderDefaultSprite(guiGraphics);
-                        renderDefaultLabel(guiGraphics.textRendererForWidget(this, GuiGraphics.HoveredTextEffects.NONE));
+                        extractDefaultSprite(guiGraphics);
+                        extractDefaultLabel(guiGraphics.textRendererForWidget(this, GuiGraphicsExtractor.HoveredTextEffects.NONE));
                     }
 
                     @Override

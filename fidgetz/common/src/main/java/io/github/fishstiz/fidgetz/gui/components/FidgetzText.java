@@ -4,7 +4,7 @@ import io.github.fishstiz.fidgetz.gui.Metadata;
 import io.github.fishstiz.fidgetz.transform.interfaces.IStringWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
@@ -48,9 +48,9 @@ public class FidgetzText<E> extends StringWidget implements Fidgetz, Metadata<E>
     }
 
     @Override
-    public void renderWidget(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void extractWidgetRenderState(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         this.isHovered = this.isHovered && Fidgetz.super.isHovered(mouseX, mouseY);
-        super.renderWidget(guiGraphics, mouseX, mouseY, partialTick);
+        super.extractWidgetRenderState(guiGraphics, mouseX, mouseY, partialTick);
     }
 
     @Override

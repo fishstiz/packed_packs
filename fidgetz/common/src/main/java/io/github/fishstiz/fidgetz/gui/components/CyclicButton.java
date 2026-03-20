@@ -1,7 +1,7 @@
 package io.github.fishstiz.fidgetz.gui.components;
 
 import io.github.fishstiz.fidgetz.gui.renderables.sprites.ButtonSprites;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.network.chat.CommonComponents;
@@ -93,7 +93,7 @@ public class CyclicButton<T extends CyclicButton.Option, E> extends FidgetzButto
     }
 
     @Override
-    protected void renderSprite(GuiGraphics guiGraphics, int x, int y, int width, int height, float partialTick) {
+    protected void renderSprite(GuiGraphicsExtractor guiGraphics, int x, int y, int width, int height, float partialTick) {
         if (!(this.getValue() instanceof SpriteOption spriteOption)) {
             super.renderSprite(guiGraphics, x, y, width, height, partialTick);
             return;
