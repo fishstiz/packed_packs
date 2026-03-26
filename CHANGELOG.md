@@ -1,3 +1,1 @@
-- Port to 26.1
-- Updated Ukrainian Translation ([#51](https://github.com/fishstiz/packed_packs/pull/51) by [StarmanMine142](https://github.com/StarmanMine142))
-- Fixed Edit Aliases modal not appearing unless opening the screen with developer mode already enabled.
+- Fixed incompatibility with Respackopts ([#53](https://github.com/fishstiz/packed_packs/issues/53))
