@@ -9,14 +9,13 @@ import io.github.fishstiz.packed_packs.compat.Mod;
 import io.github.fishstiz.packed_packs.compat.PackWrapperDelegatorAbstractionEpicModelEntry;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.gui.components.PreferenceToggle;
-import io.gitlab.jfronny.libjf.entrywidgets.api.v0.ResourcePackEntryWidget;
+import dev.jfronny.libjf.entrywidgets.api.v0.ResourcePackEntryWidget;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.client.input.InputWithModifiers;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.repository.Pack;
@@ -24,7 +23,6 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 public class RespackoptsWidget extends AbstractButton implements ContextMenuProvider, Fidgetz {
-    private static final Identifier CONFIGURE_SPRITE = Identifier.fromNamespaceAndPath("modmenu", "textures/gui/configure_button.png");
     private final ResourcePackEntryWidget wrapped;
     private final PackSelectionModel.Entry model;
     private final LayoutElement container;
@@ -69,10 +67,7 @@ public class RespackoptsWidget extends AbstractButton implements ContextMenuProv
 
         this.isHovered = this.isHovered && Fidgetz.super.isMouseOver(mouseX, mouseY);
 
-        // this.wrapped.render(this.model, guiGraphics, this.getX(), this.getY(), this.isHovered, partialTick);
-        // copied https://git.jfronny.dev/JfMods/Respackopts/src/branch/master/common/src/client/java/io/gitlab/jfronny/respackopts/RespackoptsPackWidget.java
-        // there was no version of libjf that accepts GuiGraphicsExtractor in ResourcePackEntryWidget#render by the time this was written
-        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, CONFIGURE_SPRITE, this.getX(), this.getY(), 0, this.isHovered ? 20 : 0, 20, 20, 32, 64);
+        this.wrapped.extractRenderState(this.model, guiGraphics, this.getX(), this.getY(), this.isHovered, partialTick);
 
         if (this.toggle != null) {
             this.toggle.render(guiGraphics, this.getX(), this.getY(), this.getWidth(), this.getHeight(), partialTick);

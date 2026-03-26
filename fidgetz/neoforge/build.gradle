@@ -22,14 +22,3 @@ neoForge {
         }
     }
 }
-
-repositories {
-    maven {
-        name = "Maven for PR #3002" // https://github.com/neoforged/NeoForge/pull/3002
-        url = uri("https://prmaven.neoforged.net/NeoForge/pr3002")
-        content {
-            includeModule("net.neoforged", "neoforge")
-            includeModule("net.neoforged", "testframework")
-        }
-    }
-}

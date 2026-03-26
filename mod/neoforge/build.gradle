@@ -69,14 +69,6 @@ repositories {
             includeGroup "maven.modrinth"
         }
     }
-    maven {
-        name = "Maven for PR #3002" // https://github.com/neoforged/NeoForge/pull/3002
-        url = uri("https://prmaven.neoforged.net/NeoForge/pr3002")
-        content {
-            includeModule("net.neoforged", "neoforge")
-            includeModule("net.neoforged", "testframework")
-        }
-    }
 }
 
 configurations {
@@ -92,7 +84,7 @@ dependencies {
 
     compileOnly "maven.modrinth:resourcify:$resourcify_version"
     compileOnly "maven.modrinth:respackopts:$respackopts_version"
-    compileOnly "io.gitlab.jfronny.libjf:libjf-resource-pack-entry-widgets-forge:$libjf_resource_pack_entry_widgets_version"
+    compileOnly "dev.jfronny.libjf:libjf-resource-pack-entry-widgets-v0:$libjf_resource_pack_entry_widgets_version"
     compileOnly "maven.modrinth:polytone:$polytone_version"
 }
 
