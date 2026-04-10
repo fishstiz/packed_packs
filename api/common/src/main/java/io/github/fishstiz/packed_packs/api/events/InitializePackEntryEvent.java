@@ -70,9 +70,7 @@ public final class InitializePackEntryEvent extends ScreenEvent implements PackE
         AnchoredWidget previous = this.rows[row.ordinal()];
         AnchoredWidget current = new AnchoredWidget(widget, this.container, row.asFloat(), Pos.END.asFloat(), Pos.END.asFloat(), row.asFloat());
 
-        if (previous != null) {
-            current.setOffsetX(previous.getOffsetX() - previous.getWidth() - marginRight);
-        }
+        current.setOffsetX(previous != null ? previous.getOffsetX() - previous.getWidth() - marginRight : -marginRight);
 
         this.rows[row.ordinal()] = current;
         this.add.accept(current);
