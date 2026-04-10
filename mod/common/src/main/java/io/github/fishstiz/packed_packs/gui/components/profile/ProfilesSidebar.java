@@ -21,6 +21,7 @@ public class ProfilesSidebar extends ToggleableDialog<LayoutWrapper<FlexLayout>>
     private final ProfilesViewModel viewModel;
     private final FidgetzButton<Void> noProfileButton;
     private final ProfileList profileList;
+    private final ProfileHeader profileHeader;
 
     public <S extends Screen & ToggleableDialogContainer> ProfilesSidebar(S screen, ProfilesViewModel viewModel) {
         super(createBuilder(screen));
@@ -68,6 +69,8 @@ public class ProfilesSidebar extends ToggleableDialog<LayoutWrapper<FlexLayout>>
 
         this.refresh();
         this.viewModel.subscribe(ProfilesViewModel.Property.SELECTED, this::refresh);
+
+        this.profileHeader = new ProfileHeader(this.viewModel, value -> this.profileList.scheduleRefresh());
     }
 
     private int getMaxWidth() {
@@ -93,8 +96,8 @@ public class ProfilesSidebar extends ToggleableDialog<LayoutWrapper<FlexLayout>>
         return screen.height - SPACING * 2;
     }
 
-    public ProfileHeader createProfileHeader() {
-        return new ProfileHeader(this.viewModel, value -> this.profileList.scheduleRefresh());
+    public ProfileHeader getProfileHeader() {
+        return this.profileHeader;
     }
 
     private static <S extends Screen & ToggleableDialogContainer> Builder<LayoutWrapper<FlexLayout>, ?> createBuilder(S screen) {
