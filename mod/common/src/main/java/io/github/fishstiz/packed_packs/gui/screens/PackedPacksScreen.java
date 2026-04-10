@@ -195,7 +195,7 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
                 .setOnPress(this::toggleActionBar)
                 .build()));
 
-        header.addFlexChild(this.profilesSidebar.createProfileHeader());
+        header.addFlexChild(this.profilesSidebar.getProfileHeader());
 
         this.addExtensions(header, InitializeLayoutEvent.Pos.AFTER_TITLE, extensions);
 
