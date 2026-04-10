@@ -358,13 +358,11 @@ public class PackListViewModel {
 
         private List<Pack> createPayload(Predicate<Pack> filter) {
             SequencedCollection<Pack> selection = PackListViewModel.this.state.get().selectedPacks();
-            List<Pack> payload = CollectionsUtil.addIf(new ObjectArrayList<>(selection.size() + 1), selection, filter);
-
-            if (!selection.contains(this.pack) && filter.test(this.pack)) {
-                payload.addLast(this.pack);
+            if (!selection.contains(this.pack)) {
+                return filter.test(this.pack) ? List.of(this.pack) : Collections.emptyList();
             }
 
-            return payload;
+            return CollectionsUtil.addIf(new ObjectArrayList<>(selection.size()), selection, filter);
         }
 
         private List<Pack> createPayload() {
