@@ -93,7 +93,7 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
         Util.backgroundExecutor().execute(PackedPacksApiImpl::getInstance);
     }
 
-    private PackedPacksScreen(Screen previous, PackSelectionScreenArgs original, InitMode initMode) {
+    public PackedPacksScreen(Screen previous, PackSelectionScreenArgs original) {
         super(ResourceUtil.getModName());
 
         this.previous = previous;
@@ -115,18 +115,6 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
         this.layout.setPadding(SPACING);
 
         this.viewModel.addEffectListener(this::onUiEffect);
-    }
-
-    public PackedPacksScreen(Screen previous, PackSelectionScreenArgs original) {
-        this(previous, original, new InitMode.Default());
-    }
-
-    public PackedPacksScreen(Screen previous, PackSelectionScreenArgs original, Profile profile) {
-        this(previous, original, new InitMode.WithProfile(profile));
-    }
-
-    public PackedPacksScreen(Screen previous, PackSelectionScreenArgs original, PackGroup packs) {
-        this(previous, original, new InitMode.WithPacks(packs));
     }
 
     @Override
