@@ -74,8 +74,11 @@ public class PackedPacksReducer {
                     }
                 }
                 newEnabledSelection.add(enable.ctx().pack());
+                SequencedCollection<Pack> newAvailableSelection = state.available().selectedPacks().contains(enable.ctx().pack())
+                        ? state.available().selectedPacks()
+                        : Collections.emptyList();
                 yield state.withPackLists(
-                        state.available().withPacks(newAvailable, state.profiles().options()),
+                        state.available().with(newAvailable, newAvailableSelection, state.profiles().options()),
                         state.enabled().with(newEnabled, newEnabledSelection, state.profiles().options()),
                         PackListKey.enabled()
                 );
@@ -91,9 +94,12 @@ public class PackedPacksReducer {
                     }
                 }
                 newAvailableSelection.add(disable.ctx().pack());
+                SequencedCollection<Pack> newEnabledSelection = state.enabled().selectedPacks().contains(disable.ctx().pack())
+                        ? state.enabled().selectedPacks()
+                        : Collections.emptyList();
                 yield state.withPackLists(
                         state.available().with(newAvailable, newAvailableSelection, state.profiles().options()),
-                        state.enabled().withPacks(newEnabled, state.profiles().options()),
+                        state.enabled().with(newEnabled, newEnabledSelection, state.profiles().options()),
                         PackListKey.available()
                 );
             }
