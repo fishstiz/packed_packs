@@ -94,7 +94,7 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
         Util.backgroundExecutor().execute(PackedPacksApiImpl::getInstance);
     }
 
-    private PackedPacksScreen(Minecraft minecraft, Screen previous, PackSelectionScreenArgs original, InitMode initMode) {
+    public PackedPacksScreen(Minecraft minecraft, Screen previous, PackSelectionScreenArgs original) {
         super(ResourceUtil.getModName());
 
         this.minecraft = minecraft;
@@ -117,18 +117,6 @@ public class PackedPacksScreen extends Screen implements HoverStateHandler, Togg
         this.layout.setPadding(SPACING);
 
         this.viewModel.addEffectListener(this::onUiEffect);
-    }
-
-    public PackedPacksScreen(Minecraft minecraft, Screen previous, PackSelectionScreenArgs original) {
-        this(minecraft, previous, original, new InitMode.Default());
-    }
-
-    public PackedPacksScreen(Minecraft minecraft, Screen previous, PackSelectionScreenArgs original, Profile profile) {
-        this(minecraft, previous, original, new InitMode.WithProfile(profile));
-    }
-
-    public PackedPacksScreen(Minecraft minecraft, Screen previous, PackSelectionScreenArgs original, PackGroup packs) {
-        this(minecraft, previous, original, new InitMode.WithPacks(packs));
     }
 
     @Override
