@@ -33,7 +33,7 @@ ext {
                 changelog = basePublishOptions.changelog
                 accessToken = findProperty("MODRINTH_TOKEN") ?: ""
                 projectId = "$modrinth_id"
-                minecraftVersions.add(minecraft_version)
+                minecraftVersions.addAll(minecraft_version, "26.1.1", "26.1.2")
             },
             curseforge: publishMods.curseforgeOptions {
                 version = mod_version
@@ -41,7 +41,7 @@ ext {
                 changelog = basePublishOptions.changelog
                 accessToken = findProperty("CURSEFORGE_TOKEN") ?: ""
                 projectId = "$curseforge_id"
-                minecraftVersions.add(minecraft_version)
+                minecraftVersions.addAll(minecraft_version, "26.1.1", "26.1.2")
                 clientRequired = true
             }
     ]
