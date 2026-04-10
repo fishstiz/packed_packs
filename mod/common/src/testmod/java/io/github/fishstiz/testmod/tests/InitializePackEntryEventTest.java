@@ -58,8 +58,8 @@ public final class InitializePackEntryEventTest {
                     event.addCenterRight(createButton("CR 2"));
                 }
                 case "high_contrast" -> {
-                    event.addTopRight(createButton("TR 1"));
-                    event.addTopRight(createButton("TR 2"));
+                    event.addTopRight(8, createButton("TR 1"));
+                    event.addTopRight(12, createButton("TR 2"));
                 }
                 case "fabric", "mod_resources" -> {
                     event.anchorCenterRight(8, createButton("CRA 1"));
