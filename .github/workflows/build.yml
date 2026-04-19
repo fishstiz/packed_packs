@@ -27,4 +27,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Artifacts
-          path: build/libs/
+          path: |
+            mod/*/build/libs/
+            !mod/*/build/libs/*-sources.jar
+            !mod/common/build/libs/*.jar
