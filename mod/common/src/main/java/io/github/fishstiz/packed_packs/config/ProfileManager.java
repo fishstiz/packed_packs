@@ -79,6 +79,10 @@ public final class ProfileManager {
     private static ObjectArrayList<Profile> getAllProfiles(PackType type) {
         Path dir = getProfileDir(type);
         if (!Files.isDirectory(dir)) {
+            try {
+                Files.createDirectory(dir);
+            } catch (IOException ignored) {
+            }
             return new ObjectArrayList<>();
         }
 
