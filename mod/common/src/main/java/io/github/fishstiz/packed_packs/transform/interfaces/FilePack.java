@@ -1,8 +1,10 @@
 package io.github.fishstiz.packed_packs.transform.interfaces;
 
+import io.github.fishstiz.packed_packs.pack.folder.FolderLocationInfo;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
+import java.util.Objects;
 
 public interface FilePack {
     default boolean packed_packs$nestedPack() {
@@ -17,5 +19,11 @@ public interface FilePack {
 
     default @Nullable Path packed_packs$getPath() {
         return null;
+    }
+
+    default @Nullable FolderLocationInfo packed_packs$getFolderLocationInfo() {
+        return this.packed_packs$nestedPack()
+                ? FolderLocationInfo.fromPath(Objects.requireNonNull(this.packed_packs$getPath()).getParent())
+                : null;
     }
 }

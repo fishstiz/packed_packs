@@ -211,6 +211,7 @@ public class PackedPacksViewModel {
             case ProfileIntent.Add add -> {
                 Profile selectedProfile = this.state.profiles().selectedProfile();
                 if (selectedProfile != null) {
+                    this.saveFolderState(this.state.enabled().folder());
                     selectedProfile.setPacks(this.state.enabled().packs());
                     this.configs.profiles().save(selectedProfile);
                 }
@@ -257,6 +258,8 @@ public class PackedPacksViewModel {
 
         if (prev.profiles().selectedProfile() != current.profiles().selectedProfile()) {
             Profile previousProfile = prev.profiles().selectedProfile();
+            this.saveFolderState(prev.available().folder());
+            this.saveFolderState(prev.enabled().folder());
             if (previousProfile != null && current.profiles().profiles().contains(previousProfile)) {
                 previousProfile.setPacks(prev.enabled().packs());
                 this.configs.profiles().save(previousProfile);
@@ -367,19 +370,22 @@ public class PackedPacksViewModel {
     }
 
     private void saveFolder(FolderPack folder, List<Pack> contents) {
-        FolderPackMeta meta = this.repository.getFolderConfig(folder);
-        if (meta.trySetPacks(this.repository.validateAndOrderNestedPacks(folder, contents))) {
-            ObjectsUtil.ifPresent(this.watcher, PackWatcher::pause);
-            folder.saveConfig(meta);
-            ObjectsUtil.ifPresent(this.watcher, PackWatcher::consumeChanges);
-            ObjectsUtil.ifPresent(this.watcher, PackWatcher::resume);
-        }
+        Pack valid = this.repository.getPackById(folder.getId());
+        if (!(valid instanceof FolderPack folderPack)) return;
+
+        ObjectsUtil.ifPresent(this.watcher, PackWatcher::pause);
+        folderPack.setContents(contents);
+        ObjectsUtil.ifPresent(this.watcher, PackWatcher::consumeChanges);
+        ObjectsUtil.ifPresent(this.watcher, PackWatcher::resume);
     }
 
     private PackListState.@Nullable Folder revalidateFolder(PackListState.@Nullable Folder folder) {
-        if (folder == null || this.repository.getFolderConfig(folder.pack()) == null) return null;
-        return new PackListState.Folder(folder.pack(), folder.contents()
-                .withPacks(this.repository.getNestedPacks(folder.pack()), state.profiles().options())
+        if (folder == null) return null;
+        Pack pack = this.repository.getPackById(folder.pack().getId());
+        if (!(pack instanceof FolderPack folderPack)) return null;
+
+        return new PackListState.Folder(folderPack, folder.contents()
+                .withPacks(folderPack.contents(), state.profiles().options())
                 .withFolder(this.revalidateFolder(folder.contents().folder())));
     }
 
@@ -470,6 +476,7 @@ public class PackedPacksViewModel {
     public void saveSelectedProfile() {
         Profile selectedProfile = this.state.profiles().selectedProfile();
         if (selectedProfile != null) {
+            this.saveFolderState(this.state.enabled().folder());
             selectedProfile.setPacks(this.state.enabled().packs());
             this.configs.profiles().save(selectedProfile);
         }
@@ -561,6 +568,7 @@ public class PackedPacksViewModel {
     }
 
     public void commit() {
+        this.saveFolderState(this.state.enabled().folder());
         this.syncSelectedProfile();
         this.repository.selectPacks(this.state.enabled().packs());
         this.reload.accept(this.repository.getRepository());
@@ -584,11 +592,20 @@ public class PackedPacksViewModel {
         this.additionalFolders = this.resolveAdditionalFolders();
     }
 
+    private void saveFolderState(PackListState.@Nullable Folder folderState) {
+        if (folderState == null) return;
+        this.saveFolderState(folderState.contents().folder());
+        this.saveFolder(folderState.pack(), folderState.contents().packs());
+    }
+
     public void saveState() {
         if (this.initialStateFuture != null) {
             this.state = this.initialStateFuture.join();
             this.initialStateFuture = null;
         }
+
+        this.saveFolderState(this.state.available().folder());
+        this.saveFolderState(this.state.enabled().folder());
 
         Query query = this.state.available().query();
         Config.get().setSort(query.sort() == null ? Query.SortOption.VANILLA : query.sort());

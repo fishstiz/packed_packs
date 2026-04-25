@@ -33,15 +33,17 @@ public class PackFileOperations {
     // I wouldn't have had to do this if the nested pack ids weren't modified,
     // but reverting this would be a breaking change. Oops.
     // If a folder pack is renamed outside here, the config won't be remapped.
-    private void remapFolderConfig(FolderPack folderPack, String name, Path path) {
-        FolderPackMeta folder = this.repository.getFolderConfig(folderPack);
-        if (folder == null) return;
+    private void remapFolderConfig(FolderPack staleFolderPack, String name, Path path) {
+        Pack pack = this.repository.getPackById(staleFolderPack.getId());
+        if (!(pack instanceof FolderPack folderPack)) return;
+
+        FolderPackMeta metadata = folderPack.folderMetadata();
 
         String newId = PackUtil.generatePackId(name);
         List<String> newPackIds = new ObjectArrayList<>();
 
         String pattern = "^" + Pattern.quote(folderPack.getId());
-        for (String nestedPackId : folder.getPackIds()) {
+        for (String nestedPackId : metadata.getPackIds()) {
             if (nestedPackId.startsWith(folderPack.getId())) {
                 String newPackId = nestedPackId.replaceAll(pattern, newId);
                 newPackIds.add(newPackId);
@@ -50,8 +52,8 @@ public class PackFileOperations {
             }
         }
 
-        folder.trySetPackIds(newPackIds);
-        folder.save(path.resolve(FolderResources.FOLDER_CONFIG_FILENAME));
+        metadata.trySetPackIds(newPackIds);
+        metadata.save(path.resolve(FolderResources.FOLDER_CONFIG_FILENAME));
     }
 
     public boolean renamePack(Pack pack, String name) {
