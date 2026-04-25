@@ -1,86 +1,111 @@
 package io.github.fishstiz.packed_packs.pack.folder;
 
+import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.JsonLoader;
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
-import io.github.fishstiz.packed_packs.util.PackUtil;
 import io.github.fishstiz.packed_packs.util.ResourceUtil;
-import io.github.fishstiz.fidgetz.util.lang.ObjectsUtil;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectImmutableList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.util.Util;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.*;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackCompatibility;
 import net.minecraft.world.flag.FeatureFlagSet;
-import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 public class FolderPack extends Pack implements FilePack {
     public static final Component FOLDER_OPEN_TEXT = ResourceUtil.getText("folder.open");
     public static final Component FOLDER_DESCRIPTION = ResourceUtil.getText("folder");
     public static final PackSelectionConfig FOLDER_SELECTION_CONFIG = new PackSelectionConfig(false, Position.TOP, false);
     public static final Metadata FOLDER_METADATA = new Metadata(FOLDER_DESCRIPTION, PackCompatibility.COMPATIBLE, FeatureFlagSet.of(), Collections.emptyList());
-    private final Function<FolderPack, List<Pack>> nestedPacksProvider;
+    private final CompletableFuture<FolderPackMeta> folderPackMetaFuture;
+    private CompletableFuture<List<Pack>> orderedContentsFuture;
     private final Path path;
 
-    public FolderPack(String id, String name, Function<FolderPack, List<Pack>> nestedPacksProvider, Path path) {
-        super(
-                new PackLocationInfo(id, Component.literal(name), PackUtil.PACK_SOURCE, Optional.empty()),
-                new FolderResourcesSupplier(path),
-                FOLDER_METADATA,
-                FOLDER_SELECTION_CONFIG
-        );
-        this.nestedPacksProvider = nestedPacksProvider;
-        this.path = path;
-    }
-
-    public List<Pack> contents() {
-        return ObjectsUtil.getOrDefault(this.nestedPacksProvider.apply(this), Collections.emptyList());
-    }
-
-    public List<Pack> flatten() {
-        List<Pack> result = new ObjectArrayList<>();
-        result.add(this);
-        result.addAll(ObjectsUtil.getOrDefault(this.nestedPacksProvider.apply(this), Collections.emptyList()));
-        return result;
-    }
-
-    public CompletableFuture<FolderPackMeta> loadConfig() {
-        return CompletableFuture.supplyAsync(() -> {
-            try (PackResources resources = this.open()) {
+    private FolderPack(PackLocationInfo locationInfo, FolderResourcesSupplier resourcesSupplier, List<Pack> contents) {
+        super(locationInfo, resourcesSupplier, FOLDER_METADATA, FOLDER_SELECTION_CONFIG);
+        this.folderPackMetaFuture = CompletableFuture.supplyAsync(() -> {
+            try (PackResources resources = resourcesSupplier.openFull(locationInfo, FOLDER_METADATA)) {
                 var configIoSupplier = resources.getRootResource(FolderResources.FOLDER_CONFIG_FILENAME);
                 if (configIoSupplier == null) {
-                    throw new IOException();
+                    throw new RuntimeException("FolderPack does not supply metadata");
                 }
                 try (InputStream inputStream = configIoSupplier.get()) {
                     return JsonLoader.loadJson(inputStream, FolderPackMeta.class);
                 }
-            } catch (NoSuchFileException e) {
-                return ObjectsUtil.peek(new FolderPackMeta(), this::saveConfig);
             } catch (IOException e) {
+                if (!(e instanceof NoSuchFileException)) {
+                    PackedPacks.LOGGER.error("[packed_packs] Failed to load folder pack metadata from '{}'", locationInfo.id(), e);
+                }
                 return new FolderPackMeta();
             }
         }, Util.backgroundExecutor());
+        this.orderedContentsFuture = this.folderPackMetaFuture.thenApply(metadata -> {
+            Map<String, Pack> contentById = new Object2ObjectOpenHashMap<>(contents.size(), 0.99f);
+            for (Pack pack : contents) {
+                contentById.put(pack.getId(), pack);
+            }
+
+            List<String> orderedIds = metadata.getPackIds();
+            Set<Pack> seen = new ObjectOpenHashSet<>();
+            List<Pack> ordered = new ObjectArrayList<>(contents.size());
+
+            for (String id : orderedIds) {
+                Pack pack = contentById.get(id);
+                if (pack != null && seen.add(pack)) ordered.add(pack);
+            }
+
+            for (Pack pack : contents) {
+                if (seen.add(pack)) ordered.add(pack);
+            }
+
+            return new ObjectImmutableList<>(ordered);
+        });
+        this.path = resourcesSupplier.path();
     }
 
-    public void saveConfig(FolderPackMeta folder) {
-        if (folder != null) {
-            folder.save(this.path.resolve(FolderResources.FOLDER_CONFIG_FILENAME));
+    public static FolderPack createAndPreloadMetadata(FolderLocationInfo folderLocationInfo, List<Pack> contents) {
+        PackLocationInfo locationInfo = folderLocationInfo.packLocationInfo();
+        FolderResourcesSupplier resourcesSupplier = new FolderResourcesSupplier(folderLocationInfo.path());
+        return new FolderPack(locationInfo, resourcesSupplier, contents);
+    }
+
+    public FolderPackMeta folderMetadata() {
+        return this.folderPackMetaFuture.join();
+    }
+
+    public List<Pack> contents() {
+        return this.orderedContentsFuture.join();
+    }
+
+    public List<Pack> flatten() {
+        List<Pack> contents = this.contents();
+        List<Pack> result = new ObjectArrayList<>(contents.size() + 1);
+        result.add(this);
+        result.addAll(contents);
+        return result;
+    }
+
+    public void setContents(List<Pack> contents) {
+        FolderPackMeta metadata = this.folderMetadata();
+        if (metadata.trySetPacks(contents)) {
+            metadata.save(this.path.resolve(FolderResources.FOLDER_CONFIG_FILENAME));
+            this.orderedContentsFuture = CompletableFuture.completedFuture(new ObjectImmutableList<>(contents));
         }
     }
 
     @Override
-    public @Nullable Path packed_packs$getPath() {
+    public Path packed_packs$getPath() {
         return this.path;
     }
 }
