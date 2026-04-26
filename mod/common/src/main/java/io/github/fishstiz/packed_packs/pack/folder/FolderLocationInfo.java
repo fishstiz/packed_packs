@@ -8,10 +8,15 @@ import java.nio.file.Path;
 import java.util.Optional;
 
 public record FolderLocationInfo(String id, String name, Path path) {
+    public FolderLocationInfo {
+        path = path.toAbsolutePath().normalize();
+    }
+
     public static FolderLocationInfo fromPath(Path path) {
-        String name = PackUtil.generatePackName(path);
+        Path normalized = path.toAbsolutePath().normalize();
+        String name = PackUtil.generatePackName(normalized);
         String id = PackUtil.generatePackId(name);
-        return new FolderLocationInfo(id, name, path);
+        return new FolderLocationInfo(id, name, normalized);
     }
 
     public PackLocationInfo packLocationInfo() {
