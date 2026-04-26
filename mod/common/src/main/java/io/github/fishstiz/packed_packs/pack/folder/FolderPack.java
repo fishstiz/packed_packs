@@ -32,9 +32,27 @@ public class FolderPack extends Pack implements FilePack {
     private CompletableFuture<List<Pack>> orderedContentsFuture;
     private final Path path;
 
-    private FolderPack(PackLocationInfo locationInfo, FolderResourcesSupplier resourcesSupplier, List<Pack> contents) {
+    private FolderPack(
+            PackLocationInfo locationInfo,
+            FolderResourcesSupplier resourcesSupplier,
+            CompletableFuture<FolderPackMeta> folderPackMetaFuture,
+            CompletableFuture<List<Pack>> orderedContentsFuture
+    ) {
         super(locationInfo, resourcesSupplier, FOLDER_METADATA, FOLDER_SELECTION_CONFIG);
-        this.folderPackMetaFuture = CompletableFuture.supplyAsync(() -> {
+        this.folderPackMetaFuture = folderPackMetaFuture;
+        this.orderedContentsFuture = orderedContentsFuture;
+        this.path = resourcesSupplier.path();
+    }
+
+    public FolderPack(FolderLocationInfo locationInfo, FolderPackMeta folderPackMeta, List<Pack> contents) {
+        this(locationInfo.packLocationInfo(), new FolderResourcesSupplier(locationInfo.path()),
+                CompletableFuture.completedFuture(folderPackMeta), CompletableFuture.completedFuture(contents));
+    }
+
+    public static FolderPack createAndPreloadMetadata(FolderLocationInfo folderLocationInfo, List<Pack> contents) {
+        PackLocationInfo locationInfo = folderLocationInfo.packLocationInfo();
+        FolderResourcesSupplier resourcesSupplier = new FolderResourcesSupplier(folderLocationInfo.path());
+        CompletableFuture<FolderPackMeta> folderPackMetaFuture = CompletableFuture.supplyAsync(() -> {
             try (PackResources resources = resourcesSupplier.openFull(locationInfo, FOLDER_METADATA)) {
                 var configIoSupplier = resources.getRootResource(FolderResources.FOLDER_CONFIG_FILENAME);
                 if (configIoSupplier == null) {
@@ -50,7 +68,7 @@ public class FolderPack extends Pack implements FilePack {
                 return new FolderPackMeta();
             }
         }, Util.backgroundExecutor());
-        this.orderedContentsFuture = this.folderPackMetaFuture.thenApply(metadata -> {
+        CompletableFuture<List<Pack>> orderedContentsFuture = folderPackMetaFuture.thenApply(metadata -> {
             Map<String, Pack> contentById = new Object2ObjectOpenHashMap<>(contents.size(), 0.99f);
             for (Pack pack : contents) {
                 contentById.put(pack.getId(), pack);
@@ -71,13 +89,7 @@ public class FolderPack extends Pack implements FilePack {
 
             return new ObjectImmutableList<>(ordered);
         });
-        this.path = resourcesSupplier.path();
-    }
-
-    public static FolderPack createAndPreloadMetadata(FolderLocationInfo folderLocationInfo, List<Pack> contents) {
-        PackLocationInfo locationInfo = folderLocationInfo.packLocationInfo();
-        FolderResourcesSupplier resourcesSupplier = new FolderResourcesSupplier(folderLocationInfo.path());
-        return new FolderPack(locationInfo, resourcesSupplier, contents);
+        return new FolderPack(locationInfo, resourcesSupplier, folderPackMetaFuture, orderedContentsFuture);
     }
 
     public FolderPackMeta folderMetadata() {
