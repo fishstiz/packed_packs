@@ -1,9 +1,3 @@
-import me.modmuss50.mpp.PublishOptions
-import me.modmuss50.mpp.ReleaseType
-import me.modmuss50.mpp.platforms.curseforge.CurseforgeOptions
-import me.modmuss50.mpp.platforms.github.GithubOptions
-import me.modmuss50.mpp.platforms.modrinth.ModrinthOptions
-
 plugins {
     id 'multiloader-loader'
     id 'net.neoforged.moddev'
@@ -76,8 +70,7 @@ configurations {
 }
 
 dependencies {
-    api project(path: ":fidgetz:neoforge")
-    jarJar project(path: ":fidgetz:neoforge")
+    api jarJar("io.github.fishstiz.fidgetz:fidgetz-neoforge:$fidgetz_version")
 
     api project(path: ":api:neoforge")
     jarJar project(path: ":api:neoforge")
@@ -91,7 +84,7 @@ dependencies {
 
 publishMods {
     dryRun = rootProject["publishOptions"]["dryRun"] as boolean
-    type = rootProject["publishOptions"]["type"] as ReleaseType
+    type = rootProject["publishOptions"]["type"]
     changelog = rootProject["publishOptions"]["changelog"] as String
 
     def publishOptions = publishOptions {
@@ -102,16 +95,16 @@ publishMods {
     }
 
     github {
-        from rootProject["publishOptions"]["github"] as Provider<GithubOptions>, publishOptions as Provider<PublishOptions>
+        from rootProject["publishOptions"]["github"]
         parent rootProject.tasks.named("publishGithub")
     }
 
     modrinth {
-        from rootProject["publishOptions"]["modrinth"] as Provider<ModrinthOptions>, publishOptions as Provider<PublishOptions>
+        from rootProject["publishOptions"]["modrinth"]
     }
 
     curseforge {
-        from rootProject["publishOptions"]["curseforge"] as Provider<CurseforgeOptions>, publishOptions as Provider<PublishOptions>
+        from rootProject["publishOptions"]["curseforge"]
     }
 }
 

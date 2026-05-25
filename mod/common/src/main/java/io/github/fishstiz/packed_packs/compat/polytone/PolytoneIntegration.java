@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.compat.polytone;
 
-import io.github.fishstiz.fidgetz.gui.components.SpriteButton;
-import io.github.fishstiz.fidgetz.gui.renderables.sprites.GuiSprite;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZIconButton;
+import io.github.fishstiz.fidgetz.v0.gui.components.WidgetElements;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.PackedPacksApi;
 import io.github.fishstiz.packed_packs.api.Preference;
@@ -12,7 +12,6 @@ import io.github.fishstiz.packed_packs.compat.Mod;
 import io.github.fishstiz.packed_packs.compat.ModContext;
 import io.github.fishstiz.packed_packs.compat.ModIntegration;
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionScreenAccessor;
-import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import net.mehvahdjukaar.polytone.Polytone;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
@@ -27,7 +26,7 @@ public class PolytoneIntegration extends ModIntegration {
 
     @Override
     public void onInitLoaded(PackedPacksApi api) {
-        Preference<Boolean> buttonEnabled = api.preferences().register(ResourceUtil.id("polytone_button"), true);
+        Preference<Boolean> buttonEnabled = api.preferences().register(PackedPacks.id("polytone_button"), true);
 
         api.eventBus().register(InitializeLayoutEvent.class, this.id(), event -> {
             if (!event.screenContext().isClientResources()) return;
@@ -45,10 +44,10 @@ public class PolytoneIntegration extends ModIntegration {
         }
 
         static Button create(ScreenContext screenContext) {
-            return SpriteButton.builder()
-                    .makeSquare()
-                    .setSprite(new GuiSprite(Identifier.fromNamespaceAndPath("polytone", "paint_brush"), 16, 16))
-                    .setOnPress(() -> {
+            return FZIconButton.builder()
+                    .square()
+                    .icon(new WidgetElements(Identifier.fromNamespaceAndPath("polytone", "paint_brush"), 16, 16))
+                    .onPress(() -> {
                         try {
                             PackSelectionScreen original = screenContext.originalScreen();
                             ((PackSelectionScreenAccessor) original).packed_packs$setActualScreen(screenContext.screen());

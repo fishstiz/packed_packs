@@ -9,9 +9,9 @@ loader {
 }
 
 dependencies {
-    compileOnly project(path: ":fidgetz:fabric")
-
     minecraft "com.mojang:minecraft:$minecraft_version"
+
+    compileOnly "io.github.fishstiz.fidgetz:fidgetz-fabric:$fidgetz_version"
 
     implementation "net.fabricmc:fabric-loader:$fabric_loader_version"
     implementation "net.fabricmc.fabric-api:fabric-api:$fabric_api_version"

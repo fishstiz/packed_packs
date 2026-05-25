@@ -1,28 +1,24 @@
 package io.github.fishstiz.packed_packs.gui.model;
 
-import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
-import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
+import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.config.PackOverride;
+import io.github.fishstiz.packed_packs.gui.components.PackListDevMenu;
 import io.github.fishstiz.packed_packs.gui.intents.PackListIntent;
-import io.github.fishstiz.packed_packs.gui.components.pack.PackListDevMenu;
-import io.github.fishstiz.packed_packs.gui.components.pack.Query;
 import io.github.fishstiz.packed_packs.gui.states.PackListState;
-import io.github.fishstiz.packed_packs.impl.context.PackEntryContext;
-import io.github.fishstiz.packed_packs.pack.PackAssetManager;
+import io.github.fishstiz.packed_packs.api.context.PackContext;
+import io.github.fishstiz.packed_packs.pack.PackIconManager;
 import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
-
-import java.util.function.Predicate;
-
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectIntBiConsumer;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
-import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static io.github.fishstiz.packed_packs.gui.model.PackListUtils.*;
@@ -71,36 +67,36 @@ public class PackListViewModel {
 
         this.cachedState = state;
 
-        this.notifyListeners(Property.ALL);
+        notifyListeners(Property.ALL);
         if (prev.visiblePacks() != state.visiblePacks()) {
-            this.notifyListeners(Property.PACKS);
+            notifyListeners(Property.PACKS);
         }
         if (prev.selectedPacks() != state.selectedPacks()) {
-            this.notifyListeners(Property.SELECTION);
+            notifyListeners(Property.SELECTION);
         }
         if (prev.query() != state.query()) {
-            this.notifyListeners(Property.QUERY);
+            notifyListeners(Property.QUERY);
         }
         if (prev.folder() != state.folder()) {
-            this.internalListeners.forEach(Runnable::run);
-            this.notifyListeners(Property.FOLDER);
+            internalListeners.forEach(Runnable::run);
+            notifyListeners(Property.FOLDER);
             // save on close or on folder change
-            if (!this.locked() && prev.folder() != null && (state.folder() == null || !state.folder().pack().equals(prev.folder().pack()))) {
-                this.ctx.folderSaver().accept(prev.folder().pack(), prev.folder().contents().packs());
+            if (!locked() && prev.folder() != null && (state.folder() == null || !state.folder().pack().equals(prev.folder().pack()))) {
+                ctx.folderSaver().accept(prev.folder().pack(), prev.folder().contents().packs());
             }
         }
         if (state.folder() == null) {
-            this.internalListeners.clear();
+            internalListeners.clear();
         }
     }
 
     public PackListKey key() {
-        return this.target;
+        return target;
     }
 
     public Runnable subscribe(Property property, Runnable listener) {
-        this.listeners.computeIfAbsent(property, k -> new ObjectArrayList<>()).add(listener);
-        return () -> this.unsubscribe(property, listener);
+        listeners.computeIfAbsent(property, k -> new ObjectArrayList<>()).add(listener);
+        return () -> unsubscribe(property, listener);
     }
 
     public void unsubscribe(Property property, Runnable listener) {
@@ -109,69 +105,69 @@ public class PackListViewModel {
     }
 
     public void forEachEntry(ObjectIntBiConsumer<Entry> consumer) {
-        List<Pack> visiblePacks = this.state.get().visiblePacks();
+        List<Pack> visiblePacks = state.get().visiblePacks();
         for (int i = 0; i < visiblePacks.size(); i++) {
             consumer.accept(new Entry(visiblePacks.get(i)), i);
         }
     }
 
     public boolean hasSelection() {
-        return !this.state.get().selectedPacks().isEmpty();
+        return !state.get().selectedPacks().isEmpty();
     }
 
     public Query query() {
-        return this.state.get().query();
+        return state.get().query();
     }
 
     public boolean isFolderOpened() {
-        return this.state.get().folder() != null;
+        return state.get().folder() != null;
     }
 
     public boolean locked() {
-        return this.ctx.options().isLocked();
+        return ctx.options().isLocked();
     }
 
-    Optional<PackListIntent> createTransferIntent(PackEntryContext pack, SequencedCollection<Pack> payload) {
+    Optional<PackListIntent> createTransferIntent(PackContext pack, SequencedCollection<Pack> payload) {
         if (this.target.depth() > 0) return Optional.empty();
-        return Optional.of(switch (this.target.type()) {
-            case AVAILABLE -> new PackListIntent.Enable(this.target, pack, payload, 0);
-            case ENABLED -> new PackListIntent.Disable(this.target, pack, payload);
+        return Optional.of(switch (target.type()) {
+            case AVAILABLE -> new PackListIntent.Enable(target, pack, payload, 0);
+            case ENABLED -> new PackListIntent.Disable(target, pack, payload);
         });
     }
 
     public boolean supportsTransferring() {
-        return this.target.depth() == 0;
+        return target.depth() == 0;
     }
 
     public boolean supportsReordering() {
-        return this.target.depth() > 0 || this.target.type().enabled();
+        return target.depth() > 0 || target.type().enabled();
     }
 
     public boolean canEnable(Pack pack) {
-        return !this.locked() && this.target.depth() == 0 && this.target.type().available();
+        return !locked() && target.depth() == 0 && target.type().available();
     }
 
     public boolean canDisable(Pack pack) {
-        return !this.locked() && this.target.depth() == 0 && this.target.type().enabled() && !this.ctx.options().isRequired(pack);
+        return !locked() && target.depth() == 0 && target.type().enabled() && !ctx.options().isRequired(pack);
     }
 
     public boolean canTransfer(Pack pack) {
-        return switch (this.target.type()) {
-            case AVAILABLE -> this.canEnable(pack);
-            case ENABLED -> this.canDisable(pack);
+        return switch (target.type()) {
+            case AVAILABLE -> canEnable(pack);
+            case ENABLED -> canDisable(pack);
         };
     }
 
     public boolean canDrag(Pack pack) {
-        return !this.locked() && PackListUtils.canDrag(this.target, pack, this.ctx.options());
+        return !locked() && PackListUtils.canDrag(target, pack, ctx.options());
     }
 
     public boolean canMoveUp(Pack pack) {
-        if (this.locked() || this.target.depth() == 0 && this.target.type().available()) {
+        if (locked() || target.depth() == 0 && target.type().available()) {
             return false;
         }
-        PackListState currentState = this.state.get();
-        PackOptions options = this.ctx.options();
+        PackListState currentState = state.get();
+        PackOptions options = ctx.options();
         if (currentState.query().hasQuery() || options.isFixed(pack)) {
             return false;
         }
@@ -189,11 +185,11 @@ public class PackListViewModel {
     }
 
     public boolean canMoveDown(Pack pack) {
-        if (this.locked() || this.target.depth() == 0 && this.target.type().available()) {
+        if (locked() || target.depth() == 0 && target.type().available()) {
             return false;
         }
-        PackListState currentState = this.state.get();
-        PackOptions options = this.ctx.options();
+        PackListState currentState = state.get();
+        PackOptions options = ctx.options();
         if (currentState.query().hasQuery() || options.isFixed(pack)) {
             return false;
         }
@@ -212,63 +208,63 @@ public class PackListViewModel {
     }
 
     public boolean canDrop(PackListKey source, Pack pack, SequencedCollection<Pack> payload, int index) {
-        return !this.locked() && PackListUtils.canDrop(source, pack, payload, this.target, this.state.get(), index, this.ctx.options());
+        return !locked() && PackListUtils.canDrop(source, pack, payload, target, state.get(), index, ctx.options());
     }
 
-    public void cancelDrop(PackListKey source, PackEntryContext pack, SequencedCollection<Pack> payload) {
-        this.dispatch.accept(new PackListIntent.Drop(source, pack, payload, null, 0));
+    public void cancelDrop(PackListKey source, PackContext pack, SequencedCollection<Pack> payload) {
+        dispatch.accept(new PackListIntent.Drop(source, pack, payload, null, 0));
     }
 
-    public void applyDrop(PackListKey source, PackEntryContext pack, SequencedCollection<Pack> payload, int index) {
-        if (this.canDrop(source, pack.pack(), payload, index)) {
-            this.dispatch.accept(new PackListIntent.Drop(source, pack, payload, this.target, index));
+    public void applyDrop(PackListKey source, PackContext pack, SequencedCollection<Pack> payload, int index) {
+        if (canDrop(source, pack.pack(), payload, index)) {
+            dispatch.accept(new PackListIntent.Drop(source, pack, payload, target, index));
         } else {
-            this.cancelDrop(source, pack, payload);
+            cancelDrop(source, pack, payload);
         }
     }
 
     public void search(String query) {
-        this.dispatch.accept(new PackListIntent.Search(this.target, query));
+        dispatch.accept(new PackListIntent.Search(target, query));
     }
 
     public void hideIncompatible(boolean hide) {
-        this.dispatch.accept(new PackListIntent.HideIncompatible(this.target, hide));
+        dispatch.accept(new PackListIntent.HideIncompatible(target, hide));
     }
 
     public void sort(Query.SortOption sort) {
-        this.dispatch.accept(new PackListIntent.Sort(this.target, sort));
+        dispatch.accept(new PackListIntent.Sort(target, sort));
     }
 
     public void transferAll() {
-        if (!this.locked()) {
-            List<Pack> packs = this.state.get().visiblePacks();
+        if (!locked()) {
+            List<Pack> packs = state.get().visiblePacks();
             List<Pack> payload = new ObjectArrayList<>(packs.size());
             for (Pack pack : packs) {
-                if (this.canTransfer(pack)) {
+                if (canTransfer(pack)) {
                     payload.add(pack);
                 }
             }
             if (!payload.isEmpty()) {
                 List<Pack> orderedPayload = sortByOrderOf(packs, payload).reversed();
-                this.createTransferIntent(new Entry(orderedPayload.getFirst()), orderedPayload).ifPresent(this.dispatch);
+                createTransferIntent(new Entry(orderedPayload.getFirst()), orderedPayload).ifPresent(dispatch);
             }
         }
     }
 
     public void selectAll() {
-        if (!this.locked()) {
-            SequencedCollection<Pack> selectedPacks = this.state.get().selectedPacks();
-            this.dispatch.accept(new PackListIntent.SelectAll(this.target, selectedPacks.isEmpty() ? null : new Entry(selectedPacks.getLast())));
+        if (!locked()) {
+            SequencedCollection<Pack> selectedPacks = state.get().selectedPacks();
+            dispatch.accept(new PackListIntent.SelectAll(target, selectedPacks.isEmpty() ? null : new Entry(selectedPacks.getLast())));
         }
     }
 
     public Module createFolderSlice() {
-        Module module = new Module(this.target.nest(), this.ctx, () -> this.state.get().folder(), this.dispatch);
-        this.internalListeners.add(module::onStateChanged);
+        Module module = new Module(target.nest(), ctx, () -> state.get().folder(), dispatch);
+        internalListeners.add(module::onStateChanged);
         return module;
     }
 
-    public class Entry implements PackEntryContext {
+    public class Entry implements PackContext {
         private final Pack pack;
 
         protected Entry(Pack pack) {
@@ -277,34 +273,34 @@ public class PackListViewModel {
 
         @Override
         public Pack pack() {
-            return this.pack;
+            return pack;
         }
 
         @Override
-        public Sprite sprite() {
-            return PackListViewModel.this.ctx.iconFactory().apply(this.pack);
+        public Identifier icon() {
+            return ctx.iconFactory().apply(pack);
         }
 
         @Override
         public boolean fileModifiable() {
-            return !PackListViewModel.this.locked() && PackListViewModel.this.ctx.fileModifiable().test(this.pack);
+            return !locked() && ctx.fileModifiable().test(pack);
         }
 
         public boolean selected() {
-            return PackListViewModel.this.state.get().selectedPacks().contains(this.pack);
+            return state.get().selectedPacks().contains(pack);
         }
 
         public boolean selectedLast() {
-            SequencedCollection<Pack> selection = PackListViewModel.this.state.get().selectedPacks();
+            SequencedCollection<Pack> selection = state.get().selectedPacks();
             return !selection.isEmpty() && selection.getLast().equals(this.pack);
         }
 
         public boolean selectedExclusive() {
-            return this.selected() && PackListViewModel.this.state.get().selectedPacks().size() == 1;
+            return this.selected() && state.get().selectedPacks().size() == 1;
         }
 
         public boolean incompatibleWarningsHidden() {
-            return PackListViewModel.this.ctx.configs().user().isIncompatibleWarningsHidden();
+            return ctx.configs().user().isIncompatibleWarningsHidden();
         }
 
         public boolean canEnable() {
@@ -316,155 +312,153 @@ public class PackListViewModel {
         }
 
         public boolean unfixed() {
-            return !PackListViewModel.this.ctx.options().isLocked() &&
-                   !PackListViewModel.this.state.get().query().hasQuery() &&
-                   !PackListViewModel.this.ctx.options().isFixed(this.pack());
+            return !ctx.options().isLocked() && !state.get().query().hasQuery() && !ctx.options().isFixed(pack());
         }
 
         public boolean canMoveUp() {
-            return this.unfixed() && PackListViewModel.this.canMoveUp(this.pack);
+            return unfixed() && PackListViewModel.this.canMoveUp(this.pack);
         }
 
         public boolean canMoveDown() {
-            return this.unfixed() && PackListViewModel.this.canMoveDown(this.pack);
+            return unfixed() && PackListViewModel.this.canMoveDown(this.pack);
         }
 
         public Optional<FolderPack> folder() {
-            if (this.pack instanceof FolderPack folderPack) {
+            if (pack instanceof FolderPack folderPack) {
                 return Optional.of(folderPack);
             }
             return Optional.empty();
         }
 
         public void select() {
-            if (PackListViewModel.this.locked()) return;
-            PackListViewModel.this.dispatch.accept(new PackListIntent.Select(PackListViewModel.this.target, this));
+            if (locked()) return;
+            dispatch.accept(new PackListIntent.Select(target, this));
         }
 
         public void selectToggle() {
-            if (PackListViewModel.this.locked()) return;
-            PackListViewModel.this.dispatch.accept(new PackListIntent.SelectToggle(PackListViewModel.this.target, this));
+            if (locked()) return;
+            dispatch.accept(new PackListIntent.SelectToggle(target, this));
         }
 
         public void selectRange() {
-            if (PackListViewModel.this.locked()) return;
-            PackListViewModel.this.dispatch.accept(new PackListIntent.SelectRange(PackListViewModel.this.target, this));
+            if (locked()) return;
+            dispatch.accept(new PackListIntent.SelectRange(target, this));
         }
 
         public void selectExclusive() {
-            if (PackListViewModel.this.locked()) return;
-            PackListViewModel.this.dispatch.accept(new PackListIntent.SelectExclusive(PackListViewModel.this.target, this));
+            if (locked()) return;
+            dispatch.accept(new PackListIntent.SelectExclusive(target, this));
         }
 
         private List<Pack> createPayload(Predicate<Pack> filter) {
-            SequencedCollection<Pack> selection = PackListViewModel.this.state.get().selectedPacks();
-            if (!selection.contains(this.pack)) {
-                return filter.test(this.pack) ? List.of(this.pack) : Collections.emptyList();
+            SequencedCollection<Pack> selection = state.get().selectedPacks();
+            if (!selection.contains(pack)) {
+                return filter.test(pack) ? List.of(pack) : Collections.emptyList();
             }
 
-            return CollectionsUtil.addIf(new ObjectArrayList<>(selection.size()), selection, filter);
+            return CollectionUtils.addIf(new ObjectArrayList<>(selection.size()), selection, filter);
         }
 
         private List<Pack> createPayload() {
-            return this.selected() ? List.copyOf(PackListViewModel.this.state.get().selectedPacks()) : List.of(this.pack);
+            return selected() ? List.copyOf(state.get().selectedPacks()) : List.of(pack);
         }
 
         public void transfer() {
-            if (PackListViewModel.this.locked()) return;
+            if (locked()) return;
 
-            List<Pack> payload = this.createPayload(PackListViewModel.this::canTransfer);
+            List<Pack> payload = createPayload(PackListViewModel.this::canTransfer);
             if (!payload.isEmpty()) {
-                List<Pack> orderedPayload = sortByOrderOf(PackListViewModel.this.state.get().visiblePacks(), payload).reversed();
-                PackListViewModel.this.createTransferIntent(this, orderedPayload).ifPresent(PackListViewModel.this.dispatch);
+                List<Pack> orderedPayload = sortByOrderOf(state.get().visiblePacks(), payload).reversed();
+                createTransferIntent(this, orderedPayload).ifPresent(dispatch);
             }
         }
 
         public void enable() {
-            if (PackListViewModel.this.locked()) return;
+            if (locked()) return;
 
-            List<Pack> payload = this.createPayload(PackListViewModel.this::canEnable);
+            List<Pack> payload = createPayload(PackListViewModel.this::canEnable);
             if (!payload.isEmpty()) {
-                List<Pack> orderedPayload = sortByOrderOf(PackListViewModel.this.state.get().visiblePacks(), payload).reversed();
-                PackListViewModel.this.dispatch.accept(new PackListIntent.Enable(PackListViewModel.this.target, this, orderedPayload));
+                List<Pack> orderedPayload = sortByOrderOf(state.get().visiblePacks(), payload).reversed();
+                dispatch.accept(new PackListIntent.Enable(target, this, orderedPayload));
             }
         }
 
         public void disable() {
-            if (PackListViewModel.this.locked()) return;
+            if (locked()) return;
 
-            List<Pack> payload = this.createPayload(PackListViewModel.this::canDisable);
+            List<Pack> payload = createPayload(PackListViewModel.this::canDisable);
             if (!payload.isEmpty()) {
-                List<Pack> orderedPayload = sortByOrderOf(PackListViewModel.this.state.get().visiblePacks(), payload).reversed();
-                PackListViewModel.this.dispatch.accept(new PackListIntent.Disable(PackListViewModel.this.target, this, orderedPayload));
+                List<Pack> orderedPayload = sortByOrderOf(state.get().visiblePacks(), payload).reversed();
+                dispatch.accept(new PackListIntent.Disable(target, this, orderedPayload));
             }
         }
 
         public void moveUp() {
-            if (PackListViewModel.this.locked()) return;
+            if (locked()) return;
 
-            List<Pack> payload = this.createPayload();
+            List<Pack> payload = createPayload();
             if (!payload.isEmpty()) {
-                PackListViewModel.this.dispatch.accept(new PackListIntent.MoveUp(PackListViewModel.this.target, this, payload));
+                dispatch.accept(new PackListIntent.MoveUp(target, this, payload));
             }
         }
 
         public void moveDown() {
-            if (PackListViewModel.this.locked()) return;
+            if (locked()) return;
 
-            List<Pack> payload = this.createPayload();
+            List<Pack> payload = createPayload();
             if (!payload.isEmpty()) {
-                PackListViewModel.this.dispatch.accept(new PackListIntent.MoveDown(PackListViewModel.this.target, this, payload));
+                dispatch.accept(new PackListIntent.MoveDown(target, this, payload));
             }
         }
 
         public void drag() {
-            if (!PackListViewModel.this.canDrag(this.pack) || PackListViewModel.this.locked()) return;
+            if (!canDrag(pack) || locked()) return;
 
-            List<Pack> payload = this.createPayload();
+            List<Pack> payload = createPayload();
             if (!payload.isEmpty()) {
-                List<Pack> orderedPayload = sortByOrderOf(PackListViewModel.this.state.get().visiblePacks(), payload).reversed();
-                PackListViewModel.this.dispatch.accept(new PackListIntent.Drag(PackListViewModel.this.target, this, new ObjectLinkedOpenHashSet<>(orderedPayload)));
+                List<Pack> orderedPayload = sortByOrderOf(state.get().visiblePacks(), payload).reversed();
+                dispatch.accept(new PackListIntent.Drag(target, this, new ObjectLinkedOpenHashSet<>(orderedPayload)));
             }
         }
 
         public void openRename() {
-            if (this.fileModifiable()) {
-                PackListViewModel.this.dispatch.accept(new PackListIntent.OpenRename(PackListViewModel.this.target, this));
+            if (fileModifiable()) {
+                dispatch.accept(new PackListIntent.OpenRename(target, this));
             }
         }
 
         public void delete() {
-            if (this.fileModifiable()) {
-                PackListViewModel.this.dispatch.accept(new PackListIntent.Delete(PackListViewModel.this.target, this));
+            if (fileModifiable()) {
+                dispatch.accept(new PackListIntent.Delete(target, this));
             }
         }
 
         public void openFolder() {
-            this.folder().ifPresent(folder -> PackListViewModel.this.dispatch.accept(new PackListIntent.OpenFolder(PackListViewModel.this.target, this, folder, folder.contents())));
+            folder().ifPresent(folder -> dispatch.accept(new PackListIntent.OpenFolder(target, this, folder, folder.contents())));
         }
 
         public void overrideHidden(boolean hidden) {
-            PackListViewModel.this.dispatch.accept(new PackListIntent.Hide(PackListViewModel.this.target, this, this.createPayload(), hidden));
+            dispatch.accept(new PackListIntent.Hide(target, this, createPayload(), hidden));
         }
 
         public void overrideRequire(@Nullable Boolean required) {
-            PackListViewModel.this.dispatch.accept(new PackListIntent.Require(PackListViewModel.this.target, this, this.createPayload(), required));
+            dispatch.accept(new PackListIntent.Require(target, this, createPayload(), required));
         }
 
         public void overridePosition(PackOverride.@Nullable Position position) {
-            PackListViewModel.this.dispatch.accept(new PackListIntent.FixPosition(PackListViewModel.this.target, this, this.createPayload(), position));
+            dispatch.accept(new PackListIntent.FixPosition(target, this, createPayload(), position));
         }
 
         public void removeOverrides() {
-            PackListViewModel.this.dispatch.accept(new PackListIntent.RemoveOverrides(PackListViewModel.this.target, this, this.createPayload()));
+            dispatch.accept(new PackListIntent.RemoveOverrides(target, this, createPayload()));
         }
 
         public void editAliases() {
-            PackListViewModel.this.dispatch.accept(new PackListIntent.EditAliases(PackListViewModel.this.target, this, PackListViewModel.this.ctx.configs().dev().getAliases(this.pack.getId())));
+            dispatch.accept(new PackListIntent.EditAliases(target, this, ctx.configs().dev().getAliases(pack.getId())));
         }
 
-        public PackListDevMenu devMenu(Minecraft minecraft) {
-            return new PackListDevMenu(minecraft, PackListViewModel.this.ctx.configs().dev(), PackListViewModel.this.ctx.options(), this);
+        public PackListDevMenu createDevMenu() {
+            return new PackListDevMenu(ctx.configs().dev(), ctx.options(), this);
         }
     }
 
@@ -490,58 +484,58 @@ public class PackListViewModel {
         void onStateChanged() {
             super.onStateChanged();
             PackListState.Folder prev = this.cachedFolderState;
-            PackListState.Folder state = this.folderState.get();
+            PackListState.Folder state = folderState.get();
 
             if (prev != state) {
                 this.cachedFolderState = state;
                 if ((prev == null || state == null) || (!prev.pack().equals(state.pack()))) {
-                    this.listeners.forEach(Runnable::run);
+                    listeners.forEach(Runnable::run);
                 }
             }
         }
 
         public Runnable subscribeToCurrentFolder(Runnable listener) {
-            this.listeners.add(listener);
-            return () -> this.unsubscribeToCurrentFolder(listener);
+            listeners.add(listener);
+            return () -> unsubscribeToCurrentFolder(listener);
         }
 
         public void unsubscribeToCurrentFolder(Runnable listener) {
-            this.listeners.remove(listener);
+            listeners.remove(listener);
         }
 
         public boolean isOpened() {
-            return this.folderState.get() != null;
+            return folderState.get() != null;
         }
 
         public @Nullable FolderPack currentFolder() {
-            PackListState.Folder folder = this.folderState.get();
+            PackListState.Folder folder = folderState.get();
             return folder == null ? null : folder.pack();
         }
 
-        public Sprite sprite() {
-            FolderPack folder = this.currentFolder();
-            return folder != null ? this.ctx.iconFactory().apply(folder) : PackAssetManager.DEFAULT_ICON;
+        public Identifier icon() {
+            FolderPack folder = currentFolder();
+            return folder != null ? ctx.iconFactory().apply(folder) : PackIconManager.DEFAULT_ICON;
         }
 
         public boolean fileModifiable() {
-            FolderPack folder = this.currentFolder();
-            return folder != null && !this.locked() && this.ctx.fileModifiable().test(folder);
+            FolderPack folder = currentFolder();
+            return folder != null && !locked() && ctx.fileModifiable().test(folder);
         }
 
         public void openRename() {
-            if (this.fileModifiable()) {
-                this.dispatch.accept(new PackListIntent.OpenRename(this.target, new Entry(this.currentFolder())));
+            if (fileModifiable()) {
+                dispatch.accept(new PackListIntent.OpenRename(target, new Entry(currentFolder())));
             }
         }
 
         public void delete() {
-            if (this.fileModifiable()) {
-                this.dispatch.accept(new PackListIntent.Delete(this.target, new Entry(this.currentFolder())));
+            if (fileModifiable()) {
+                dispatch.accept(new PackListIntent.Delete(target, new Entry(currentFolder())));
             }
         }
 
         public void close() {
-            this.dispatch.accept(new PackListIntent.CloseFolder(this.target.unnest()));
+            dispatch.accept(new PackListIntent.CloseFolder(target.unnest()));
         }
     }
 }

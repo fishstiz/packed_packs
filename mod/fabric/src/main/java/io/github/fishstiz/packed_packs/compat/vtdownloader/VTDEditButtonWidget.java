@@ -1,10 +1,11 @@
 package io.github.fishstiz.packed_packs.compat.vtdownloader;
 
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
-import io.github.fishstiz.fidgetz.gui.components.Fidgetz;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenuEntry;
 import io.github.fishstiz.packed_packs.api.Preference;
+import io.github.fishstiz.packed_packs.compat.ModIntegration;
 import io.github.fishstiz.packed_packs.config.Config;
-import io.github.fishstiz.packed_packs.gui.components.PreferenceToggle;
+import io.github.fishstiz.packed_packs.gui.components.PreferenceHelper;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -28,7 +29,7 @@ import java.util.function.BooleanSupplier;
  *
  * @see <a href="https://github.com/IotaBread/VTDownloader/blob/1.21/src/main/java/me/bymartrixx/vtd/mixin/PackEntryListWidgetMixin.java">Github</a>
  */
-public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
+public class VTDEditButtonWidget extends AbstractButton implements FZContextMenuEntry.Source {
     private static final String VT_DESCRIPTION_MARKER = "vanillatweaks.net";
     private static final Identifier PENCIL_TEXTURE = Identifier.fromNamespaceAndPath("vt_downloader", "textures/pencil.png");
     private static final int PENCIL_TEXTURE_SIZE = 32;
@@ -36,11 +37,11 @@ public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
     private final Screen previous;
     private final Pack pack;
     private final BooleanSupplier editable;
-    private final @Nullable PreferenceToggle toggle;
+    private final Preference<Boolean> preference;
 
     private VTDEditButtonWidget(Preference<Boolean> prefKey, Screen previous, Pack pack, BooleanSupplier editable) {
         super(0, 0, PENCIL_SIZE, PENCIL_SIZE, CommonComponents.EMPTY);
-        this.toggle = Config.get().isDevMode() ? PreferenceToggle.tryWithInternalName(prefKey) : null;
+        this.preference = prefKey;
         this.previous = previous;
         this.pack = pack;
         this.editable = editable;
@@ -52,9 +53,8 @@ public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
     }
 
     @Override
-    protected void extractContents(@NonNull GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractContents(@NonNull GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         this.active = this.editable.getAsBoolean();
-        this.isHovered = this.isHovered && Fidgetz.super.isHovered(mouseX, mouseY);
 
         int x = this.getX();
         int y = this.getY();
@@ -63,11 +63,11 @@ public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
         float v = 0.0F;
         if (!this.active) {
             v = PENCIL_SIZE;
-        } else if (this.isHovered()) {
+        } else if (isHovered()) {
             u = PENCIL_SIZE;
         }
 
-        guiGraphics.blit(
+        graphics.blit(
                 RenderPipelines.GUI_TEXTURED,
                 PENCIL_TEXTURE,
                 x, y,
@@ -76,18 +76,13 @@ public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
                 PENCIL_TEXTURE_SIZE, PENCIL_TEXTURE_SIZE
         );
 
-        if (this.toggle != null) {
-            this.toggle.render(guiGraphics, x, y, this.getWidth(), this.getHeight(), partialTick);
+        if (Config.get().isDevMode()) {
+            PreferenceHelper.extractOverlay(graphics, preference, x, y, getWidth(), getHeight());
         }
 
-        if (this.isHovered()) {
-            guiGraphics.requestCursor(CursorTypes.POINTING_HAND);
+        if (isHovered() && active) {
+            graphics.requestCursor(CursorTypes.POINTING_HAND);
         }
-    }
-
-    @Override
-    public boolean isMouseOver(double mouseX, double mouseY) {
-        return this.visible && Fidgetz.super.isMouseOver(mouseX, mouseY);
     }
 
     @Override
@@ -100,5 +95,10 @@ public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
     @Override
     protected void updateWidgetNarration(@NonNull NarrationElementOutput narrationElementOutput) {
         this.defaultButtonNarrationText(narrationElementOutput);
+    }
+
+    @Override
+    public void fidgetz$updateContextEntries(double x, double y, FZContextMenuEntry.Collector collector) {
+        collector.addEntry(PreferenceHelper.createEntry(preference, ModIntegration.getWidgetPrefText(preference)));
     }
 }

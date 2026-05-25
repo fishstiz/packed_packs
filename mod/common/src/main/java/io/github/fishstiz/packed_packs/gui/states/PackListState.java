@@ -2,8 +2,9 @@ package io.github.fishstiz.packed_packs.gui.states;
 
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.config.PackOptions;
-import io.github.fishstiz.packed_packs.gui.components.pack.Query;
+import io.github.fishstiz.packed_packs.gui.model.Query;
 import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
+import io.github.fishstiz.packed_packs.util.Utils;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import net.minecraft.server.packs.repository.Pack;
@@ -116,10 +117,6 @@ public record PackListState(
     }
 
     private static <E> int sequencedHashCode(SequencedCollection<E> sequencedCollection) {
-        if (sequencedCollection instanceof List<E>) {
-            return sequencedCollection.hashCode();
-        }
-
         // copy of AbstractList#hashCode
         int selectionHash = 1;
         for (E obj : sequencedCollection) {
@@ -130,16 +127,6 @@ public record PackListState(
 
     private static <E> boolean sequencedEquals(SequencedCollection<E> a, SequencedCollection<E> b) {
         if (a == b) return true;
-        if (a instanceof List<E> && b instanceof List<E>) {
-            return Objects.equals(a, b);
-        }
-
-        if (a.size() != b.size()) return false;
-        Iterator<E> itA = a.iterator();
-        Iterator<E> itB = b.iterator();
-        while (itA.hasNext()) {
-            if (!Objects.equals(itA.next(), itB.next())) return false;
-        }
-        return true;
+        return Utils.orderEquals(a, b);
     }
 }

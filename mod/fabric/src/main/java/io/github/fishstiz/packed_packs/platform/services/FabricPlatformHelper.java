@@ -26,6 +26,11 @@ public class FabricPlatformHelper implements PlatformHelper {
     }
 
     @Override
+    public boolean isDev() {
+        return FabricLoader.getInstance().isDevelopmentEnvironment();
+    }
+
+    @Override
     public List<PackedPacksInitializer> getModExtensions() {
         return FabricLoader.getInstance().getEntrypoints(PackedPacks.MOD_ID, PackedPacksInitializer.class);
     }

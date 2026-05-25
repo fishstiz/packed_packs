@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.config;
 
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.gui.components.pack.Query;
+import io.github.fishstiz.packed_packs.gui.model.Query;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.packs.PackType;
 import org.jspecify.annotations.Nullable;
@@ -10,9 +10,9 @@ import java.io.Serializable;
 import java.nio.file.Path;
 import java.util.*;
 
-public final class Config implements Serializable {
+public final class Config {
     private static final String FILENAME = "config.json";
-    private static final Config INSTANCE = JsonLoader.loadOrCreateJson(getPath(), Config.class, Config::new);
+    private static final Config INSTANCE = JsonLoader.loadOrCreate(getPath(), Config.class, Config::new);
     private boolean devMode = false;
     private boolean showActionBar = false;
     private boolean hideIncompatible = false;

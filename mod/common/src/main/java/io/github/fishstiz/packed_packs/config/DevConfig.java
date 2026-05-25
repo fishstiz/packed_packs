@@ -1,6 +1,6 @@
 package io.github.fishstiz.packed_packs.config;
 
-import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
+import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -13,9 +13,9 @@ import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-public final class DevConfig implements Serializable {
+public final class DevConfig {
     private static final String FILENAME = "config.meta.json";
-    private static final DevConfig INSTANCE = JsonLoader.loadJsonOrDefault(getPath(), DevConfig.class, DevConfig::new);
+    private static final DevConfig INSTANCE = JsonLoader.loadOrDefault(getPath(), DevConfig.class, DevConfig::new);
     private final ResourcePacks resourcepacks = new ResourcePacks();
     private final DataPacks datapacks = new DataPacks();
 
@@ -74,7 +74,7 @@ public final class DevConfig implements Serializable {
         }
 
         public List<String> getAliases(String packId) {
-            return CollectionsUtil.reverseLookup(packId, this.aliases);
+            return CollectionUtils.reverseLookup(packId, this.aliases);
         }
 
         public boolean hasAlias(String packId) {
@@ -131,7 +131,10 @@ public final class DevConfig implements Serializable {
         }
 
         public void setAliases(String packId, List<String> aliases) {
-            CollectionsUtil.updateReverseMapping(this.aliases, packId, aliases);
+            this.aliases.values().removeIf(v -> Objects.equals(v, packId));
+            for (String alias : aliases) {
+                this.aliases.put(alias, packId);
+            }
             this.aliasPatterns = null;
         }
 

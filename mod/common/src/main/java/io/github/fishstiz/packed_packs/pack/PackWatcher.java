@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.pack;
 
-import io.github.fishstiz.fidgetz.util.debounce.ConcurrentPollingDebouncer;
-import io.github.fishstiz.fidgetz.util.debounce.PollingDebouncer;
+import io.github.fishstiz.fidgetz.v0.utils.timer.ConcurrentPollingDebouncer;
+import io.github.fishstiz.fidgetz.v0.utils.timer.PollingDebouncer;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.WatchEvent;

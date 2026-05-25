@@ -1,6 +1,6 @@
 package io.github.fishstiz.packed_packs.compat;
 
-import io.github.fishstiz.packed_packs.pack.PackAssetManager;
+import io.github.fishstiz.packed_packs.pack.PackIconManager;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -13,7 +13,7 @@ import org.jspecify.annotations.NullMarked;
 public record PackWrapperDelegatorAbstractionEpicModelEntry(Pack pack) implements PackSelectionModel.Entry {
     @Override
     public Identifier getIconTexture() {
-        return PackAssetManager.getDefaultLocation(pack);
+        return PackIconManager.getDefault(pack);
     }
 
     @Override

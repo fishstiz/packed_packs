@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs.util;
 
 import com.sun.jna.platform.FileUtils;
+import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.pack.PackGroup;
@@ -9,7 +10,6 @@ import io.github.fishstiz.packed_packs.pack.folder.FolderResources;
 import io.github.fishstiz.packed_packs.platform.Services;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.transform.mixin.UtilAccess;
-import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.ChatFormatting;
@@ -37,8 +37,11 @@ public class PackUtil {
     public static final String ZIP_PACK_EXTENSION = ".zip";
     public static final String ICON_FILENAME = "pack.png";
     public static final PackSource PACK_SOURCE = PackSource.create(name ->
-            Component.translatable("pack.nameAndSource", name, ResourceUtil.getModName().withStyle(ChatFormatting.YELLOW))
-                    .withStyle(ChatFormatting.GRAY), false);
+            Component.translatable(
+                    "pack.nameAndSource",
+                    name,
+                    Component.literal(PackedPacks.MOD_NAME).withStyle(ChatFormatting.YELLOW)
+            ).withStyle(ChatFormatting.GRAY), false);
 
     // Changing these fields would be breaking changes
     private static final String FILE_PREFIX = "file/";
@@ -90,11 +93,11 @@ public class PackUtil {
     }
 
     public static List<String> extractPackIds(Collection<Pack> packs) {
-        return CollectionsUtil.extractNonNull(packs, Pack::getId);
+        return CollectionUtils.map(packs, Pack::getId);
     }
 
     public static String joinPackNames(Collection<Path> paths) {
-        return String.join(", ", CollectionsUtil.extractNonNull(paths, PackUtil::generatePackName));
+        return String.join(", ", CollectionUtils.map(paths, PackUtil::generatePackName));
     }
 
     public static boolean hasMcmeta(Path path) {
@@ -296,7 +299,7 @@ public class PackUtil {
                         }
                     }
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 PackedPacks.LOGGER.warn("Failed to check {} for packs", path, e);
             }
         }

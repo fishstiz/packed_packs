@@ -1,15 +1,14 @@
 package io.github.fishstiz.packed_packs.config;
 
 import io.github.fishstiz.packed_packs.util.PackUtil;
-import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
+import io.github.fishstiz.packed_packs.util.Utils;
 import net.minecraft.server.packs.repository.Pack;
 
-import java.io.Serializable;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class FolderPackMeta implements Serializable {
+public final class FolderPackMeta {
     private List<String> packIds = new ArrayList<>();
 
     public boolean trySetPacks(List<Pack> packs) {
@@ -17,7 +16,7 @@ public final class FolderPackMeta implements Serializable {
     }
 
     public boolean trySetPackIds(List<String> newPackIds) {
-        if (!CollectionsUtil.equalsOrdered(packIds, newPackIds)) {
+        if (!Utils.orderEquals(packIds, newPackIds)) {
             this.packIds = newPackIds;
             return true;
         }

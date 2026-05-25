@@ -1,9 +1,3 @@
-import me.modmuss50.mpp.PublishOptions
-import me.modmuss50.mpp.ReleaseType
-import me.modmuss50.mpp.platforms.curseforge.CurseforgeOptions
-import me.modmuss50.mpp.platforms.github.GithubOptions
-import me.modmuss50.mpp.platforms.modrinth.ModrinthOptions
-
 plugins {
     id 'multiloader-loader'
     id 'net.fabricmc.fabric-loom'
@@ -75,8 +69,7 @@ repositories {
 }
 
 dependencies {
-    api(project(path: ":fidgetz:fabric"))
-    include(project(path: ":fidgetz:fabric"))
+    api include("io.github.fishstiz.fidgetz:fidgetz-fabric:$fidgetz_version")
 
     api project(path: ":api:fabric")
     include(project(path: ":api:fabric"))
@@ -98,7 +91,7 @@ dependencies {
 
 publishMods {
     dryRun = rootProject["publishOptions"]["dryRun"] as boolean
-    type = rootProject["publishOptions"]["type"] as ReleaseType
+    type = rootProject["publishOptions"]["type"]
     changelog = rootProject["publishOptions"]["changelog"] as String
 
     def publishOptions = publishOptions {
@@ -109,17 +102,17 @@ publishMods {
     }
 
     github {
-        from rootProject["publishOptions"]["github"] as Provider<GithubOptions>, publishOptions as Provider<PublishOptions>
+        from rootProject["publishOptions"]["github"]
         parent rootProject.tasks.named("publishGithub")
     }
 
     modrinth {
-        from rootProject["publishOptions"]["modrinth"] as Provider<ModrinthOptions>, publishOptions as Provider<PublishOptions>
+        from rootProject["publishOptions"]["modrinth"]
         requires("fabric-api")
     }
 
     curseforge {
-        from rootProject["publishOptions"]["curseforge"] as Provider<CurseforgeOptions>, publishOptions as Provider<PublishOptions>
+        from rootProject["publishOptions"]["curseforge"]
         requires("fabric-api")
     }
 }

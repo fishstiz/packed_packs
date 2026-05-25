@@ -1,2 +1,0 @@
-classTweaker v1 official
-transitive-extendable method net/minecraft/client/gui/components/AbstractSelectionList getEntryAtPosition (DD)Lnet/minecraft/client/gui/components/AbstractSelectionList$Entry;

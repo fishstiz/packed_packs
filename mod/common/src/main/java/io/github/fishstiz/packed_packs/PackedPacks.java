@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs;
 
 import io.github.fishstiz.packed_packs.platform.Services;
+import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,5 +17,9 @@ public class PackedPacks {
 
     public static Path getConfigDir() {
         return Services.PLATFORM.getConfigDir().resolve(MOD_ID);
+    }
+
+    public static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 }
