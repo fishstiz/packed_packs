@@ -19,7 +19,7 @@
     "folders.additional.MinecraftMixin",
     "folders.additional.PackRepositoryAccessor",
     "folders.additional.ServerPacksSourceMixin",
-    "gui.AbstractSelectionListAccessor",
+    "gui.CreateWorldScreenMoreTabMixin",
     "gui.MinecraftMixin",
     "gui.OptionsScreenMixin",
     "gui.PackSelectionScreenMixin",

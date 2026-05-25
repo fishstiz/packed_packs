@@ -1,15 +1,15 @@
 package io.github.fishstiz.packed_packs.impl;
 
-import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
+import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.Event;
 import io.github.fishstiz.packed_packs.api.EventBus;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
+import it.unimi.dsi.fastutil.objects.*;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public final class EventBusImpl implements EventBus {
     private Delegate delegate = new Collector();
@@ -95,7 +95,7 @@ public final class EventBusImpl implements EventBus {
                 Class<? extends Event> eventClass = entry.getKey();
                 Set<Listener<Event>> raw = entry.getValue();
                 List<Listener<Event>> sorted = (raw.size() > 1)
-                        ? CollectionsUtil.topoSort(raw, Listener::id, Listener::dependencies)
+                        ? topoSort(raw, Listener::id, Listener::dependencies)
                         : List.copyOf(raw);
 
                 @SuppressWarnings("unchecked")
@@ -112,9 +112,68 @@ public final class EventBusImpl implements EventBus {
             return bakedMap;
         }
 
+        public static <T, K extends Comparable<? super K>> List<T> topoSort(
+                Collection<T> collection,
+                Function<T, K> keyFn,
+                Function<T, K[]> predecessorKeysFn
+        ) {
+            Map<K, T> nodes = CollectionUtils.toMap(collection, keyFn);
+            Map<K, Set<K>> successorMap = new Object2ObjectOpenHashMap<>(collection.size());
+            Map<K, Integer> inDegree = new Object2IntOpenHashMap<>(collection.size());
+
+            for (K key : nodes.keySet()) {
+                successorMap.put(key, new ObjectOpenHashSet<>());
+                inDegree.put(key, 0);
+            }
+
+            for (T node : collection) {
+                K currentKey = keyFn.apply(node);
+                K[] predecessorKeys = predecessorKeysFn.apply(node);
+                for (K predecessorKey : predecessorKeys) {
+                    if (nodes.containsKey(predecessorKey)) {
+                        successorMap.get(predecessorKey).add(currentKey);
+                        inDegree.merge(currentKey, 1, Integer::sum);
+                    }
+                }
+            }
+
+            Queue<K> queue = new PriorityQueue<>();
+            for (Map.Entry<K, Integer> entry : inDegree.entrySet()) {
+                if (entry.getValue() == 0) {
+                    queue.add(entry.getKey());
+                }
+            }
+
+            List<T> orderedList = new ObjectArrayList<>(collection.size());
+            while (!queue.isEmpty()) {
+                K currentKey = queue.poll();
+                orderedList.add(nodes.get(currentKey));
+
+                for (K dependentKey : successorMap.getOrDefault(currentKey, Collections.emptySet())) {
+                    int newInDegree = inDegree.get(dependentKey) - 1;
+                    inDegree.put(dependentKey, newInDegree);
+
+                    if (newInDegree == 0) {
+                        queue.add(dependentKey);
+                    }
+                }
+            }
+
+            if (orderedList.size() != collection.size()) {
+                Set<K> seen = CollectionUtils.map(orderedList, keyFn, ObjectOpenHashSet::new);
+                List<T> cyclicNodes = CollectionUtils.filter(collection, node -> !seen.contains(keyFn.apply(node)));
+                cyclicNodes.sort(Comparator.comparing(keyFn));
+                orderedList.addAll(cyclicNodes);
+            }
+
+            return orderedList;
+        }
+
+
         record Listener<T extends Event>(ResourceLocation id, Consumer<T> consumer, ResourceLocation... dependencies) {
             @Override
             public boolean equals(Object obj) {
+                if (obj == this) return true;
                 return obj instanceof Listener<?> that && this.id.equals(that.id);
             }
 

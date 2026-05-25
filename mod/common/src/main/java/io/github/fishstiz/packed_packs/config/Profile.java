@@ -2,6 +2,7 @@ package io.github.fishstiz.packed_packs.config;
 
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.util.PackUtil;
+import io.github.fishstiz.packed_packs.util.Utils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
@@ -10,14 +11,11 @@ import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.repository.Pack;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.Serializable;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-import static io.github.fishstiz.fidgetz.util.lang.ObjectsUtil.mapOrDefault;
-
-public final class Profile implements PackOptions, Serializable {
+public final class Profile implements PackOptions {
     private boolean locked = false;
     private String name;
     private Map<String, PackOverride> overrides = new Object2ObjectOpenHashMap<>();
@@ -144,12 +142,12 @@ public final class Profile implements PackOptions, Serializable {
 
     @Override
     public boolean isHidden(Pack pack) {
-        return Boolean.TRUE.equals(mapOrDefault(this.overrides.get(pack.getId()), false, PackOverride::hidden));
+        return Boolean.TRUE.equals(Utils.mapOrElse(this.overrides.get(pack.getId()), false, PackOverride::hidden));
     }
 
     @Override
     public boolean isRequired(Pack pack) {
-        return Boolean.TRUE.equals(mapOrDefault(this.overrides.get(pack.getId()), false, PackOverride::required));
+        return Boolean.TRUE.equals(Utils.mapOrElse(this.overrides.get(pack.getId()), false, PackOverride::required));
     }
 
     @Override

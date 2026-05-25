@@ -1,6 +1,6 @@
 package io.github.fishstiz.packed_packs.pack;
 
-import io.github.fishstiz.fidgetz.util.lang.FunctionsUtil;
+import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
 import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.config.ProfileManager;
@@ -24,7 +24,7 @@ public record PackOptionsResolver(
     public static final PackOptionsResolver RESOURCE_PACKS = new PackOptionsResolver(ProfileManager.get(PackType.CLIENT_RESOURCES));
 
     public PackOptionsResolver(ProfileManager manager) {
-        this(FunctionsUtil.nullSupplier(), manager::getDefault);
+        this(FunctionUtils.nullSupplier(), manager::getDefault);
     }
 
     @Override

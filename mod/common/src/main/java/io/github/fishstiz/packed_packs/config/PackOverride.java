@@ -9,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.Serializable;
 import java.lang.reflect.Type;
 
-public final class PackOverride implements Serializable {
+public final class PackOverride {
     private static final String HIDDEN_SERIALIZED_NAME = "hidden";
     private static final String REQUIRED_SERIALIZED_NAME = "required";
     private static final String POSITION_SERIALIZED_NAME = "position";

@@ -1,5 +1,6 @@
 package io.github.fishstiz.packed_packs.util;
 
+import io.github.fishstiz.packed_packs.PackedPacks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.network.chat.CommonComponents;
@@ -17,21 +18,21 @@ public class ToastUtil {
         SystemToast.addOrUpdate(
                 Minecraft.getInstance().getToasts(),
                 DEV_MODE_ID,
-                ResourceUtil.getModName(),
-                ResourceUtil.getText("dev_mode", enableText)
+                Component.literal(PackedPacks.MOD_NAME),
+                Component.translatable("packed_packs.dev_mode", enableText)
         );
     }
 
     public static void onFileFailToast(Component message) {
-        SystemToast.addOrUpdate(Minecraft.getInstance().getToasts(), FILE_OPS_FAIL_ID, ResourceUtil.getText("file.fail"), message);
+        SystemToast.addOrUpdate(Minecraft.getInstance().getToasts(), FILE_OPS_FAIL_ID, Component.translatable("packed_packs.file.fail"), message);
     }
 
     public static Component getRenameFailText(String from, String to) {
-        return ResourceUtil.getText("file.rename.fail", from, to);
+        return Component.translatable("packed_packs.file.rename.fail", from, to);
     }
 
     public static Component getDeleteFailText(String fileName) {
-        return ResourceUtil.getText("file.delete.fail", fileName);
+        return Component.translatable("packed_packs.file.delete.fail", fileName);
     }
 
     public static void onDeleteFailToast(Component fileName) {

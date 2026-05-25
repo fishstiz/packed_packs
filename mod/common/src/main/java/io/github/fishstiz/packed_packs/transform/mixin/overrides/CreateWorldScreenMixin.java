@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.transform.mixin.overrides;
 
+import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.packed_packs.config.Profile;
-import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
 import io.github.fishstiz.packed_packs.config.ProfileManager;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.world.level.DataPackConfig;
@@ -23,7 +23,7 @@ public abstract class CreateWorldScreenMixin {
         if (defaultProfile == null) return worldDataConfiguration;
 
         DataPackConfig dataPackConfig = worldDataConfiguration.dataPacks();
-        List<String> disabled = CollectionsUtil.addAll(dataPackConfig.getDisabled(), dataPackConfig.getEnabled());
+        List<String> disabled = CollectionUtils.addAll(dataPackConfig.getDisabled(), dataPackConfig.getEnabled());
         List<String> enabled = defaultProfile.getPackIds().reversed();
         disabled.removeAll(enabled);
 

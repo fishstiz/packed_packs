@@ -3,11 +3,11 @@ package io.github.fishstiz.packed_packs.config;
 import com.google.gson.Gson;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.Preference;
-import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import net.minecraft.resources.ResourceLocation;
 
 import java.io.*;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Function;
@@ -26,6 +26,16 @@ public final class Preferences {
 
     private static File getFile() {
         return PackedPacks.getConfigDir().resolve("preferences.properties").toFile();
+    }
+
+    public static List<Option<Boolean>> standardBooleanOptions() {
+        return List.of(
+                Preferences.ORIGINAL_SCREEN_WIDGET,
+                Preferences.OPTIONS_WIDGET,
+                Preferences.ACTION_BAR_WIDGET,
+                Preferences.INCOMPATIBLE_TOGGLE_WIDGET,
+                Preferences.FOLDER_PACK_WIDGET
+        );
     }
 
     public static <T> Option<T> register(String key, Class<T> type, T defaultValue, Function<String, T> deserializer, Function<T, String> serializer) {
@@ -109,7 +119,7 @@ public final class Preferences {
 
         @Override
         public ResourceLocation id() {
-            return ResourceUtil.id(this.key);
+            return PackedPacks.id(this.key);
         }
 
         @Override

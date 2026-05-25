@@ -1,7 +1,10 @@
 package io.github.fishstiz.packed_packs.compat.vtdownloader;
 
-import io.github.fishstiz.fidgetz.gui.components.FidgetzButton;
-import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZIconButton;
+import io.github.fishstiz.fidgetz.v0.gui.components.WidgetRenderables;
+import io.github.fishstiz.fidgetz.v0.gui.renderables.RenderableRectangle;
+import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
+import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.PackedPacksApi;
 import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
@@ -9,10 +12,8 @@ import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
 import io.github.fishstiz.packed_packs.api.events.InitializeLayoutEvent;
 import io.github.fishstiz.packed_packs.api.events.InitializePackEntryEvent;
 import io.github.fishstiz.packed_packs.compat.*;
-import io.github.fishstiz.packed_packs.util.ResourceUtil;
-import io.github.fishstiz.packed_packs.util.constants.Theme;
+import io.github.fishstiz.packed_packs.util.Colors;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.network.chat.Component;
@@ -32,13 +33,13 @@ public class VTDIntegration extends ModIntegration {
 
     @Override
     protected void onInitLoaded(PackedPacksApi api) {
-        Preference<Boolean> vtdButton = api.preferences().register(ResourceUtil.id("vtd_button"), true);
-        Preference<Boolean> vtdEditButton = api.preferences().register(ResourceUtil.id("vtd_edit_button"), true);
+        Preference<Boolean> vtdButton = api.preferences().register(PackedPacks.id("vtd_button"), true);
+        Preference<Boolean> vtdEditButton = api.preferences().register(PackedPacks.id("vtd_edit_button"), true);
 
         api.eventBus().register(InitializeLayoutEvent.class, this.id(), ModIntegration.id(Mod.ETF), event -> {
             ScreenContext ctx = event.screenContext();
             if (ctx.isClientResources()) {
-                var button = ctx.wrapWidget(vtdButton, null, this.createButton(ctx.screen()));
+                var button = ctx.wrapWidget(vtdButton, getWidgetPrefText(vtdButton), this.createButton(ctx.screen()));
                 if (button != null) event.addWidget(InitializeLayoutEvent.Pos.AFTER_TITLE, button);
             }
         });
@@ -46,7 +47,7 @@ public class VTDIntegration extends ModIntegration {
         api.eventBus().register(InitializePackEntryEvent.class, this.id(), event -> {
             ScreenContext ctx = event.screenContext();
             if (ctx.isClientResources()) {
-                var button = ctx.wrapWidget(vtdEditButton, null, VTDEditButtonWidget.create(
+                var button = ctx.wrapWidget(vtdEditButton, getWidgetPrefText(vtdEditButton), VTDEditButtonWidget.create(
                         vtdEditButton,
                         ctx.screen(),
                         event.packContext().pack(),
@@ -65,12 +66,12 @@ public class VTDIntegration extends ModIntegration {
     }
 
     private Button createButton(Screen parent) {
-        return FidgetzButton.<Void>builder()
-                .makeSquare()
-                .setTooltip(Tooltip.create(Component.translatable("vtd.resourcePack.button")))
-                .setSprite(Sprite.of32(ResourceLocation.fromNamespaceAndPath("vt_downloader", "icon.png")))
-                .setFocusedBorder(Theme.WHITE.getARGB())
-                .setOnPress(createVTDScreenSetter(parent, null))
+        RenderableRectangle icon = Renderables.texture(ResourceLocation.fromNamespaceAndPath("vt_downloader", "icon.png"), 32, 32);
+        WidgetRenderables renderables = new WidgetRenderables(icon, icon.then(Renderables.outline(Colors.WHITE)));
+        return FZIconButton.builder(renderables)
+                .square()
+                .tooltip(Component.translatable("vtd.resourcePack.button"))
+                .onPress(createVTDScreenSetter(parent, null))
                 .build();
     }
 

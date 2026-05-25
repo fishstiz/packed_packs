@@ -2,6 +2,7 @@ package io.github.fishstiz.packed_packs.platform.services;
 
 import io.github.fishstiz.packed_packs.api.PackedPacksInitializer;
 import net.neoforged.fml.ModList;
+import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.fml.loading.FMLPaths;
 
 import java.nio.file.Path;
@@ -22,6 +23,11 @@ public class NeoForgePlatformHelper implements PlatformHelper {
     @Override
     public boolean isModLoaded(String id) {
         return ModList.get().isLoaded(id);
+    }
+
+    @Override
+    public boolean isDev() {
+        return !FMLLoader.isProduction();
     }
 
     @Override

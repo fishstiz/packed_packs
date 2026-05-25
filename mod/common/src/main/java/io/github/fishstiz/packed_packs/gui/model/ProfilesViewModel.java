@@ -1,12 +1,11 @@
 package io.github.fishstiz.packed_packs.gui.model;
 
-import io.github.fishstiz.fidgetz.util.lang.ObjectIntBiConsumer;
 import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.config.ProfileManager;
 import io.github.fishstiz.packed_packs.gui.intents.ProfileIntent;
 import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
 import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
-import io.github.fishstiz.packed_packs.util.ResourceUtil;
+import io.github.fishstiz.packed_packs.util.ObjectIntBiConsumer;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
@@ -16,9 +15,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class ProfilesViewModel {
-    public static final Component TITLE_TEXT = ResourceUtil.getText("profile");
-    public static final Component NO_PROFILE_TEXT = ResourceUtil.getText("profile.none");
-    public static final Component UNNAMED_TEXT = ResourceUtil.getText("profile.unnamed");
+    public static final Component TITLE_TEXT = Component.translatable("packed_packs.profile");
+    public static final Component NO_PROFILE_TEXT = Component.translatable("packed_packs.profile.none");
     private final ProfileManager manager;
     private final Consumer<ProfileIntent> dispatch;
     private final Supplier<PackedPacksState> state;
@@ -113,18 +111,6 @@ public class ProfilesViewModel {
         this.dispatch.accept(new ProfileIntent.Add(copiedProfile));
     }
 
-    public void renameSelected(String name) {
-        String newName = name;
-        if (name == null || name.isEmpty()) {
-            newName = UNNAMED_TEXT.getString();
-        }
-
-        Profile selectedProfile = this.state.get().profiles().selectedProfile();
-        if (selectedProfile != null) {
-            this.dispatch.accept(new ProfileIntent.Rename(this.state.get().profiles().selectedProfile(), newName));
-        }
-    }
-
     public class Entry {
         private final Profile profile;
 
@@ -132,36 +118,41 @@ public class ProfilesViewModel {
             this.profile = profile;
         }
 
+        public String id() {
+            return profile.getId();
+        }
+
         public Component name() {
-            return Component.literal(this.profile.getName());
+            String name = profile.getName();
+            return Component.literal(name.isBlank() ? profile.getId() : name);
         }
 
         public boolean isSelected() {
-            return Objects.equals(this.profile, ProfilesViewModel.this.state.get().profiles().selectedProfile());
+            return Objects.equals(profile, state.get().profiles().selectedProfile());
         }
 
         public boolean isDefault() {
-            return Objects.equals(this.profile, ProfilesViewModel.this.state.get().profiles().defaultProfile());
+            return Objects.equals(profile, state.get().profiles().defaultProfile());
         }
 
         public boolean isLocked() {
-            return this.profile.isLocked();
+            return profile.isLocked();
         }
 
         public void delete() {
-            ProfilesViewModel.this.dispatch.accept(new ProfileIntent.Delete(this.profile));
+            dispatch.accept(new ProfileIntent.Delete(this.profile));
         }
 
         public void select() {
-            ProfilesViewModel.this.dispatch.accept(new ProfileIntent.Select(this.profile));
+            dispatch.accept(new ProfileIntent.Select(this.profile));
         }
 
         public void toggleLock() {
-            ProfilesViewModel.this.dispatch.accept(new ProfileIntent.ToggleLock(this.profile));
+            dispatch.accept(new ProfileIntent.ToggleLock(this.profile));
         }
 
         public void toggleDefault() {
-            ProfilesViewModel.this.dispatch.accept(new ProfileIntent.SetDefault(this.isDefault() ? null : this.profile));
+            dispatch.accept(new ProfileIntent.SetDefault(this.isDefault() ? null : this.profile));
         }
     }
 }

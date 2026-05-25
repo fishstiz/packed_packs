@@ -1,7 +1,6 @@
 package io.github.fishstiz.packed_packs.impl.events;
 
-import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuilder;
-import io.github.fishstiz.fidgetz.gui.components.contextmenu.MenuItem;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZPopoverMenuItem;
 import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.api.context.PackContext;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
@@ -10,13 +9,12 @@ import io.github.fishstiz.packed_packs.api.gui.ContextMenuItemSpec;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.impl.gui.ContextMenuItemSpecImpl;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.Consumer;
 
 public final class ContextMenuEventImpl<P extends Enum<P>> extends ContextMenuEvent.Positioned<P> {
-    private final Map<P, ContextMenuItemBuilder> menuBuilders;
+    private final Map<P, List<FZPopoverMenuItem>> menuBuilders;
     private final boolean preferenceEvent;
     private Set<Preference<?>> preferences = Collections.emptySet();
 
@@ -53,13 +51,11 @@ public final class ContextMenuEventImpl<P extends Enum<P>> extends ContextMenuEv
     public void addItem(P pos, Consumer<ContextMenuItemSpec> configurator) {
         ContextMenuItemSpecImpl itemSpec = new ContextMenuItemSpecImpl(this.preferenceEvent);
         configurator.accept(itemSpec);
-        this.menuBuilders.computeIfAbsent(pos, k -> new ContextMenuItemBuilder()).then(itemSpec::apply);
+        itemSpec.apply(menuBuilders.computeIfAbsent(pos, ignored -> new ArrayList<>())::add);
     }
 
-    public @Nullable List<MenuItem> getItems(P pos) {
-        ContextMenuItemBuilder menuBuilder = this.menuBuilders.get(pos);
-        if (menuBuilder == null) return null;
-        return menuBuilder.build();
+    public List<FZPopoverMenuItem> entries(P pos) {
+        return menuBuilders.getOrDefault(pos, Collections.emptyList());
     }
 
     public Set<Preference<?>> getPreferences() {

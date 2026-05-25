@@ -9,7 +9,7 @@ loader {
 }
 
 dependencies {
-    compileOnly project(path: ":fidgetz:fabric", configuration: "namedElements")
+    modCompileOnly "io.github.fishstiz.fidgetz:fidgetz-fabric:$fidgetz_version"
 
     minecraft "com.mojang:minecraft:$minecraft_version"
     mappings loom.layered {

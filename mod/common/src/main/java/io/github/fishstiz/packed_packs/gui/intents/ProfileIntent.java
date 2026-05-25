@@ -22,6 +22,13 @@ public sealed interface ProfileIntent extends Intent {
     record Select(Profile profile) implements ProfileIntent {
     }
 
+    record ToggleRenaming() implements ProfileIntent {
+        @Override
+        public boolean resetHistory() {
+            return false;
+        }
+    }
+
     record Rename(Profile profile, String name) implements ProfileIntent {
         @Override
         public boolean resetHistory() {

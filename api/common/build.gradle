@@ -19,9 +19,9 @@ neoForge {
 }
 
 dependencies {
-    compileOnly project(path: ":fidgetz:common")
+    compileOnly "io.github.fishstiz.fidgetz:fidgetz-common:$fidgetz_version"
 
-    compileOnly group: 'org.spongepowered', name: 'mixin', version: "$mixin_version"
-    compileOnly group: 'io.github.llamalad7', name: 'mixinextras-common', version: "$mixinextras_version"
-    annotationProcessor group: 'io.github.llamalad7', name: 'mixinextras-common', version: "$mixinextras_version"
+    compileOnly "org.spongepowered:mixin:$mixin_version"
+    compileOnly "io.github.llamalad7:mixinextras-common:$mixinextras_version"
+    annotationProcessor "io.github.llamalad7:mixinextras-common:$mixinextras_version"
 }

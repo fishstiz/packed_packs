@@ -1,14 +1,17 @@
 package io.github.fishstiz.packed_packs.impl.context;
 
+import io.github.fishstiz.fidgetz.v0.utils.GuiHooks;
 import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.gui.ContextMenuSink;
 import io.github.fishstiz.packed_packs.config.Config;
-import io.github.fishstiz.packed_packs.gui.components.PreferenceToggle;
-import io.github.fishstiz.packed_packs.gui.metadata.PackSelectionScreenArgs;
-import io.github.fishstiz.packed_packs.gui.model.PackedPacksViewModel;
+import io.github.fishstiz.packed_packs.gui.components.PreferenceHelper;
+import io.github.fishstiz.packed_packs.gui.screens.PackSelectionScreenArgs;
+import io.github.fishstiz.packed_packs.gui.model.PackedPacksStore;
 import io.github.fishstiz.packed_packs.gui.screens.PackedPacksScreen;
-import io.github.fishstiz.packed_packs.impl.gui.ContextMenuWrappedWidget;
+import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
+import io.github.fishstiz.packed_packs.impl.gui.ContextMenuItemSpecImpl;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -26,19 +29,21 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 public record ScreenContextImpl(
-        Screen previousScreen,
+        Minecraft minecraft,
+        @Nullable Screen previousScreen,
         PackedPacksScreen screen,
-        PackedPacksViewModel viewModel,
+        PackedPacksStore store,
         PackSelectionScreenArgs originalArgs,
         PackType packType
 ) implements ScreenContext {
     public ScreenContextImpl(
-            Screen previousScreen,
+            Minecraft minecraft,
+            @Nullable Screen previousScreen,
             PackedPacksScreen screen,
-            PackedPacksViewModel viewModel,
+            PackedPacksStore store,
             PackSelectionScreenArgs originalArgs
     ) {
-        this(previousScreen, screen, viewModel, originalArgs, originalArgs.packType());
+        this(minecraft, previousScreen, screen, store, originalArgs, originalArgs.packType());
     }
 
     @Override
@@ -55,22 +60,22 @@ public record ScreenContextImpl(
 
     @Override
     public List<Pack> getAvailablePacks() {
-        return Collections.unmodifiableList(this.viewModel.getAvailablePacks());
+        return Collections.unmodifiableList(this.store.getAvailablePacks());
     }
 
     @Override
     public List<Pack> getSelectedPacks() {
-        return Collections.unmodifiableList(this.viewModel.getEnabledPacks());
+        return Collections.unmodifiableList(this.store.getEnabledPacks());
     }
 
     @Override
     public void reload() {
-        this.viewModel.refreshRepository();
+        this.store.refreshRepository();
     }
 
     @Override
     public void commit() {
-        this.viewModel.commit();
+        this.store.commit();
     }
 
     @Override
@@ -104,12 +109,20 @@ public record ScreenContextImpl(
     }
 
     @Override
-    public @Nullable AbstractWidget wrapWidget(Preference<Boolean> key, @Nullable Component text, @Nullable AbstractWidget widget) {
-        return PreferenceToggle.wrap(key, text, widget);
+    public @Nullable AbstractWidget wrapWidget(Preference<Boolean> key, Component text, @Nullable AbstractWidget widget) {
+        return PackedPacksApiImpl.getInstance().preferences()
+                .find(key.id(), key.type())
+                .map(p -> PreferenceHelper.wrap(widget, p, text))
+                .orElse(null);
     }
 
     @Override
     public <T extends AbstractWidget> AbstractWidget wrapWithContextMenu(T widget, BiConsumer<T, ContextMenuSink> configurator) {
-        return new ContextMenuWrappedWidget<>(widget, configurator);
+        GuiHooks.supplyContextMenuEntries(widget, collector -> configurator.accept(widget, itemConfigurator -> {
+            ContextMenuItemSpecImpl itemSpec = new ContextMenuItemSpecImpl(false);
+            itemConfigurator.accept(itemSpec);
+            itemSpec.apply(collector);
+        }));
+        return widget;
     }
 }

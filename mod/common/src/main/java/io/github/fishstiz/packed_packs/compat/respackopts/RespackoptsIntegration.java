@@ -1,12 +1,12 @@
 package io.github.fishstiz.packed_packs.compat.respackopts;
 
+import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.PackedPacksApi;
 import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.api.events.*;
 import io.github.fishstiz.packed_packs.compat.ModIntegration;
 import io.github.fishstiz.packed_packs.compat.Mod;
 import io.github.fishstiz.packed_packs.compat.ModContext;
-import io.github.fishstiz.packed_packs.util.ResourceUtil;
 
 public class RespackoptsIntegration extends ModIntegration {
     @Override
@@ -16,7 +16,7 @@ public class RespackoptsIntegration extends ModIntegration {
 
     @Override
     protected void onInitLoaded(PackedPacksApi api) {
-        Preference<Boolean> respackoptsButton = api.preferences().register(ResourceUtil.id("respackopts_button"), true);
+        Preference<Boolean> respackoptsButton = api.preferences().register(PackedPacks.id("respackopts_button"), true);
 
         api.eventBus().register(InitializePackEntryEvent.class, this.id(), event -> {
             if (!event.screenContext().isClientResources()) return;

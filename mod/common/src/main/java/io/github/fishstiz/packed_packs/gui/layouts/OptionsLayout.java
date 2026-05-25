@@ -1,148 +1,88 @@
 package io.github.fishstiz.packed_packs.gui.layouts;
 
-import io.github.fishstiz.fidgetz.gui.components.FidgetzText;
-import io.github.fishstiz.fidgetz.gui.components.ToggleButton;
-import io.github.fishstiz.fidgetz.gui.layouts.ScrollableLayout;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZButton;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZText;
+import io.github.fishstiz.fidgetz.v0.gui.layouts.*;
 import io.github.fishstiz.packed_packs.config.Config;
-import io.github.fishstiz.packed_packs.util.ResourceUtil;
-import io.github.fishstiz.packed_packs.util.constants.GuiConstants;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.client.gui.layouts.Layout;
-import net.minecraft.client.gui.layouts.LayoutElement;
-import net.minecraft.client.gui.layouts.LayoutSettings;
-import net.minecraft.client.gui.layouts.LinearLayout;
+import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
+import net.minecraft.client.gui.components.events.ContainerEventHandler;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 
-import java.util.function.Consumer;
-import java.util.function.IntSupplier;
+import java.util.function.BooleanSupplier;
 
-public class OptionsLayout implements Layout {
-    private static final int CONTENT_WIDTH = 200;
-    private final IntSupplier maxHeightSupplier;
-    private final ScrollableLayout layout;
+import static io.github.fishstiz.packed_packs.util.GuiUtils.SPACING;
 
-    public OptionsLayout(Minecraft minecraft, IntSupplier maxHeightSupplier, Config.Packs... configs) {
-        this.maxHeightSupplier = maxHeightSupplier;
-        final int spacing = GuiConstants.SPACING;
-        final LinearLayout contentLayout = LinearLayout.vertical().spacing(spacing);
-        final LayoutSettings titleSettings = LayoutSettings.defaults()
-                .paddingTop(-(spacing / 2))
-                .paddingBottom(-spacing);
+public class OptionsLayout extends WrappedLayout {
+    private OptionsLayout(FZLayout layout) {
+        super(layout);
+    }
+
+    public static OptionsLayout create(ContainerEventHandler container, Config.Packs... configs) {
+        FZFlexLayout root = FZFlexLayout.horizontal().spacing(SPACING);
 
         for (Config.Packs config : configs) {
+            FZFlexLayout body = root.child(FZFlexLayout.vertical().spacing(SPACING), root.flexChildSettings());
+            body.defaultChildSettings().flexCross();
+
             switch (config) {
-                case Config.ResourcePacks resourcePacks -> {
-                    contentLayout.addChild(
-                            FidgetzText.<Void>builder()
-                                    .setMessage(ResourceUtil.getText("resource_packs"))
-                                    .setWidth(CONTENT_WIDTH)
-                                    .build(),
-                            titleSettings
-                    );
-                    addCommonOptions(contentLayout, resourcePacks);
-                    contentLayout.addChild(
-                            ToggleButton.<Void>builder()
-                                    .setMessage(ResourceUtil.getText("options.apply_on_close"))
-                                    .setValue(resourcePacks.isApplyOnClose())
-                                    .setOnPress(() -> resourcePacks.setApplyOnClose(!resourcePacks.isApplyOnClose()))
-                                    .setWidth(CONTENT_WIDTH)
-                                    .build()
-                    );
-                }
                 case Config.DataPacks dataPacks -> {
-                    contentLayout.addChild(
-                            FidgetzText.<Void>builder()
-                                    .setMessage(Component.translatable("selectWorld.dataPacks"))
-                                    .setWidth(CONTENT_WIDTH)
-                                    .build(),
-                            titleSettings
-                    );
-                    addCommonOptions(contentLayout, dataPacks);
+                    body.child(FZText.builder(Component.translatable("selectWorld.dataPacks")).build());
+
+                    FZFlexLayout contents = FZFlexLayout.vertical().spacing(SPACING);
+                    contents.defaultChildSettings().flexCross();
+                    commonOptions(contents, dataPacks);
+
+                    body.child(FZScrollableLayout.from(container, contents), body.flexChildSettings()).arrangeElements();
+                }
+                case Config.ResourcePacks resourcePacks -> {
+                    body.child(FZText.builder(Component.translatable("packed_packs.resource_packs")).build());
+
+                    FZFlexLayout contents = FZFlexLayout.vertical().spacing(SPACING);
+                    contents.defaultChildSettings().flexCross();
+                    commonOptions(contents, resourcePacks);
+                    contents.child(toggle(
+                            Component.translatable("packed_packs.options.apply_on_close"),
+                            resourcePacks::setApplyOnClose,
+                            resourcePacks::isApplyOnClose
+                    ).build());
+
+                    contents.arrangeElements();
+                    body.child(FZScrollableLayout.from(container, contents), body.flexChildSettings()).arrangeElements();
                 }
             }
         }
 
-        this.layout = new ScrollableLayout(minecraft, contentLayout);
+        return new OptionsLayout(root);
     }
 
-    public OptionsLayout(Minecraft minecraft, IntSupplier maxHeightSupplier) {
-        this(minecraft, maxHeightSupplier, Config.get().getResourcepacks(), Config.get().getDatapacks());
+    private static void commonOptions(FZFlexLayout layout, Config.Packs config) {
+        layout.child(toggle(
+                Component.translatable("packed_packs.options.replace_screen"),
+                config::setReplaceOriginal,
+                config::isReplaceOriginal
+        ).build());
+
+        layout.child(toggle(
+                Component.translatable("packed_packs.options.hide_incompatible_warnings"),
+                config::setHideIncompatibleWarnings,
+                config::isIncompatibleWarningsHidden
+        ).tooltip(Component.translatable("packed_packs.options.hide_incompatible_warnings.info")).build());
+
+        layout.child(toggle(
+                Component.translatable("packed_packs.options.remember_last_viewed_profile"),
+                config::setRememberLastViewedProfile,
+                config::isLastViewedProfileRemembered
+        ).build());
     }
 
-
-    @Override
-    public void visitWidgets(Consumer<AbstractWidget> visitor) {
-        this.layout.visitWidgets(visitor);
-    }
-
-    @Override
-    public void visitChildren(Consumer<LayoutElement> visitor) {
-        this.layout.visitChildren(visitor);
-    }
-
-    @Override
-    public void setX(int x) {
-        this.layout.setX(x);
-    }
-
-    @Override
-    public void setY(int y) {
-        this.layout.setY(y);
-    }
-
-    @Override
-    public int getX() {
-        return this.layout.getX();
-    }
-
-    @Override
-    public int getY() {
-        return this.layout.getY();
-    }
-
-    @Override
-    public int getWidth() {
-        return this.layout.getWidth();
-    }
-
-    @Override
-    public int getHeight() {
-        return this.layout.getHeight();
-    }
-
-    @Override
-    public void arrangeElements() {
-        this.layout.setMaxHeight(this.maxHeightSupplier.getAsInt());
-        this.layout.arrangeElements();
-    }
-
-    private static void addCommonOptions(LinearLayout linearLayout, Config.Packs config) {
-        linearLayout.addChild(
-                ToggleButton.<Void>builder()
-                        .setMessage(ResourceUtil.getText("options.replace_screen"))
-                        .setValue(config.isReplaceOriginal())
-                        .setOnPress(() -> config.setReplaceOriginal(!config.isReplaceOriginal()))
-                        .setWidth(CONTENT_WIDTH)
-                        .build()
-        );
-        linearLayout.addChild(
-                ToggleButton.<Void>builder()
-                        .setMessage(ResourceUtil.getText("options.hide_incompatible_warnings"))
-                        .setTooltip(Tooltip.create(ResourceUtil.getText("options.hide_incompatible_warnings.info")))
-                        .setValue(config.isIncompatibleWarningsHidden())
-                        .setOnPress(() -> config.setHideIncompatibleWarnings(!config.isIncompatibleWarningsHidden()))
-                        .setWidth(CONTENT_WIDTH)
-                        .build()
-        );
-        linearLayout.addChild(
-                ToggleButton.<Void>builder()
-                        .setMessage(ResourceUtil.getText("options.remember_last_viewed_profile"))
-                        .setValue(config.isLastViewedProfileRemembered())
-                        .setOnPress(() -> config.setRememberLastViewedProfile(!config.isLastViewedProfileRemembered()))
-                        .setWidth(CONTENT_WIDTH)
-                        .build()
-        );
+    private static FZButton.Builder toggle(Component name, BooleanConsumer setter, BooleanSupplier getter) {
+        return FZButton.builder()
+                .bigWidth()
+                .message(CommonComponents.optionStatus(name, getter.getAsBoolean()))
+                .onPress(e -> {
+                    setter.accept(!getter.getAsBoolean());
+                    e.target().setMessage(CommonComponents.optionStatus(name, getter.getAsBoolean()));
+                });
     }
 }

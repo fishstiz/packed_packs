@@ -1,9 +1,9 @@
 package io.github.fishstiz.packed_packs.gui.model;
 
-import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
 import io.github.fishstiz.packed_packs.config.PackConfigs;
 import io.github.fishstiz.packed_packs.pack.PackOptionsContext;
 import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.repository.Pack;
 
 import java.util.List;
@@ -16,6 +16,6 @@ public record PackListContext(
         PackOptionsContext options,
         BiConsumer<FolderPack, List<Pack>> folderSaver,
         Predicate<Pack> fileModifiable,
-        Function<Pack, Sprite> iconFactory
+        Function<Pack, ResourceLocation> iconFactory
 ) {
 }

@@ -1,42 +1,41 @@
 package io.github.fishstiz.packed_packs.compat;
 
-import io.github.fishstiz.packed_packs.pack.PackAssetManager;
+import io.github.fishstiz.packed_packs.pack.PackIconManager;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackCompatibility;
 import net.minecraft.server.packs.repository.PackSource;
-import org.jetbrains.annotations.NotNull;
 
 public record PackWrapperDelegatorAbstractionEpicModelEntry(Pack pack) implements PackSelectionModel.Entry {
     @Override
-    public @NotNull ResourceLocation getIconTexture() {
-        return PackAssetManager.getDefaultLocation(pack);
+    public ResourceLocation getIconTexture() {
+        return PackIconManager.getDefault(pack);
     }
 
     @Override
-    public @NotNull PackCompatibility getCompatibility() {
+    public PackCompatibility getCompatibility() {
         return pack.getCompatibility();
     }
 
     @Override
-    public @NotNull String getId() {
+    public String getId() {
         return pack.getId();
     }
 
     @Override
-    public @NotNull Component getTitle() {
+    public Component getTitle() {
         return pack.getTitle();
     }
 
     @Override
-    public @NotNull Component getDescription() {
+    public Component getDescription() {
         return pack.getDescription();
     }
 
     @Override
-    public @NotNull PackSource getPackSource() {
+    public PackSource getPackSource() {
         return pack.getPackSource();
     }
 

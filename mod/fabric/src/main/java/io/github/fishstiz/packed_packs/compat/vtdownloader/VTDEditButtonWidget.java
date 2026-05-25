@@ -1,9 +1,10 @@
 package io.github.fishstiz.packed_packs.compat.vtdownloader;
 
-import io.github.fishstiz.fidgetz.gui.components.Fidgetz;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenu;
 import io.github.fishstiz.packed_packs.api.Preference;
+import io.github.fishstiz.packed_packs.compat.ModIntegration;
 import io.github.fishstiz.packed_packs.config.Config;
-import io.github.fishstiz.packed_packs.gui.components.PreferenceToggle;
+import io.github.fishstiz.packed_packs.gui.components.PreferenceHelper;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -24,7 +25,7 @@ import java.util.function.BooleanSupplier;
  *
  * @see <a href="https://github.com/IotaBread/VTDownloader/blob/1.21/src/main/java/me/bymartrixx/vtd/mixin/PackEntryListWidgetMixin.java">Github</a>
  */
-public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
+public class VTDEditButtonWidget extends AbstractButton implements FZContextMenu.Source {
     private static final String VT_DESCRIPTION_MARKER = "vanillatweaks.net";
     private static final ResourceLocation PENCIL_TEXTURE = ResourceLocation.fromNamespaceAndPath("vt_downloader", "textures/pencil.png");
     private static final int PENCIL_TEXTURE_SIZE = 32;
@@ -32,11 +33,11 @@ public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
     private final Screen previous;
     private final Pack pack;
     private final BooleanSupplier editable;
-    private final @Nullable PreferenceToggle toggle;
+    private final Preference<Boolean> preference;
 
     private VTDEditButtonWidget(Preference<Boolean> prefKey, Screen previous, Pack pack, BooleanSupplier editable) {
         super(0, 0, PENCIL_SIZE, PENCIL_SIZE, CommonComponents.EMPTY);
-        this.toggle = Config.get().isDevMode() ? PreferenceToggle.tryWithInternalName(prefKey) : null;
+        this.preference = prefKey;
         this.previous = previous;
         this.pack = pack;
         this.editable = editable;
@@ -48,9 +49,8 @@ public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
     }
 
     @Override
-    protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.active = this.editable.getAsBoolean();
-        this.isHovered = this.isHovered && Fidgetz.super.isHovered(mouseX, mouseY);
 
         int x = this.getX();
         int y = this.getY();
@@ -59,11 +59,11 @@ public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
         float v = 0.0F;
         if (!this.active) {
             v = PENCIL_SIZE;
-        } else if (this.isHovered()) {
+        } else if (isHovered()) {
             u = PENCIL_SIZE;
         }
 
-        guiGraphics.blit(
+        graphics.blit(
                 PENCIL_TEXTURE,
                 x, y,
                 u, v,
@@ -71,14 +71,9 @@ public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
                 PENCIL_TEXTURE_SIZE, PENCIL_TEXTURE_SIZE
         );
 
-        if (this.toggle != null) {
-            this.toggle.render(guiGraphics, x, y, this.getWidth(), this.getHeight(), partialTick);
+        if (Config.get().isDevMode()) {
+            PreferenceHelper.extractOverlay(graphics, preference, x, y, getWidth(), getHeight());
         }
-    }
-
-    @Override
-    public boolean isMouseOver(double mouseX, double mouseY) {
-        return this.visible && Fidgetz.super.isMouseOver(mouseX, mouseY);
     }
 
     @Override
@@ -91,5 +86,10 @@ public class VTDEditButtonWidget extends AbstractButton implements Fidgetz {
     @Override
     protected void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {
         this.defaultButtonNarrationText(narrationElementOutput);
+    }
+
+    @Override
+    public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
+        collector.addEntry(PreferenceHelper.createEntry(preference, ModIntegration.getWidgetPrefText(preference)));
     }
 }

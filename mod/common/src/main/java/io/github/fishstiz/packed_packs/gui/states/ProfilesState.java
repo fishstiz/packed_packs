@@ -12,7 +12,8 @@ public record ProfilesState(
         List<Profile> profiles,
         @Nullable Profile selectedProfile,
         @Nullable Profile defaultProfile,
-        PackOptions options
+        PackOptions options,
+        boolean renaming
 ) {
     private static final ProfilesState EMPTY = new ProfilesState(Collections.emptyList(), null, null);
 
@@ -20,6 +21,24 @@ public record ProfilesState(
         if (options == null) {
             options = new PackOptionsContext(this::selectedProfile, this::defaultProfile);
         }
+    }
+
+    public ProfilesState(
+            List<Profile> profiles,
+            @Nullable Profile selectedProfile,
+            @Nullable Profile defaultProfile,
+            @Nullable PackOptions options
+    ) {
+        this(profiles, selectedProfile, defaultProfile, options, false);
+    }
+
+    public ProfilesState(
+            List<Profile> profiles,
+            @Nullable Profile selectedProfile,
+            @Nullable Profile defaultProfile,
+            boolean renaming
+    ) {
+        this(profiles, selectedProfile, defaultProfile, null, renaming);
     }
 
     public ProfilesState(List<Profile> profiles, @Nullable Profile selectedProfile, @Nullable Profile defaultProfile) {
@@ -42,5 +61,19 @@ public record ProfilesState(
 
     public ProfilesState withDefault(@Nullable Profile defaultProfile) {
         return new ProfilesState(this.profiles, defaultProfile == null ? this.selectedProfile : defaultProfile, defaultProfile);
+    }
+
+    public ProfilesState withRenaming(boolean renaming) {
+        return new ProfilesState(profiles, selectedProfile, defaultProfile, options, renaming && canRename());
+    }
+
+    // make profile immutable at some point
+
+    public boolean isLocked() {
+        return selectedProfile != null && selectedProfile.isLocked();
+    }
+
+    public boolean canRename() {
+        return selectedProfile != null && !selectedProfile.isLocked();
     }
 }

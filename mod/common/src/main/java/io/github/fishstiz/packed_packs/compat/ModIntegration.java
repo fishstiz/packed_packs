@@ -1,11 +1,10 @@
 package io.github.fishstiz.packed_packs.compat;
 
-import io.github.fishstiz.fidgetz.util.lang.FunctionsUtil;
+import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.PackedPacksApi;
 import io.github.fishstiz.packed_packs.api.PackedPacksInitializer;
 import io.github.fishstiz.packed_packs.api.Preference;
-import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -31,11 +30,11 @@ public abstract class ModIntegration implements PackedPacksInitializer {
     }
 
     public static ResourceLocation id(ModContext mod) {
-        return ResourceUtil.id(mod.getId());
+        return PackedPacks.id(mod.getId());
     }
 
     public static Component getWidgetPrefText(Preference<?> key) {
-        return ResourceUtil.getText("preferences.widgets." + key.id().getPath());
+        return Component.translatable("packed_packs.preferences.widgets." + key.id().getPath());
     }
 
     public static Runnable createScreenSetter(String className, ScreenArg<?>... screenArgs) {
@@ -54,13 +53,13 @@ public abstract class ModIntegration implements PackedPacksInitializer {
             return () -> {
                 try {
                     Minecraft.getInstance().setScreen(screenCtor.newInstance(args));
-                } catch (ReflectiveOperationException e) {
-                    PackedPacks.LOGGER.error("[packed_packs] Error opening mod screen: '{}'", className, e);
+                } catch (Exception e) {
+                    PackedPacks.LOGGER.error("[packed_packs] Failed to open mod screen: '{}'", className, e);
                 }
             };
-        } catch (ReflectiveOperationException e) {
+        } catch (Exception e) {
             PackedPacks.LOGGER.error("[packed_packs] Failed to create screen setter for mod screen: '{}'", className, e);
-            return FunctionsUtil.nop();
+            return FunctionUtils.nop();
         }
     }
 

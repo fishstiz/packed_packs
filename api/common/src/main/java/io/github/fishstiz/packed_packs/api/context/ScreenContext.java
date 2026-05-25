@@ -2,6 +2,7 @@ package io.github.fishstiz.packed_packs.api.context;
 
 import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.api.gui.ContextMenuSink;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -23,6 +24,11 @@ import java.util.function.BiConsumer;
  */
 @ApiStatus.NonExtendable
 public interface ScreenContext {
+    /**
+     * @return The Minecraft client instance
+     */
+    Minecraft minecraft();
+
     /**
      * @return the currently displayed screen instance.
      */

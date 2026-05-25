@@ -14,6 +14,8 @@ public interface PlatformHelper {
 
     boolean isModLoaded(String id);
 
+    boolean isDev();
+
     default List<PackedPacksInitializer> getModExtensions() {
         return Collections.emptyList();
     }
