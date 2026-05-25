@@ -1,11 +1,11 @@
 package io.github.fishstiz.testmod.gui;
 
 import com.mojang.blaze3d.platform.Window;
-import io.github.fishstiz.fidgetz.util.GuiUtil;
 import io.github.fishstiz.testmod.TestFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.events.ContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
@@ -22,12 +22,24 @@ public class HoveredElementRenderer extends TestFeatureRenderer {
         this.minecraft = Minecraft.getInstance();
     }
 
+    private static GuiEventListener getHovered(ContainerEventHandler container, int mouseX, int mouseY) {
+        if (container.isMouseOver(mouseX, mouseY)) {
+            for (GuiEventListener child : container.children()) {
+                if (child.isMouseOver(mouseX, mouseY) || child.getRectangle().containsPoint(mouseX, mouseY)) {
+                    return child instanceof ContainerEventHandler sub ? getHovered(sub, mouseX, mouseY) : child;
+                }
+            }
+            return container;
+        }
+        return null;
+    }
+
     @Override
     protected int renderFeature(GuiGraphics guiGraphics, int mouseX, int mouseY, int y, float partialTick) {
         Screen screen = minecraft.screen;
         if (screen == null) return y;
 
-        GuiEventListener hovered = GuiUtil.findHovered(screen, mouseX, mouseY);
+        GuiEventListener hovered = getHovered(screen, mouseX, mouseY);
         hovered = hovered != null ? hovered : screen;
 
         ScreenRectangle bounds = getBounds(hovered);

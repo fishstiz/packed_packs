@@ -1,7 +1,6 @@
 package io.github.fishstiz.packed_packs.platform.services;
 
 import io.github.fishstiz.packed_packs.api.PackedPacksInitializer;
-import io.github.fishstiz.packed_packs.config.Preferences;
 import net.minecraft.server.packs.repository.Pack;
 
 import java.nio.file.Path;
@@ -14,6 +13,8 @@ public interface PlatformHelper {
     Path getConfigDir();
 
     boolean isModLoaded(String id);
+
+    boolean isDev();
 
     default List<PackedPacksInitializer> getModExtensions() {
         return Collections.emptyList();

@@ -1,14 +1,13 @@
 package io.github.fishstiz.packed_packs.compat.respackopts;
 
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
-import io.github.fishstiz.fidgetz.gui.components.Fidgetz;
-import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuilder;
-import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuProvider;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenu;
 import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.compat.Mod;
+import io.github.fishstiz.packed_packs.compat.ModIntegration;
 import io.github.fishstiz.packed_packs.compat.PackWrapperDelegatorAbstractionEpicModelEntry;
 import io.github.fishstiz.packed_packs.config.Config;
-import io.github.fishstiz.packed_packs.gui.components.PreferenceToggle;
+import io.github.fishstiz.packed_packs.gui.components.PreferenceHelper;
 import io.gitlab.jfronny.libjf.entrywidgets.api.v0.ResourcePackEntryWidget;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractButton;
@@ -21,15 +20,15 @@ import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-public class RespackoptsWidget extends AbstractButton implements ContextMenuProvider, Fidgetz {
+public class RespackoptsWidget extends AbstractButton implements FZContextMenu.Source {
     private final ResourcePackEntryWidget wrapped;
     private final PackSelectionModel.Entry model;
     private final LayoutElement container;
-    private final @Nullable PreferenceToggle toggle;
+    private final Preference<Boolean> preference;
 
     private RespackoptsWidget(Preference<Boolean> prefKey, LayoutElement container, ResourcePackEntryWidget wrapped, PackSelectionModel.Entry model) {
         super(0, 0, 0, 0, Component.literal(Mod.RESPACKOPTS.getId()));
-        this.toggle = Config.get().isDevMode() ? PreferenceToggle.tryWithInternalName(prefKey) : null;
+        this.preference = prefKey;
         this.container = container;
         this.wrapped = wrapped;
         this.model = model;
@@ -54,7 +53,7 @@ public class RespackoptsWidget extends AbstractButton implements ContextMenuProv
     }
 
     @Override
-    protected void renderContents(@NonNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    protected void renderContents(@NonNull GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int width = this.wrapped.getWidth(this.model);
         int height = this.wrapped.getHeight(this.model, this.container.getHeight());
         int marginRight = this.wrapped.getXMargin(this.model);
@@ -64,27 +63,20 @@ public class RespackoptsWidget extends AbstractButton implements ContextMenuProv
         this.setX((this.container.getX() + this.container.getWidth()) - width - marginRight);
         this.setY(this.container.getY() + (this.container.getHeight() - height) / 2);
 
-        this.isHovered = this.isHovered && Fidgetz.super.isMouseOver(mouseX, mouseY);
+        this.wrapped.render(this.model, graphics, this.getX(), this.getY(), isHovered(), partialTick);
 
-        this.wrapped.render(this.model, guiGraphics, this.getX(), this.getY(), this.isHovered, partialTick);
-
-        if (this.toggle != null) {
-            this.toggle.render(guiGraphics, this.getX(), this.getY(), this.getWidth(), this.getHeight(), partialTick);
+        if (Config.get().isDevMode()) {
+            PreferenceHelper.extractOverlay(graphics, preference, getX(), getY(), getWidth(), getHeight());
         }
 
         if (this.isHovered()) {
-            guiGraphics.requestCursor(CursorTypes.POINTING_HAND);
+            graphics.requestCursor(CursorTypes.POINTING_HAND);
         }
     }
 
     @Override
     protected void updateWidgetNarration(@NonNull NarrationElementOutput narrationElementOutput) {
         this.defaultButtonNarrationText(narrationElementOutput);
-    }
-
-    @Override
-    public boolean isMouseOver(double mouseX, double mouseY) {
-        return super.isMouseOver(mouseX, mouseY) && Fidgetz.super.isMouseOver(mouseX, mouseY);
     }
 
     /**
@@ -95,9 +87,7 @@ public class RespackoptsWidget extends AbstractButton implements ContextMenuProv
     }
 
     @Override
-    public void buildItems(ContextMenuItemBuilder builder, int mouseX, int mouseY) {
-        if (this.toggle != null) {
-            builder.separatorIfNonEmpty().add(this.toggle);
-        }
+    public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
+        collector.addEntry(PreferenceHelper.createEntry(preference, ModIntegration.getWidgetPrefText(preference)));
     }
 }

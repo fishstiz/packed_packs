@@ -4,7 +4,6 @@ import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.JsonLoader;
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
-import io.github.fishstiz.packed_packs.util.ResourceUtil;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectImmutableList;
@@ -24,8 +23,8 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 public class FolderPack extends Pack implements FilePack {
-    public static final Component FOLDER_OPEN_TEXT = ResourceUtil.getText("folder.open");
-    public static final Component FOLDER_DESCRIPTION = ResourceUtil.getText("folder");
+    public static final Component FOLDER_OPEN_TEXT = Component.translatable("packed_packs.folder.open");
+    public static final Component FOLDER_DESCRIPTION = Component.translatable("packed_packs.folder");
     public static final PackSelectionConfig FOLDER_SELECTION_CONFIG = new PackSelectionConfig(false, Position.TOP, false);
     public static final Metadata FOLDER_METADATA = new Metadata(FOLDER_DESCRIPTION, PackCompatibility.COMPATIBLE, FeatureFlagSet.of(), Collections.emptyList());
     private final CompletableFuture<FolderPackMeta> folderPackMetaFuture;
@@ -59,7 +58,7 @@ public class FolderPack extends Pack implements FilePack {
                     throw new RuntimeException("FolderPack does not supply metadata");
                 }
                 try (InputStream inputStream = configIoSupplier.get()) {
-                    return JsonLoader.loadJson(inputStream, FolderPackMeta.class);
+                    return JsonLoader.loadOrDefault(inputStream, FolderPackMeta.class, FolderPackMeta::new);
                 }
             } catch (IOException e) {
                 if (!(e instanceof NoSuchFileException)) {

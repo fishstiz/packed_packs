@@ -1,7 +1,8 @@
 package io.github.fishstiz.packed_packs.pack;
 
 import com.google.common.collect.ImmutableList;
-import io.github.fishstiz.fidgetz.util.lang.FunctionsUtil;
+import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
+import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.pack.folder.FolderLocationInfo;
@@ -11,7 +12,6 @@ import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionModelAccesso
 import io.github.fishstiz.packed_packs.transform.mixin.folders.additional.FolderRepositorySourceAccessor;
 import io.github.fishstiz.packed_packs.transform.mixin.folders.additional.PackRepositoryAccessor;
 import io.github.fishstiz.packed_packs.util.PackUtil;
-import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -53,7 +53,12 @@ public class PackRepositoryManager {
     }
 
     private void refreshModel() {
-        this.model = new PackSelectionModel(FunctionsUtil.nopConsumer(), PackAssetManager::getDefaultLocation, this.repository, FunctionsUtil.nopConsumer());
+        this.model = new PackSelectionModel(
+                FunctionUtils.nopConsumer(),
+                PackIconManager::getDefault,
+                this.repository,
+                FunctionUtils.nopConsumer()
+        );
         ((PackSelectionModelAccessor) this.model).packed_packs$filterHidden(false);
     }
 
@@ -103,7 +108,7 @@ public class PackRepositoryManager {
      * @return grouped packs by id
      */
     public List<Pack> getPacksById(Collection<String> packIds, Map<String, Pack> source) {
-        return CollectionsUtil.lookup(packIds, source);
+        return CollectionUtils.lookup(packIds, source);
     }
 
     /**
@@ -112,7 +117,7 @@ public class PackRepositoryManager {
      * @return grouped packs by id
      */
     public List<Pack> getPacksById(Collection<String> packIds, Collection<Pack> source) {
-        return CollectionsUtil.lookup(packIds, CollectionsUtil.toMap(source, Pack::getId));
+        return CollectionUtils.lookup(packIds, CollectionUtils.toMap(source, Pack::getId));
     }
 
     /**
@@ -128,8 +133,8 @@ public class PackRepositoryManager {
     }
 
     public List<Pack> getPacksByFlattenedIds(Collection<String> packIds) {
-        List<Pack> folderPacks = CollectionsUtil.filter(this.availablePacks.values(), FolderPack.class::isInstance, ObjectArrayList::new);
-        List<Pack> available = CollectionsUtil.addAll(folderPacks, this.repository.getAvailablePacks());
+        List<Pack> folderPacks = CollectionUtils.filter(this.availablePacks.values(), FolderPack.class::isInstance);
+        List<Pack> available = CollectionUtils.addAll(folderPacks, this.repository.getAvailablePacks());
         return this.groupByFolders(this.getPacksById(packIds, available));
     }
 

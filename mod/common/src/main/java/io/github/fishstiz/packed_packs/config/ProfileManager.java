@@ -1,11 +1,12 @@
 package io.github.fishstiz.packed_packs.config;
 
-import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
-import io.github.fishstiz.fidgetz.util.lang.FunctionsUtil;
+import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
+import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.util.FileUtil;
 import net.minecraft.util.Util;
@@ -21,12 +22,13 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
-import static io.github.fishstiz.packed_packs.config.JsonLoader.loadJsonOrDefault;
+import static io.github.fishstiz.packed_packs.config.JsonLoader.loadOrDefault;
 import static io.github.fishstiz.packed_packs.config.JsonLoader.saveJson;
 
 public final class ProfileManager {
     private static final ProfileManager RESOURCE_PACK_PROFILES = new ProfileManager(PackType.CLIENT_RESOURCES);
     private static final ProfileManager DATA_PACK_PROFILES = new ProfileManager(PackType.SERVER_DATA);
+    private static final Component DEFAULT_NAME_COMPONENT = Component.translatable("packed_packs.profile.unnamed");
     private static final String PROFILE_EXTENSION = ".profile.json";
     private static final String PROFILE_EXTENSION_QUOTE = Pattern.quote(PROFILE_EXTENSION);
     private static final String PROFILE_DIR = "profiles";
@@ -79,10 +81,6 @@ public final class ProfileManager {
     private static ObjectArrayList<Profile> getAllProfiles(PackType type) {
         Path dir = getProfileDir(type);
         if (!Files.isDirectory(dir)) {
-            try {
-                Files.createDirectory(dir);
-            } catch (IOException ignored) {
-            }
             return new ObjectArrayList<>();
         }
 
@@ -92,7 +90,7 @@ public final class ProfileManager {
                 if (file.getFileName().toString().endsWith(PROFILE_EXTENSION)) {
                     futures.add(CompletableFuture.supplyAsync(() -> {
                         String id = removeExtension(file.getFileName().toString());
-                        Profile profile = loadJsonOrDefault(file, Profile.class, () -> new Profile(id));
+                        Profile profile = loadOrDefault(file, Profile.class, () -> new Profile(id));
                         profile.id = id;
                         return profile;
                     }, Util.backgroundExecutor()));
@@ -107,16 +105,24 @@ public final class ProfileManager {
         }
 
         CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
-        return CollectionsUtil.map(futures, CompletableFuture::join, ObjectArrayList::new);
+        return CollectionUtils.map(futures, CompletableFuture::join, ObjectArrayList::new);
     }
 
     private static @Nullable Profile getProfile(String id, PackType type) {
-        Profile profile = loadJsonOrDefault(getFile(getProfileDir(type), id), Profile.class, FunctionsUtil.nullSupplier());
+        Profile profile = loadOrDefault(getFile(getProfileDir(type), id), Profile.class, FunctionUtils.nullSupplier());
         if (profile != null) profile.id = id;
         return profile;
     }
 
     private static String findAvailableId(Path saveFolder, String name) {
+        if (!Files.isDirectory(saveFolder)) {
+            try {
+                Files.createDirectories(saveFolder);
+            } catch (IOException e) {
+                PackedPacks.LOGGER.warn("[packed_packs] Failed to create profile directory at {}. ", saveFolder, e);
+            }
+        }
+
         try {
             return removeExtension(FileUtil.findAvailableName(saveFolder, name, PROFILE_EXTENSION));
         } catch (IOException e) {
@@ -129,11 +135,20 @@ public final class ProfileManager {
         return name.length() <= NAME_MAX_LENGTH ? name : name.substring(0, NAME_MAX_LENGTH);
     }
 
+    private static String sanitizeName(String name) {
+        String trimmed = trimName(name);
+        return trimmed.isBlank() ? DEFAULT_NAME_COMPONENT.getString() : name;
+    }
+
     public static int getNameMaxLength() {
         return NAME_MAX_LENGTH;
     }
 
-    private @Nullable Profile get(String id) {
+    public static Component getDefaultNameComponent() {
+        return DEFAULT_NAME_COMPONENT;
+    }
+
+    public @Nullable Profile get(String id) {
         if (this.profiles != null) {
             Profile cached = this.profiles.get(id);
             if (cached != null) return cached;
@@ -183,7 +198,7 @@ public final class ProfileManager {
     }
 
     public Profile create(String name) {
-        String trimmed = trimName(name);
+        String trimmed = sanitizeName(name);
         String id = findAvailableId(getProfileDir(this.packType), trimmed);
         Profile profile = new Profile(id);
         profile.temp = true;
@@ -192,7 +207,7 @@ public final class ProfileManager {
 
     public Profile copy(Profile profile) {
         if (profile.temp) this.save(profile);
-        String cleanName = profile.getName().replaceAll("\\s\\(\\d+\\)$", "");
+        String cleanName = sanitizeName(profile.getName().replaceAll("\\s\\(\\d+\\)$", ""));
         String id = findAvailableId(getProfileDir(this.packType), cleanName);
         Profile copy = profile.copy(id);
         copy.temp = true;
@@ -200,6 +215,12 @@ public final class ProfileManager {
     }
 
     public boolean save(Profile profile) {
+        if (profile.getName().isBlank()) {
+            rename(profile, sanitizeName(profile.getId()));
+        }
+        if (profile.temp) {
+            profile.id = findAvailableId(getProfileDir(this.packType), sanitizeName(profile.getName()));
+        }
         if (saveJson(profile, getFile(this.packType, profile.getId()))) {
             profile.temp = false;
             Map<String, Profile> map = this.profiles;
@@ -210,7 +231,7 @@ public final class ProfileManager {
     }
 
     public void setOrder(List<Profile> profiles) {
-        Config.packs(this.packType).setProfileOrder(CollectionsUtil.map(profiles, Profile::getId, ObjectArrayList::new));
+        Config.packs(this.packType).setProfileOrder(CollectionUtils.map(profiles, Profile::getId));
     }
 
     public void setDefault(@Nullable Profile profile) {
@@ -254,12 +275,8 @@ public final class ProfileManager {
 
     public void rename(Profile profile, String name) {
         if (profile.isLocked()) return;
-
         String trimmed = trimName(name);
         profile.setName(trimmed);
-        if (profile.temp) {
-            profile.id = findAvailableId(getProfileDir(this.packType), trimmed);
-        }
     }
 
     public List<Profile> getProfiles() {

@@ -1,14 +1,11 @@
 package io.github.fishstiz.packed_packs.impl.gui;
 
-import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuilder;
-import io.github.fishstiz.fidgetz.gui.components.contextmenu.MenuItem;
-import io.github.fishstiz.fidgetz.gui.components.contextmenu.MenuItemBuilder;
-import io.github.fishstiz.fidgetz.gui.renderables.sprites.GuiSprite;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenu;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZPopoverMenuItem;
 import io.github.fishstiz.packed_packs.api.gui.ContextMenuItemSpec;
-import io.github.fishstiz.packed_packs.util.constants.GuiConstants;
+import io.github.fishstiz.packed_packs.util.GuiUtils;
 import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
 import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
@@ -17,31 +14,30 @@ import java.util.function.Consumer;
 
 public class ContextMenuItemSpecImpl implements ContextMenuItemSpec {
     private final boolean devStyle;
-    private final MenuItemBuilder itemBuilder;
+    private final FZPopoverMenuItem.Builder itemBuilder = FZPopoverMenuItem.builder();
     private boolean separatorBelow;
     private boolean separatorAbove;
 
     public ContextMenuItemSpecImpl(boolean devStyle) {
-        this.itemBuilder = MenuItem.builder(CommonComponents.EMPTY);
         this.devStyle = devStyle;
         if (devStyle) this.applyDevStyle();
     }
 
     @Override
     public ContextMenuItemSpec label(Component label) {
-        this.itemBuilder.text(label);
+        this.itemBuilder.message(label);
         return this;
     }
 
     @Override
     public ContextMenuItemSpec action(Runnable action) {
-        this.itemBuilder.action(action);
+        this.itemBuilder.onPress(action);
         return this;
     }
 
     @Override
     public ContextMenuItemSpec icon(Identifier guiSprite) {
-        this.itemBuilder.icon(new GuiSprite(guiSprite, 16, 16));
+        this.itemBuilder.icon(GuiUtils.padded16Sprite(guiSprite));
         return this;
     }
 
@@ -53,13 +49,13 @@ public class ContextMenuItemSpecImpl implements ContextMenuItemSpec {
 
     @Override
     public ContextMenuItemSpec active(BooleanSupplier active) {
-        this.itemBuilder.activeWhen(active);
+        this.itemBuilder.active(active);
         return this;
     }
 
     @Override
     public ContextMenuItemSpec closeOnInteract(boolean closeOnInteract) {
-        this.itemBuilder.closeOnInteract(closeOnInteract);
+        this.itemBuilder.closeOnInteraction(closeOnInteract);
         return this;
     }
 
@@ -67,9 +63,9 @@ public class ContextMenuItemSpecImpl implements ContextMenuItemSpec {
     public ContextMenuItemSpec child(Consumer<ContextMenuItemSpec> configurator) {
         ContextMenuItemSpecImpl childBuilder = new ContextMenuItemSpecImpl(this.devStyle);
         configurator.accept(childBuilder);
-        if (childBuilder.separatorAbove) this.itemBuilder.addChild(MenuItem.SEPARATOR);
-        this.itemBuilder.addChild(childBuilder.itemBuilder.build());
-        if (childBuilder.separatorBelow) this.itemBuilder.addChild(MenuItem.SEPARATOR);
+        if (childBuilder.separatorAbove) itemBuilder.nextSection();
+        itemBuilder.child(childBuilder.itemBuilder.build());
+        if (childBuilder.separatorBelow) itemBuilder.nextSection();
         return this;
     }
 
@@ -87,23 +83,23 @@ public class ContextMenuItemSpecImpl implements ContextMenuItemSpec {
 
     @Override
     public ContextMenuItemSpec asToggle(BooleanSupplier value, BooleanConsumer onChange) {
-        this.itemBuilder
-                .icon(() -> GuiConstants.getToggleIcon(value.getAsBoolean()))
-                .action(() -> onChange.accept(!value.getAsBoolean()));
+        this.itemBuilder.icon(GuiUtils.toggleRect(value)).onPress(() -> onChange.accept(!value.getAsBoolean()));
         return this;
     }
 
     @Override
     public ContextMenuItemSpec applyDevStyle() {
-        this.itemBuilder.background(GuiConstants.DEVELOPER_MODE_ITEM_BACKGROUND);
+        GuiUtils.buildDevEntry(this.itemBuilder);
         return this;
     }
 
-    public ContextMenuItemBuilder apply(ContextMenuItemBuilder builder) {
-        return builder.when(this.separatorAbove)
-                .ifTrue(b -> b.add(MenuItem.SEPARATOR))
-                .add(this.itemBuilder.build())
-                .when(this.separatorBelow)
-                .ifTrue(b -> b.add(MenuItem.SEPARATOR));
+    public void apply(FZContextMenu.Collector collector) {
+        if (separatorAbove) {
+            collector.nextSection();
+        }
+        collector.addEntry(itemBuilder.build());
+        if (separatorBelow) {
+            collector.nextSection();
+        }
     }
 }

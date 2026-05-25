@@ -31,7 +31,7 @@ pluginManagement {
 
 rootProject.name = 'packed_packs'
 
-include(':fidgetz', ':fidgetz:common', ':fidgetz:fabric', ':fidgetz:neoforge')
+//include(':fidgetz', ':fidgetz:common', ':fidgetz:fabric', ':fidgetz:neoforge')
 
 include(':common', ':fabric', ':neoforge')
 project(':common').projectDir = file('mod/common')

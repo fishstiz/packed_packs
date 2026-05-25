@@ -3,7 +3,7 @@ package io.github.fishstiz.packed_packs.transform.mixin.gui;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import io.github.fishstiz.packed_packs.config.Config;
-import io.github.fishstiz.packed_packs.gui.metadata.PackSelectionScreenArgs;
+import io.github.fishstiz.packed_packs.gui.screens.PackSelectionScreenArgs;
 import io.github.fishstiz.packed_packs.gui.screens.PackedPacksScreen;
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionScreenAccessor;
 import net.minecraft.client.Minecraft;
@@ -30,7 +30,7 @@ public abstract class MinecraftMixin implements Executor {
             PackSelectionScreenArgs args = PackSelectionScreenArgs.extract(packScreen);
 
             if (Config.packs(args.packType()).isReplaceOriginal()) {
-                ((PackSelectionScreenAccessor) packScreen).invokeCloseWatcher();
+                ((PackSelectionScreenAccessor) packScreen).packed_packs$closeWatcher();
                 guiScreen = new PackedPacksScreen(this.screen, args);
             }
         }

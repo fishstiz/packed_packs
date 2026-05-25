@@ -4,7 +4,7 @@ import net.minecraft.client.gui.screens.Screen;
 import org.jspecify.annotations.Nullable;
 
 public interface ChildScreen {
-    void packed_packs$setPrevious(Screen previous);
+    void packed_packs$setPrevious(@Nullable Screen previous);
 
     @Nullable Screen packed_packs$getPrevious();
 
