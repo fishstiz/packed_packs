@@ -1,3 +1,5 @@
+import me.modmuss50.mpp.ReleaseType
+
 plugins {
     id 'multiloader-loader'
     id 'net.neoforged.moddev'
@@ -14,7 +16,7 @@ neoForge {
     }
 
     parchment {
-        minecraftVersion = parchment_minecraft
+        minecraftVersion = minecraft_version
         mappingsVersion = parchment_version
     }
 
@@ -55,41 +57,37 @@ configurations {
 }
 
 dependencies {
-    api jarJar("io.github.fishstiz.fidgetz:fidgetz-neoforge:$fidgetz_version")
-
-    api project(path: ":api:neoforge")
-    jarJar project(path: ":api:neoforge")
-
-    compileOnly "maven.modrinth:resourcify:$resourcify_version"
-    compileOnly "maven.modrinth:respackopts:$respackopts_version"
-    compileOnly "io.gitlab.jfronny.libjf:libjf-resource-pack-entry-widgets-forge:$libjf_resource_pack_entry_widgets_version"
-    compileOnly "maven.modrinth:polytone:$polytone_version"
+    api jarJar(project(path: ":api:neoforge"))
+    api libs.fidgetz.neoforge
+    jarJar(libs.fidgetz.neoforge)
+    compileOnly libs.resourcify
+    compileOnly libs.polytone
+    compileOnly libs.bundles.respackopts
 }
 
-
 publishMods {
-    dryRun = rootProject["publishOptions"]["dryRun"] as boolean
-    type = rootProject["publishOptions"]["type"]
-    changelog = rootProject["publishOptions"]["changelog"] as String
-
-    def publishOptions = publishOptions {
-        file = jar.archiveFile
-        additionalFiles.from(sourcesJar.archiveFile)
-        displayName = "NeoForge v${this.version}"
-        modLoaders.add("neoforge")
-    }
+    dryRun = Boolean.valueOf(dry_run)
+    type = ReleaseType.of(release_type)
+    changelog = rootProject.file("CHANGELOG.md").text
+    file = jar.archiveFile
+    additionalFiles.from(sourcesJar.archiveFile)
+    displayName = "NeoForge v${this.version}"
+    modLoaders.add("neoforge")
 
     github {
-        from rootProject["publishOptions"]["github"]
         parent rootProject.tasks.named("publishGithub")
     }
 
     modrinth {
-        from rootProject["publishOptions"]["modrinth"]
+        accessToken = findProperty("MODRINTH_TOKEN") ?: ""
+        minecraftVersions.addAll(modrinth_versions.split(','))
+        projectId = modrinth_id
     }
 
     curseforge {
-        from rootProject["publishOptions"]["curseforge"]
+        accessToken = findProperty("CURSEFORGE_TOKEN") ?: ""
+        projectId = curseforge_id
+        minecraftVersions.addAll(curseforge_versions.split(','))
+        client = true
     }
 }
-

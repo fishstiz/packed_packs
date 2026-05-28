@@ -42,6 +42,15 @@ repositories {
         )
         filter { includeGroup('org.parchmentmc.data') }
     }
+//    exclusiveContent {
+//        forRepository {
+//            maven {
+//                name = 'fishstiz'
+//                url = 'https://raw.githubusercontent.com/fishstiz/maven/m2'
+//            }
+//        }
+//        filter { includeGroup('io.github.fishstiz.fidgetz') }
+//    }
     mavenLocal()
 }
 
@@ -54,6 +63,18 @@ tasks.named("sourcesJar", Jar) {
 jar {
     from(rootProject.file('LICENSE')) {
         rename { "${it}_${mod_name}" }
+    }
+
+    manifest {
+        attributes([
+                'Specification-Title'   : mod_name,
+                'Specification-Vendor'  : mod_author,
+                'Specification-Version' : project.jar.archiveVersion,
+                'Implementation-Title'  : project.name,
+                'Implementation-Version': project.jar.archiveVersion,
+                'Implementation-Vendor' : mod_author,
+                'Built-On-Minecraft'    : minecraft_version
+        ])
     }
 }
 
@@ -93,6 +114,3 @@ processResources {
 
     inputs.properties(expandProps)
 }
-
-ext.commonJavaConfig = { String sourceSetName -> "common${sourceSetName.capitalize()}Java" }
-ext.commonResourcesConfig = { String sourceSetName -> "common${sourceSetName.capitalize()}Resources" }

@@ -1,11 +1,10 @@
 plugins {
     id 'multiloader-loader'
     id 'fabric-loom'
-    id 'publish-local'
 }
 
 loader {
-    commonPath = ':api:common'
+    commonPath = ':testmod:common'
 }
 
 dependencies {
@@ -17,12 +16,24 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:$fabric_loader_version"
     modImplementation "net.fabricmc.fabric-api:fabric-api:$fabric_api_version"
 
-    modCompileOnly libs.fidgetz.fabric
+    implementation project(path: ":fabric", configuration: "namedElements")
 }
 
 loom {
+    mods {
+        testmod {
+            sourceSet sourceSets.main
+        }
+    }
+
     runs {
-        remove client
         remove server
+
+        client {
+            client()
+            setConfigName('Fabric Client Test')
+            ideConfigGenerated(true)
+            runDir('run/testmod')
+        }
     }
 }

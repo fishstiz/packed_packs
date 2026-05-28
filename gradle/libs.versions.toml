@@ -1,0 +1,22 @@
+[versions]
+fidgetz = "0.5.0-beta.4+1.21.11-20260601-a"
+
+[libraries]
+mixin = { module = "org.spongepowered:mixin", version = "0.8.7" }
+mixin-extras = { module = "io.github.llamalad7:mixinextras-common", version = "0.5.0" }
+
+fidgetz-common = { module = "io.github.fishstiz.fidgetz:fidgetz-common", version.ref = "fidgetz" }
+fidgetz-fabric = { module = "io.github.fishstiz.fidgetz:fidgetz-fabric", version.ref = "fidgetz" }
+fidgetz-neoforge = { module = "io.github.fishstiz.fidgetz:fidgetz-neoforge", version.ref = "fidgetz" }
+
+modmenu = { module = "com.terraformersmc:modmenu", version = "17.0.0-alpha.1" }
+
+resourcify = { module = "maven.modrinth:resourcify", version = "mrfZqvOq" }
+polytone = { module = "maven.modrinth:polytone", version = "4TzQaJSC" }
+respackopts = { module = "maven.modrinth:respackopts", version = "4.13.9+forge" }
+libjf-resourcePackEntryWidgets = { module = "io.gitlab.jfronny.libjf:libjf-resource-pack-entry-widgets-forge", version = "3.17.0-SNAPSHOT" }
+
+[bundles]
+mixin = ["mixin", "mixin-extras"]
+
+respackopts = ["respackopts", "libjf-resourcePackEntryWidgets"]

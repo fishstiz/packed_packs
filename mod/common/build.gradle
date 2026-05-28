@@ -12,7 +12,7 @@ neoForge {
     }
 
     parchment {
-        minecraftVersion = parchment_minecraft
+        minecraftVersion = minecraft_version
         mappingsVersion = parchment_version
     }
 }
@@ -33,15 +33,13 @@ repositories {
 }
 
 dependencies {
-    compileOnlyApi "io.github.fishstiz.fidgetz:fidgetz-common:$fidgetz_version"
     compileOnlyApi project(path: ":api:common")
-    
-    compileOnly "org.spongepowered:mixin:$mixin_version"
-    compileOnly "io.github.llamalad7:mixinextras-common:$mixinextras_version"
-    annotationProcessor "io.github.llamalad7:mixinextras-common:$mixinextras_version"
+    compileOnlyApi libs.fidgetz.common
 
-    compileOnly "maven.modrinth:resourcify:$resourcify_version"
-    compileOnly "maven.modrinth:respackopts:$respackopts_version"
-    compileOnly "io.gitlab.jfronny.libjf:libjf-resource-pack-entry-widgets-forge:$libjf_resource_pack_entry_widgets_version"
-    compileOnly "maven.modrinth:polytone:$polytone_version"
+    compileOnly libs.bundles.mixin
+    annotationProcessor libs.mixin.extras
+
+    compileOnly libs.resourcify
+    compileOnly libs.polytone
+    compileOnly libs.bundles.respackopts
 }

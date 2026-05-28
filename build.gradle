@@ -1,56 +1,18 @@
+import me.modmuss50.mpp.ReleaseType
+
 plugins {
-    // https://fabricmc.net/develop/
     id 'fabric-loom' version "$loom_version" apply false
-    // https://projects.neoforged.net/neoforged/moddevgradle
     id 'net.neoforged.moddev' version "$moddev_version" apply false
-    // https://modmuss50.github.io/mod-publish-plugin/
-    id 'me.modmuss50.mod-publish-plugin' version "$mod_publish_version"
+    id 'me.modmuss50.mod-publish-plugin'
 }
 
 group = maven_group
 version = mod_version
 
-def basePublishOptions = [
-        dryRun   : false,
-        type     : publishMods.STABLE,
-        changelog: file('CHANGELOG.md').text
-]
-
-ext {
-    publishOptions = [
-            dryRun    : basePublishOptions.dryRun,
-            type      : basePublishOptions.type,
-            changelog : basePublishOptions.changelog,
-            github    : publishMods.githubOptions {
-                version = mod_version
-                type = basePublishOptions.type
-                changelog = basePublishOptions.changelog
-                accessToken = findProperty("GITHUB_TOKEN") ?: ""
-            },
-            modrinth  : publishMods.modrinthOptions {
-                version = mod_version
-                type = basePublishOptions.type
-                changelog = basePublishOptions.changelog
-                accessToken = findProperty("MODRINTH_TOKEN") ?: ""
-                projectId = "$modrinth_id"
-                minecraftVersions.add(minecraft_version)
-            },
-            curseforge: publishMods.curseforgeOptions {
-                version = mod_version
-                type = basePublishOptions.type
-                changelog = basePublishOptions.changelog
-                accessToken = findProperty("CURSEFORGE_TOKEN") ?: ""
-                projectId = "$curseforge_id"
-                minecraftVersions.add(minecraft_version)
-                clientRequired = true
-            }
-    ]
-}
-
 publishMods {
-    dryRun = basePublishOptions.dryRun
-    type = basePublishOptions.type
-    changelog = basePublishOptions.changelog
+    dryRun = Boolean.valueOf(dry_run)
+    type = ReleaseType.of(release_type)
+    changelog = file("CHANGELOG.md").text
 
     github {
         accessToken = findProperty("GITHUB_TOKEN") ?: ""
