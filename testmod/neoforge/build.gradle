@@ -1,11 +1,10 @@
 plugins {
     id 'multiloader-loader'
     id 'net.neoforged.moddev'
-    id 'publish-local'
 }
 
 loader {
-    commonPath = ':api:common'
+    commonPath = ':testmod:common'
 }
 
 neoForge {
@@ -17,12 +16,20 @@ neoForge {
     }
 
     mods {
-        "${mod_id}" {
+        testmod {
             sourceSet sourceSets.main
+        }
+    }
+
+    runs {
+        testmodClient {
+            type = "client"
+            gameDirectory = project.file('run/testmod')
+            ideName = "NeoForge Client Test ($project.path)"
         }
     }
 }
 
 dependencies {
-    compileOnly libs.fidgetz.neoforge
+    implementation project(":neoforge")
 }

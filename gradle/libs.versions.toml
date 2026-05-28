@@ -1,0 +1,27 @@
+[versions]
+fidgetz = "0.5.0-beta.1+1.21.1-20260601-a"
+minecraftCursor = "3.11.1-dev.1+1.21.1"
+
+[libraries]
+mixin = { module = "org.spongepowered:mixin", version = "0.8.7" }
+mixin-extras = { module = "io.github.llamalad7:mixinextras-common", version = "0.4.1" }
+
+fidgetz-common = { module = "io.github.fishstiz.fidgetz:fidgetz-common", version.ref = "fidgetz" }
+fidgetz-fabric = { module = "io.github.fishstiz.fidgetz:fidgetz-fabric", version.ref = "fidgetz" }
+fidgetz-neoforge = { module = "io.github.fishstiz.fidgetz:fidgetz-neoforge", version.ref = "fidgetz" }
+
+minecraftCursor-common-api = { module = "io.github.fishstiz:minecraft-cursor-common-api", version.ref = "minecraftCursor" }
+minecraftCursor-fabric = { module = "io.github.fishstiz:minecraft-cursor-fabric", version.ref = "minecraftCursor" }
+minecraftCursor-fabric-api = { module = "io.github.fishstiz:minecraft-cursor-fabric-api", version.ref = "minecraftCursor" }
+minecraftCursor-neoforge = { module = "io.github.fishstiz:minecraft-cursor-neoforge", version.ref = "minecraftCursor" }
+
+modmenu = { module = "com.terraformersmc:modmenu", version = "11.0.3" }
+
+resourcify = { module = "maven.modrinth:resourcify", version = "1.7.5" }
+respackopts = { module = "maven.modrinth:respackopts", version = "4.11.3+forge" }
+libjf-resourcePackEntryWidgets = { module = "io.gitlab.jfronny.libjf:libjf-resource-pack-entry-widgets-forge", version = "3.17.0-SNAPSHOT" }
+
+[bundles]
+mixin = ["mixin", "mixin-extras"]
+
+respackopts = ["respackopts", "libjf-resourcePackEntryWidgets"]

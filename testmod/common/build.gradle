@@ -1,7 +1,6 @@
 plugins {
     id 'multiloader-common-provider'
     id 'net.neoforged.moddev'
-    id 'publish-local'
 }
 
 neoForge {
@@ -14,8 +13,8 @@ neoForge {
 }
 
 dependencies {
-    compileOnly libs.fidgetz.common
-
     compileOnly libs.bundles.mixin
     annotationProcessor libs.mixin.extras
+
+    compileOnly project(":common")
 }

@@ -1,3 +1,5 @@
+import me.modmuss50.mpp.ReleaseType
+
 plugins {
     id 'multiloader-loader'
     id 'fabric-loom'
@@ -37,7 +39,18 @@ repositories {
         name = "Terraformers"
         url = "https://maven.terraformersmc.com/"
     }
-    maven { url = "https://raw.githubusercontent.com/fishstiz/maven/m2" }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "fishstiz"
+                url = "https://raw.githubusercontent.com/fishstiz/maven/m2"
+            }
+        }
+        filter {
+            includeModule ("io.github.fishstiz", "minecraft-cursor-fabric")
+            includeModule ("io.github.fishstiz", "minecraft-cursor-fabric-api")
+        }
+    }
     exclusiveContent {
         forRepository {
             maven {
@@ -53,54 +66,56 @@ repositories {
 }
 
 dependencies {
-    modApi include("io.github.fishstiz.fidgetz:fidgetz-fabric:$fidgetz_version")
-
     api project(path: ":api:fabric", configuration: "namedElements")
     include(project(path: ":api:fabric"))
+
+    modApi libs.fidgetz.fabric
+    include(libs.fidgetz.fabric)
 
     minecraft "com.mojang:minecraft:$minecraft_version"
     mappings loom.layered {
         officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-$parchment_minecraft:$parchment_version@zip")
+        parchment("org.parchmentmc.data:parchment-$minecraft_version:$parchment_version@zip")
     }
 
     modImplementation "net.fabricmc:fabric-loader:$fabric_loader_version"
     modImplementation "net.fabricmc.fabric-api:fabric-api:$fabric_api_version"
 
-    compileOnly "io.github.fishstiz:minecraft-cursor-common-api:$minecraft_cursor_version"
-    modLocalRuntime "io.github.fishstiz:minecraft-cursor-fabric:$minecraft_cursor_version"
-    modCompileOnly "com.terraformersmc:modmenu:$modmenu_version"
-    modLocalRuntime "com.terraformersmc:modmenu:$modmenu_version"
+    modCompileOnly libs.modmenu
+    modLocalRuntime libs.modmenu
 
-    compileOnly "maven.modrinth:resourcify:$resourcify_version"
-    compileOnly "maven.modrinth:respackopts:$respackopts_version"
-    compileOnly "io.gitlab.jfronny.libjf:libjf-resource-pack-entry-widgets-forge:$libjf_resource_pack_entry_widgets_version"
+    modCompileOnly libs.minecraftCursor.fabric.api
+    modLocalRuntime libs.minecraftCursor.fabric
+
+    modCompileOnly libs.resourcify
+    modCompileOnly libs.bundles.respackopts
 }
 
 publishMods {
-    dryRun = rootProject["publishOptions"]["dryRun"] as boolean
-    type = rootProject["publishOptions"]["type"]
-    changelog = rootProject["publishOptions"]["changelog"] as String
-
-    def publishOptions = publishOptions {
-        file = remapJar.archiveFile
-        additionalFiles.from(remapSourcesJar.archiveFile)
-        displayName = "Fabric v${this.version}"
-        modLoaders.add("fabric")
-    }
+    dryRun = Boolean.valueOf(dry_run)
+    type = ReleaseType.of(release_type)
+    changelog = rootProject.file("CHANGELOG.md").text
+    displayName = "Fabric v${this.version}"
+    file = jar.archiveFile
+    additionalFiles.from(sourcesJar.archiveFile)
+    modLoaders.add("fabric")
 
     github {
-        from rootProject["publishOptions"]["github"]
         parent rootProject.tasks.named("publishGithub")
     }
 
     modrinth {
-        from rootProject["publishOptions"]["modrinth"]
+        accessToken = findProperty("MODRINTH_TOKEN") ?: ""
+        projectId = modrinth_id
+        minecraftVersions.addAll(modrinth_versions.split(','))
         requires("fabric-api")
     }
 
     curseforge {
-        from rootProject["publishOptions"]["curseforge"]
+        accessToken = findProperty("CURSEFORGE_TOKEN") ?: ""
+        projectId = curseforge_id
+        minecraftVersions.addAll(curseforge_versions.split(','))
+        client = true
         requires("fabric-api")
     }
 }

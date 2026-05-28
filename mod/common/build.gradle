@@ -3,17 +3,6 @@ plugins {
     id 'net.neoforged.moddev'
 }
 
-sourceSets {
-    testmod {
-        compileClasspath += main.compileClasspath
-        runtimeClasspath += main.runtimeClasspath
-    }
-}
-
-commonProvider {
-    sources = [sourceSets.main, sourceSets.testmod]
-}
-
 neoForge {
     neoFormVersion = neo_form_version
 
@@ -23,13 +12,23 @@ neoForge {
     }
 
     parchment {
-        minecraftVersion = parchment_minecraft
+        minecraftVersion = minecraft_version
         mappingsVersion = parchment_version
     }
 }
 
 repositories {
-    maven { url = "https://raw.githubusercontent.com/fishstiz/maven/m2" }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "fishstiz"
+                url = "https://raw.githubusercontent.com/fishstiz/maven/m2"
+            }
+        }
+        filter {
+            includeModule ("io.github.fishstiz", "minecraft-cursor-common-api")
+        }
+    }
     maven { url = "https://maven.frohnmeyer-wds.de/artifacts" }
     exclusiveContent {
         forRepository {
@@ -45,17 +44,13 @@ repositories {
 }
 
 dependencies {
-    compileOnlyApi "io.github.fishstiz.fidgetz:fidgetz-common:$fidgetz_version"
     compileOnlyApi project(path: ":api:common")
-    
-    testmodCompileOnly project(":api:common")
+    compileOnlyApi libs.fidgetz.common
 
-    compileOnly "org.spongepowered:mixin:$mixin_version"
-    compileOnly "io.github.llamalad7:mixinextras-common:$mixinextras_version"
-    annotationProcessor "io.github.llamalad7:mixinextras-common:$mixinextras_version"
+    compileOnly libs.bundles.mixin
+    annotationProcessor libs.mixin.extras
 
-    compileOnly "io.github.fishstiz:minecraft-cursor-common-api:$minecraft_cursor_version"
-    compileOnly "maven.modrinth:resourcify:$resourcify_version"
-    compileOnly "maven.modrinth:respackopts:$respackopts_version"
-    compileOnly "io.gitlab.jfronny.libjf:libjf-resource-pack-entry-widgets-forge:$libjf_resource_pack_entry_widgets_version"
+    compileOnly libs.minecraftCursor.common.api
+    compileOnly libs.resourcify
+    compileOnly libs.bundles.respackopts
 }
