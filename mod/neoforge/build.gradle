@@ -1,19 +1,10 @@
+import me.modmuss50.mpp.ReleaseType
+
 plugins {
     id 'multiloader-loader'
     id 'net.neoforged.moddev'
     id 'me.modmuss50.mod-publish-plugin'
     id 'publish-local'
-}
-
-sourceSets {
-    testmod {
-        compileClasspath += main.compileClasspath
-        runtimeClasspath += main.runtimeClasspath
-    }
-}
-
-loader {
-    sources = [sourceSets.main, sourceSets.testmod]
 }
 
 neoForge {
@@ -28,9 +19,6 @@ neoForge {
         "${mod_id}" {
             sourceSet sourceSets.main
         }
-        testmod {
-            sourceSet sourceSets.testmod
-        }
     }
 
     runs {
@@ -40,12 +28,6 @@ neoForge {
             ideName = "NeoForge Client ($project.path)"
             sourceSet = sourceSets.main
             loadedMods = [mods."$mod_id"]
-        }
-        testmodClient {
-            type = "client"
-            gameDirectory = project.file('run/testmod')
-            ideName = "NeoForge Client Test ($project.path)"
-            sourceSet = sourceSets.testmod
         }
     }
 }
@@ -70,41 +52,37 @@ configurations {
 }
 
 dependencies {
-    api jarJar("io.github.fishstiz.fidgetz:fidgetz-neoforge:$fidgetz_version")
-
-    api project(path: ":api:neoforge")
-    jarJar project(path: ":api:neoforge")
-
-    compileOnly "maven.modrinth:resourcify:$resourcify_version"
-    compileOnly "maven.modrinth:respackopts:$respackopts_version"
-    compileOnly "dev.jfronny.libjf:libjf-resource-pack-entry-widgets-v0:$libjf_resource_pack_entry_widgets_version"
-    compileOnly "maven.modrinth:polytone:$polytone_version"
+    api jarJar(project(path: ":api:neoforge"))
+    api libs.fidgetz.neoforge
+    jarJar(libs.fidgetz.neoforge)
+    compileOnly libs.resourcify
+    compileOnly libs.polytone
+    compileOnly libs.bundles.respackopts
 }
 
-
 publishMods {
-    dryRun = rootProject["publishOptions"]["dryRun"] as boolean
-    type = rootProject["publishOptions"]["type"]
-    changelog = rootProject["publishOptions"]["changelog"] as String
-
-    def publishOptions = publishOptions {
-        file = jar.archiveFile
-        additionalFiles.from(sourcesJar.archiveFile)
-        displayName = "NeoForge v${this.version}"
-        modLoaders.add("neoforge")
-    }
+    dryRun = Boolean.valueOf(dry_run)
+    type = ReleaseType.of(release_type)
+    changelog = rootProject.file("CHANGELOG.md").text
+    file = jar.archiveFile
+    additionalFiles.from(sourcesJar.archiveFile)
+    displayName = "NeoForge v${this.version}"
+    modLoaders.add("neoforge")
 
     github {
-        from rootProject["publishOptions"]["github"]
         parent rootProject.tasks.named("publishGithub")
     }
 
     modrinth {
-        from rootProject["publishOptions"]["modrinth"]
+        accessToken = findProperty("MODRINTH_TOKEN") ?: ""
+        minecraftVersions.addAll(modrinth_versions.split(','))
+        projectId = modrinth_id
     }
 
     curseforge {
-        from rootProject["publishOptions"]["curseforge"]
+        accessToken = findProperty("CURSEFORGE_TOKEN") ?: ""
+        projectId = curseforge_id
+        minecraftVersions.addAll(curseforge_versions.split(','))
+        client = true
     }
 }
-

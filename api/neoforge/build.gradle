@@ -5,16 +5,11 @@ plugins {
 }
 
 loader {
-    common = ':api:common'
+    commonPath = ':api:common'
 }
 
 neoForge {
     version = neoforge_version
-
-    def at = project(loader.common).file('src/main/resources/META-INF/accesstransformer.cfg')
-    if (at.exists()) {
-        accessTransformers.from(at.absolutePath)
-    }
 
     mods {
         "${mod_id}" {
@@ -24,5 +19,5 @@ neoForge {
 }
 
 dependencies {
-    compileOnly "io.github.fishstiz.fidgetz:fidgetz-neoforge:$fidgetz_version"
+    compileOnly libs.fidgetz.neoforge
 }

@@ -1,19 +1,10 @@
+import me.modmuss50.mpp.ReleaseType
+
 plugins {
     id 'multiloader-loader'
     id 'net.fabricmc.fabric-loom'
     id 'me.modmuss50.mod-publish-plugin'
     id 'publish-local'
-}
-
-sourceSets {
-    testmod {
-        compileClasspath += main.compileClasspath
-        runtimeClasspath += main.runtimeClasspath
-    }
-}
-
-loader {
-    sources = [sourceSets.main, sourceSets.testmod]
 }
 
 loom {
@@ -26,9 +17,6 @@ loom {
         "${mod_id}" {
             sourceSet sourceSets.main
         }
-        testmod {
-            sourceSet sourceSets.testmod
-        }
     }
 
     runs {
@@ -38,13 +26,6 @@ loom {
             ideConfigGenerated(true)
             runDir('run/client')
             source sourceSets.main
-        }
-        testmodClient {
-            client()
-            setConfigName('Fabric Client Test')
-            ideConfigGenerated(true)
-            runDir('run/testmod')
-            source sourceSets.testmod
         }
     }
 }
@@ -69,50 +50,47 @@ repositories {
 }
 
 dependencies {
-    api include("io.github.fishstiz.fidgetz:fidgetz-fabric:$fidgetz_version")
-
-    api project(path: ":api:fabric")
-    include(project(path: ":api:fabric"))
+    api include(project(path: ":api:fabric"))
+    api libs.fidgetz.fabric
+    include(libs.fidgetz.fabric)
 
     minecraft "com.mojang:minecraft:$minecraft_version"
-
     implementation "net.fabricmc:fabric-loader:$fabric_loader_version"
     implementation "net.fabricmc.fabric-api:fabric-api:$fabric_api_version"
 
-    // Mod Compatibility
-    compileOnly "com.terraformersmc:modmenu:$modmenu_version"
-    localRuntime "com.terraformersmc:modmenu:$modmenu_version"
+    compileOnly libs.modmenu
+    localRuntime libs.modmenu
 
-    compileOnly "maven.modrinth:resourcify:$resourcify_version"
-    compileOnly "maven.modrinth:respackopts:$respackopts_version"
-    compileOnly "dev.jfronny.libjf:libjf-resource-pack-entry-widgets-v0:$libjf_resource_pack_entry_widgets_version"
-    compileOnly "maven.modrinth:polytone:$polytone_version"
+    compileOnly libs.resourcify
+    compileOnly libs.polytone
+    compileOnly libs.bundles.respackopts
 }
 
 publishMods {
-    dryRun = rootProject["publishOptions"]["dryRun"] as boolean
-    type = rootProject["publishOptions"]["type"]
-    changelog = rootProject["publishOptions"]["changelog"] as String
-
-    def publishOptions = publishOptions {
-        file = jar.archiveFile
-        additionalFiles.from(sourcesJar.archiveFile)
-        displayName = "Fabric v${this.version}"
-        modLoaders.add("fabric")
-    }
+    dryRun = Boolean.valueOf(dry_run)
+    type = ReleaseType.of(release_type)
+    changelog = rootProject.file("CHANGELOG.md").text
+    displayName = "Fabric v${this.version}"
+    file = jar.archiveFile
+    additionalFiles.from(sourcesJar.archiveFile)
+    modLoaders.add("fabric")
 
     github {
-        from rootProject["publishOptions"]["github"]
         parent rootProject.tasks.named("publishGithub")
     }
 
     modrinth {
-        from rootProject["publishOptions"]["modrinth"]
+        accessToken = findProperty("MODRINTH_TOKEN") ?: ""
+        projectId = modrinth_id
+        minecraftVersions.addAll(modrinth_versions.split(','))
         requires("fabric-api")
     }
 
     curseforge {
-        from rootProject["publishOptions"]["curseforge"]
+        accessToken = findProperty("CURSEFORGE_TOKEN") ?: ""
+        projectId = curseforge_id
+        minecraftVersions.addAll(curseforge_versions.split(','))
+        client = true
         requires("fabric-api")
     }
 }

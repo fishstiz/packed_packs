@@ -3,17 +3,6 @@ plugins {
     id 'net.neoforged.moddev'
 }
 
-sourceSets {
-    testmod {
-        compileClasspath += main.compileClasspath
-        runtimeClasspath += main.runtimeClasspath
-    }
-}
-
-commonProvider {
-    sources = [sourceSets.main, sourceSets.testmod]
-}
-
 neoForge {
     neoFormVersion = neo_form_version
 
@@ -39,17 +28,13 @@ repositories {
 }
 
 dependencies {
-    compileOnlyApi "io.github.fishstiz.fidgetz:fidgetz-common:$fidgetz_version"
     compileOnlyApi project(path: ":api:common")
-    
-    testmodCompileOnly project(":api:common")
+    compileOnlyApi libs.fidgetz.common
 
-    compileOnly "org.spongepowered:mixin:$mixin_version"
-    compileOnly "io.github.llamalad7:mixinextras-common:$mixinextras_version"
-    annotationProcessor "io.github.llamalad7:mixinextras-common:$mixinextras_version"
+    compileOnly libs.bundles.mixin
+    annotationProcessor libs.mixin.extras
 
-    compileOnly "maven.modrinth:resourcify:$resourcify_version"
-    compileOnly "maven.modrinth:respackopts:$respackopts_version"
-    compileOnly "dev.jfronny.libjf:libjf-resource-pack-entry-widgets-v0:$libjf_resource_pack_entry_widgets_version"
-    compileOnly "maven.modrinth:polytone:$polytone_version"
+    compileOnly libs.resourcify
+    compileOnly libs.polytone
+    compileOnly libs.bundles.respackopts
 }

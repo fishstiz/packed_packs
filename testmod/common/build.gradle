@@ -1,21 +1,15 @@
 plugins {
     id 'multiloader-common-provider'
     id 'net.neoforged.moddev'
-    id 'publish-local'
 }
 
 neoForge {
     neoFormVersion = neo_form_version
-
-    def at = file('src/main/resources/META-INF/accesstransformer.cfg')
-    if (at.exists()) {
-        accessTransformers.from(at.absolutePath)
-    }
 }
 
 dependencies {
-    compileOnly libs.fidgetz.common
-
     compileOnly libs.bundles.mixin
     annotationProcessor libs.mixin.extras
+
+    compileOnly project(":common")
 }

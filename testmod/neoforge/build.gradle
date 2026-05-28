@@ -1,0 +1,30 @@
+plugins {
+    id 'multiloader-loader'
+    id 'net.neoforged.moddev'
+}
+
+loader {
+    commonPath = ':testmod:common'
+}
+
+neoForge {
+    version = neoforge_version
+
+    mods {
+        testmod {
+            sourceSet sourceSets.main
+        }
+    }
+
+    runs {
+        testmodClient {
+            type = "client"
+            gameDirectory = project.file('run/testmod')
+            ideName = "NeoForge Client Test ($project.path)"
+        }
+    }
+}
+
+dependencies {
+    implementation project(":neoforge")
+}

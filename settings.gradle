@@ -40,6 +40,8 @@ project(':neoforge').projectDir = file('mod/neoforge')
 
 include('api', 'api:common', 'api:fabric', 'api:neoforge')
 
+include('testmod:common', 'testmod:fabric', 'testmod:neoforge')
+
 // https://github.com/gradle/gradle/issues/24680 workaround
 gradle.beforeProject { project ->
     if (project.parent != null && project.parent != rootProject) {

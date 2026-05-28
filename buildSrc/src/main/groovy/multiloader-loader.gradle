@@ -1,87 +1,62 @@
-import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
-
 plugins {
     id 'multiloader-common'
 }
 
 class LoaderExtension {
-    String common = ':common'
-    SourceSet[] sources
+    final Property<String> commonPath
 
-    LoaderExtension(SourceSet source) {
-        this.sources = new SourceSet[]{source}
+    LoaderExtension(ObjectFactory objects) {
+        Property<String> prop = objects.property(String) as Property<String>
+        prop.convention(":common")
+        commonPath = prop
     }
 }
 
-def loaderExtension = extensions.create('loader', LoaderExtension, sourceSets.main)
+def loaderExtension = extensions.create('loader', LoaderExtension)
 
-def configureSourceSet(String sourceSetName, String commonPath) {
-    def isMain = sourceSetName == 'main'
-    def suffix = isMain ? '' : sourceSetName.capitalize()
-    def javaConfig = commonJavaConfig(sourceSetName) as String
-    def resourcesConfig = commonResourcesConfig(sourceSetName) as String
-
-    configurations.create(javaConfig) { canBeResolved = true }
-    configurations.create(resourcesConfig) { canBeResolved = true }
-
-    dependencies {
-        if (isMain) {
-            compileOnly project(path: commonPath)
-        } else {
-            def commonSourceSet = project(commonPath).sourceSets.findByName(sourceSetName);
-            if (commonSourceSet) {
-                "${sourceSetName}CompileOnly" commonSourceSet.output
-            }
-        }
-
-        add(javaConfig, project(path: commonPath, configuration: javaConfig))
-        add(resourcesConfig, project(path: commonPath, configuration: resourcesConfig))
+configurations {
+    commonJava {
+        canBeResolved = true
     }
-
-    tasks.named("compile${suffix}Java", JavaCompile) {
-        dependsOn(configurations.named(javaConfig))
-        source(configurations.named(javaConfig))
-    }
-
-    tasks.named("process${suffix}Resources") {
-        dependsOn(configurations.named(resourcesConfig))
-        from(configurations.named(resourcesConfig))
-    }
-
-    tasks.named('sourcesJar', Jar) {
-        dependsOn(configurations.named(javaConfig))
-        from(configurations.named(javaConfig))
-        dependsOn(configurations.named(resourcesConfig))
-        from(configurations.named(resourcesConfig))
+    commonResources {
+        canBeResolved = true
     }
 }
 
-afterEvaluate {
-    def common = loaderExtension.common
+configurations {
+    commonJava { canBeResolved = true }
+    commonResources { canBeResolved = true }
+}
 
-    if (!common) {
-        throw new GradleException("loader.common not configured for loader ${project.path}")
-    }
+configurations.compileOnly.dependencies.addLater(
+        loaderExtension.commonPath.map { path -> dependencies.project(path: path) }
+)
 
-    loaderExtension.sources.each { sourceSet ->
-        configureSourceSet(sourceSet.getName(), common)
-    }
-
-    processResources {
-        doLast {
-            def fabric = 'fabric'
-            def forge = 'forge'
-            def neoForge = 'neoforge'
-            def modId = project.findProperty("mod_id")
-
-            if (project.name == neoForge || project.name == forge) {
-                delete "$project.sourceSets.main.output.resourcesDir/${modId}.accesswidener"
-                delete "$project.sourceSets.main.output.resourcesDir/${modId}.classtweaker"
-            }
-            if (project.name == fabric) {
-                delete "$project.sourceSets.main.output.resourcesDir/META-INF/accesstransformer.cfg"
-            }
+configurations.commonJava.dependencies.addLater(
+        loaderExtension.commonPath.map { path ->
+            dependencies.project(path: path, configuration: 'commonJava')
         }
-    }
+)
+
+configurations.commonResources.dependencies.addLater(
+        loaderExtension.commonPath.map { path ->
+            dependencies.project(path: path, configuration: 'commonResources')
+        }
+)
+
+tasks.named('compileJava', JavaCompile) {
+    dependsOn(configurations.commonJava)
+    source(configurations.commonJava)
+}
+
+processResources {
+    dependsOn(configurations.commonResources)
+    from(configurations.commonResources)
+}
+
+tasks.named('sourcesJar', Jar) {
+    dependsOn(configurations.commonJava)
+    from(configurations.commonJava)
+    dependsOn(configurations.commonResources)
+    from(configurations.commonResources)
 }
