@@ -42,16 +42,15 @@ repositories {
         )
         filter { includeGroup('org.parchmentmc.data') }
     }
-//    exclusiveContent {
-//        forRepository {
-//            maven {
-//                name = 'fishstiz'
-//                url = 'https://raw.githubusercontent.com/fishstiz/maven/m2'
-//            }
-//        }
-//        filter { includeGroup('io.github.fishstiz.fidgetz') }
-//    }
-    mavenLocal()
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'fishstiz'
+                url = 'https://raw.githubusercontent.com/fishstiz/maven/m2'
+            }
+        }
+        filter { includeGroup('io.github.fishstiz.fidgetz') }
+    }
 }
 
 tasks.named("sourcesJar", Jar) {
