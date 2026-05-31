@@ -100,7 +100,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         repositionEntries();
     }
 
-    protected static final class Entry extends FZAbstractListWidget.Entry implements FZContextMenuEntry.Source {
+    protected static final class Entry extends FZAbstractListWidget.Entry implements FZContextMenu.Source {
         private static final Identifier STAR_OUTLINE_SPRITE = PackedPacks.id("icon/star_outline");
         private static final WidgetSprites LOCK_SPRITES = new WidgetSprites(
                 LOCK_SPRITE,
@@ -181,7 +181,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         }
 
         @Override
-        public void fidgetz$updateContextEntries(double x, double y, FZContextMenuEntry.Collector collector) {
+        public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
             if (!Config.get().isDevMode()) return;
 
             collector.nextSection();

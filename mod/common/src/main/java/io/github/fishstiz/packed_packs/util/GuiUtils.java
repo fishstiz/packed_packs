@@ -1,6 +1,6 @@
 package io.github.fishstiz.packed_packs.util;
 
-import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenuEntry;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZPopoverMenuItem;
 import io.github.fishstiz.fidgetz.v0.gui.components.WidgetElements;
 import io.github.fishstiz.fidgetz.v0.gui.components.WidgetRenderables;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
@@ -52,7 +52,7 @@ public final class GuiUtils {
         return toggled ? RADIO_ON_SPRITE : RADIO_OFF_SPRITE;
     }
 
-    public static FZContextMenuEntry.Builder buildDevEntry(FZContextMenuEntry.Builder builder) {
+    public static FZPopoverMenuItem.Builder buildDevEntry(FZPopoverMenuItem.Builder builder) {
         return builder.background(DEV_MODE_ENTRY_BACKGROUND);
     }
 

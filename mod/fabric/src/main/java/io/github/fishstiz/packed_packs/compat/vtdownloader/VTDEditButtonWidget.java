@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.compat.vtdownloader;
 
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
-import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenuEntry;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenu;
 import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.compat.ModIntegration;
 import io.github.fishstiz.packed_packs.config.Config;
@@ -29,7 +29,7 @@ import java.util.function.BooleanSupplier;
  *
  * @see <a href="https://github.com/IotaBread/VTDownloader/blob/1.21/src/main/java/me/bymartrixx/vtd/mixin/PackEntryListWidgetMixin.java">Github</a>
  */
-public class VTDEditButtonWidget extends AbstractButton implements FZContextMenuEntry.Source {
+public class VTDEditButtonWidget extends AbstractButton implements FZContextMenu.Source {
     private static final String VT_DESCRIPTION_MARKER = "vanillatweaks.net";
     private static final Identifier PENCIL_TEXTURE = Identifier.fromNamespaceAndPath("vt_downloader", "textures/pencil.png");
     private static final int PENCIL_TEXTURE_SIZE = 32;
@@ -98,7 +98,7 @@ public class VTDEditButtonWidget extends AbstractButton implements FZContextMenu
     }
 
     @Override
-    public void fidgetz$updateContextEntries(double x, double y, FZContextMenuEntry.Collector collector) {
+    public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
         collector.addEntry(PreferenceHelper.createEntry(preference, ModIntegration.getWidgetPrefText(preference)));
     }
 }

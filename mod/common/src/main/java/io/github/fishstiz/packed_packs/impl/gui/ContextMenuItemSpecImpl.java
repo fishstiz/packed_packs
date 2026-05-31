@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs.impl.gui;
 
-import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenuEntry;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenu;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZPopoverMenuItem;
 import io.github.fishstiz.packed_packs.api.gui.ContextMenuItemSpec;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
 import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
@@ -13,7 +14,7 @@ import java.util.function.Consumer;
 
 public class ContextMenuItemSpecImpl implements ContextMenuItemSpec {
     private final boolean devStyle;
-    private final FZContextMenuEntry.Builder itemBuilder = FZContextMenuEntry.builder();
+    private final FZPopoverMenuItem.Builder itemBuilder = FZPopoverMenuItem.builder();
     private boolean separatorBelow;
     private boolean separatorAbove;
 
@@ -92,7 +93,7 @@ public class ContextMenuItemSpecImpl implements ContextMenuItemSpec {
         return this;
     }
 
-    public void apply(FZContextMenuEntry.Collector collector) {
+    public void apply(FZContextMenu.Collector collector) {
         if (separatorAbove) {
             collector.nextSection();
         }

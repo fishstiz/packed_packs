@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs.gui.components;
 
-import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenuEntry;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenu;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZPopoverMenuItem;
 import io.github.fishstiz.fidgetz.v0.gui.components.WrappedComponent;
 import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.config.Config;
@@ -14,7 +15,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
 
-public class PreferenceHelper extends WrappedComponent implements FZContextMenuEntry.Source {
+public class PreferenceHelper extends WrappedComponent implements FZContextMenu.Source {
     private static final int ENABLED_COLOR = Colors.alpha(Colors.GREEN_500, 0.5f);
     private static final int DISABLED_COLOR = Colors.alpha(Colors.RED_700, 0.5f);
     private static final int ENABLED_BORDER = Colors.GREEN_500;
@@ -62,8 +63,8 @@ public class PreferenceHelper extends WrappedComponent implements FZContextMenuE
         return preference.get() ? widget : null;
     }
 
-    public static FZContextMenuEntry createEntry(Preference<Boolean> preference, Component label) {
-        return GuiUtils.buildDevEntry(FZContextMenuEntry.builder())
+    public static FZPopoverMenuItem createEntry(Preference<Boolean> preference, Component label) {
+        return GuiUtils.buildDevEntry(FZPopoverMenuItem.builder())
                 .message(label)
                 .icon(GuiUtils.toggleRect(preference::get))
                 .onPress(() -> preference.set(!preference.get()))
@@ -71,7 +72,7 @@ public class PreferenceHelper extends WrappedComponent implements FZContextMenuE
                 .build();
     }
 
-    public static FZContextMenuEntry createEntry(Preferences.Option<Boolean> preference) {
+    public static FZPopoverMenuItem createEntry(Preferences.Option<Boolean> preference) {
         return createEntry(preference, getOptionLabel(preference));
     }
 
@@ -92,8 +93,8 @@ public class PreferenceHelper extends WrappedComponent implements FZContextMenuE
     }
 
     @Override
-    public void fidgetz$updateContextEntries(double x, double y, FZContextMenuEntry.Collector collector) {
-        FZContextMenuEntry.Source.super.fidgetz$updateContextEntries(x, y, collector);
+    public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
+        FZContextMenu.Source.super.fidgetz$updateContextEntries(x, y, collector);
         if (widget.isActive()) {
             collector.addEntry(createEntry(preference, label));
         }

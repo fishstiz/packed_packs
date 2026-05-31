@@ -1,6 +1,6 @@
 package io.github.fishstiz.packed_packs.impl.events;
 
-import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenuEntry;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZPopoverMenuItem;
 import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.api.context.PackContext;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
@@ -14,7 +14,7 @@ import java.util.*;
 import java.util.function.Consumer;
 
 public final class ContextMenuEventImpl<P extends Enum<P>> extends ContextMenuEvent.Positioned<P> {
-    private final Map<P, List<FZContextMenuEntry>> menuBuilders;
+    private final Map<P, List<FZPopoverMenuItem>> menuBuilders;
     private final boolean preferenceEvent;
     private Set<Preference<?>> preferences = Collections.emptySet();
 
@@ -54,7 +54,7 @@ public final class ContextMenuEventImpl<P extends Enum<P>> extends ContextMenuEv
         itemSpec.apply(menuBuilders.computeIfAbsent(pos, _ -> new ArrayList<>())::add);
     }
 
-    public List<FZContextMenuEntry> entries(P pos) {
+    public List<FZPopoverMenuItem> entries(P pos) {
         return menuBuilders.getOrDefault(pos, Collections.emptyList());
     }
 

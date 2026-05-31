@@ -396,7 +396,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
     }
 
-    public class Entry extends FZAbstractListWidget.Entry implements SelectableEntry, ContainerEventHandlerPatch, FZContextMenuEntry.Source, ElementSink {
+    public class Entry extends FZAbstractListWidget.Entry implements SelectableEntry, ContainerEventHandlerPatch, FZContextMenu.Source, ElementSink {
         private static final int ICON_SIZE = 32;
         private static final Tooltip FOLDER_OPEN_INFO = Tooltip.create(FolderPack.FOLDER_OPEN_TEXT);
         private static final RenderableRectangle SELECTED_OVERLAY = Renderables.fill(Colors.alpha(Colors.BLUE_500, 0.25f));
@@ -667,7 +667,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
 
         @Override
-        public void fidgetz$updateContextEntries(double x, double y, FZContextMenuEntry.Collector collector) {
+        public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
             if (!this.initialized) return;
 
             ContextMenuEventImpl<ContextMenuEvent.PackEntry.Pos> extensions = ContextMenuEventImpl.postPackEntry(
@@ -724,7 +724,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
             extensions.entries(ContextMenuEvent.PackEntry.Pos.AFTER_PACK).forEach(collector::addEntry);
 
-            FZContextMenuEntry.Source.super.fidgetz$updateContextEntries(x, y, collector);
+            FZContextMenu.Source.super.fidgetz$updateContextEntries(x, y, collector);
         }
 
         @Override

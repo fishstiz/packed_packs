@@ -430,7 +430,7 @@ public class PackedPacksScreen extends FZScreen {
                     .id(GLOBAL_CONTEXT_MENU_ID)
                     .maxHeight((int) Math.max((height * .8), 240))
                     .popoverOrder(1)
-                    .sectionDivider(FZContextMenuEntry.createDivider(PackedPacks.id("widget/contextmenu_section_divider"), 1))
+                    .sectionDivider(FZPopoverMenuItem.createDivider(PackedPacks.id("widget/contextmenu_section_divider"), 1))
                     .noEntryDivider()
                     .rowSpacing(0)
                     .padding(1)
@@ -708,7 +708,7 @@ public class PackedPacksScreen extends FZScreen {
     }
 
     @Override
-    public void fidgetz$updateContextEntries(double x, double y, FZContextMenuEntry.Collector collector) {
+    public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
         ContextMenuEventImpl<ContextMenuEvent.Screen.Pos> screenExtensions = ContextMenuEventImpl.postScreen(context);
 
         screenExtensions.entries(ContextMenuEvent.Screen.Pos.TOP).forEach(collector::addEntry);
@@ -726,7 +726,7 @@ public class PackedPacksScreen extends FZScreen {
                 collector.nextSection();
             }
 
-            FZContextMenuEntry.Builder preferences = buildDevEntry(FZContextMenuEntry.builder()).message(Component.translatable("packed_packs.preferences"));
+            FZPopoverMenuItem.Builder preferences = buildDevEntry(FZPopoverMenuItem.builder()).message(Component.translatable("packed_packs.preferences"));
             ContextMenuEventImpl<ContextMenuEvent.Preferences.Pos> prefExtensions = ContextMenuEventImpl.postPreferences(context);
 
             prefExtensions.entries(ContextMenuEvent.Preferences.Pos.TOP).forEach(preferences::child);
@@ -763,14 +763,14 @@ public class PackedPacksScreen extends FZScreen {
         if (folders.isEmpty()) {
             collector.addEntry(builder -> builder.message(Component.translatable("pack.openFolder")).onPress(store::openBaseDir));
         } else {
-            FZContextMenuEntry.Builder parent = FZContextMenuEntry.builder().message(Component.translatable("pack.openFolder"));
+            FZPopoverMenuItem.Builder parent = FZPopoverMenuItem.builder().message(Component.translatable("pack.openFolder"));
             parent.child(builder -> builder
                     .message(Component.literal(store.getBaseDir().getFileName().toString()))
                     .onPress(store::openBaseDir));
             parent.nextSection();
 
             for (Path folder : folders) {
-                parent.child(FZContextMenuEntry.builder()
+                parent.child(FZPopoverMenuItem.builder()
                         .message(Component.literal(folder.getFileName().toString()))
                         .onPress(() -> Util.getPlatform().openPath(folder))
                         .build());

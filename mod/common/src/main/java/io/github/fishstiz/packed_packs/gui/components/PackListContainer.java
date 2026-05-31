@@ -268,7 +268,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         if (this.folder != null) this.folder.repositionElements();
     }
 
-    static class Folder extends AbstractContainerEventHandler implements FocusPathProvider, FZContextMenuEntry.Source, ContainerEventHandlerPatch, Renderable {
+    static class Folder extends AbstractContainerEventHandler implements FocusPathProvider, FZContextMenu.Source, ContainerEventHandlerPatch, Renderable {
         private static final int HEADER_SIZE = 16;
         private static final int LAYOUT_SPACING = SPACING / 2;
         private final PackListContainer root;
@@ -357,10 +357,10 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
 
         @Override
-        public void fidgetz$updateContextEntries(double x, double y, FZContextMenuEntry.Collector collector) {
+        public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
             FolderPack folderPack = moduleModel.currentFolder();
             if (folderPack == null) {
-                FZContextMenuEntry.Source.super.fidgetz$updateContextEntries(x, y, collector);
+                FZContextMenu.Source.super.fidgetz$updateContextEntries(x, y, collector);
                 return;
             }
 
@@ -396,7 +396,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
                 }
             }
 
-            FZContextMenuEntry.Source.super.fidgetz$updateContextEntries(x, y, collector);
+            FZContextMenu.Source.super.fidgetz$updateContextEntries(x, y, collector);
         }
 
         void repositionElements() {

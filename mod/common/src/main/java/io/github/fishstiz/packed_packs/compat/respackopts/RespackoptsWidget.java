@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.compat.respackopts;
 
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
-import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenuEntry;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenu;
 import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.compat.Mod;
 import io.github.fishstiz.packed_packs.compat.ModIntegration;
@@ -20,7 +20,7 @@ import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-public class RespackoptsWidget extends AbstractButton implements FZContextMenuEntry.Source {
+public class RespackoptsWidget extends AbstractButton implements FZContextMenu.Source {
     private final ResourcePackEntryWidget wrapped;
     private final PackSelectionModel.Entry model;
     private final LayoutElement container;
@@ -87,7 +87,7 @@ public class RespackoptsWidget extends AbstractButton implements FZContextMenuEn
     }
 
     @Override
-    public void fidgetz$updateContextEntries(double x, double y, FZContextMenuEntry.Collector collector) {
+    public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
         collector.addEntry(PreferenceHelper.createEntry(preference, ModIntegration.getWidgetPrefText(preference)));
     }
 }

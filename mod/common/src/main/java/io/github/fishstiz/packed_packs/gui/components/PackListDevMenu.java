@@ -1,6 +1,6 @@
 package io.github.fishstiz.packed_packs.gui.components;
 
-import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenuEntry;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenu;
 import io.github.fishstiz.fidgetz.v0.gui.components.WidgetElements;
 import io.github.fishstiz.fidgetz.v0.utils.GuiGraphicsUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
@@ -137,7 +137,7 @@ public class PackListDevMenu {
         return new WidgetElements(GuiUtils.createRect(iconSupplier), 8, 8);
     }
 
-    private void updateNonOverrideEntries(FZContextMenuEntry.Collector collector) {
+    private void updateNonOverrideEntries(FZContextMenu.Collector collector) {
         collector.addEntry(builder -> buildDevEntry(builder)
                 .message(CommonComponents.GUI_COPY_TO_CLIPBOARD)
                 .onPress(() -> Minecraft.getInstance().keyboardHandler.setClipboard(pack().getId())));
@@ -147,7 +147,7 @@ public class PackListDevMenu {
                 .onPress(model::editAliases));
     }
 
-    public void updateContextEntries(FZContextMenuEntry.Collector collector) {
+    public void updateContextEntries(FZContextMenu.Collector collector) {
         Profile profile = options.getProfile().orElse(null);
         if (profile == null) {
             updateNonOverrideEntries(collector.nextSection());
