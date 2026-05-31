@@ -46,7 +46,6 @@ import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
@@ -59,7 +58,6 @@ import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.CommonColors;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
@@ -205,10 +203,12 @@ public class PackedPacksScreen extends FZScreen {
                     .tooltip(Component.translatable("packed_packs.original_screen.info"))
                     .icon(new WidgetElements(PackedPacks.id("icon/exit"), 16, 16))
                     .onPress(() -> {
-                        if (parent instanceof PackSelectionScreen screen) {
-                            minecraft.setScreen(screen);
-                        } else {
-                            minecraft.setScreen(original.createScreen(parent));
+                        if (minecraft != null) {
+                            if (parent instanceof PackSelectionScreen screen) {
+                                minecraft.setScreen(screen);
+                            } else {
+                                minecraft.setScreen(original.createScreen(parent));
+                            }
                         }
                     })
                     .build()).ifPresent(header::child);
@@ -246,6 +246,7 @@ public class PackedPacksScreen extends FZScreen {
                                         .hideMessage(true)
                                         .message(sortText)
                                         .tooltip(CommonComponents.optionNameValue(sortText, valueText))
+                                        .entryDivider(null)
                                         .leftIcon(sort == null ? null : padded16Sprite(sort.icon()));
 
                                 for (Query.SortOption option : Query.SortOption.values()) {
@@ -357,7 +358,8 @@ public class PackedPacksScreen extends FZScreen {
                         FZDropdown.Builder dropdown = FZDropdown.builder(this)
                                 .hideMessage()
                                 .size(20, 20)
-                                .minContainerWidth(150, HorizontalDirection.LEFT);
+                                .minContainerWidth(150, HorizontalDirection.LEFT)
+                                .entryDivider(null);
 
                         for (Path path : paths) {
                             dropdown.entry(Component.literal(path.getFileName().toString()), () -> Util.getPlatform().openPath(path));
@@ -480,7 +482,7 @@ public class PackedPacksScreen extends FZScreen {
         SidebarLayout sidebarLayout = SidebarLayout.create(store, () -> sidebarOpen.set(false));
         dialogManager.put(FZModal.bind("ProfilesSidebar", sidebarOpen.map(open -> FZModal.builder(this, sidebarLayout)
                 .id("ProfilesSidebar")
-                .popoverOrder(100)
+                .popoverOrder(5)
                 .alignTopLeft()
                 .flexHeight()
                 .padding(SPACING)

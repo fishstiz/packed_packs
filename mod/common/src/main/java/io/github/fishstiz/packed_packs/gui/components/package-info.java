@@ -1,4 +1,6 @@
-@NullMarked
+@MethodsReturnNonnullByDefault
+@FieldsAreNonnullByDefault
 package io.github.fishstiz.packed_packs.gui.components;
 
-import org.jspecify.annotations.NullMarked;
+import net.minecraft.FieldsAreNonnullByDefault;
+import net.minecraft.MethodsReturnNonnullByDefault;

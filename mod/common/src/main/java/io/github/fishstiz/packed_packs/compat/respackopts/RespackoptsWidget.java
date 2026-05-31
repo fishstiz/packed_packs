@@ -16,7 +16,6 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.repository.Pack;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class RespackoptsWidget extends AbstractButton implements FZContextMenu.Source {

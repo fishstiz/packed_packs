@@ -443,6 +443,13 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
 
         @Override
+        public void setFocused(@Nullable GuiEventListener focused) {
+            if (getFocused() != focused) {
+                super.setFocused(focused);
+            }
+        }
+
+        @Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
             return ContainerEventHandlerPatch.super.mouseClicked(mouseX, mouseY, button) && moduleModel.isOpened();
         }

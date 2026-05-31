@@ -30,6 +30,27 @@ neoForge {
     }
 }
 
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+repositories {
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "fishstiz"
+                url = "https://raw.githubusercontent.com/fishstiz/maven/m2"
+            }
+        }
+        filter {
+            includeModule("io.github.fishstiz", "minecraft-cursor-common-api")
+            includeModule("io.github.fishstiz", "minecraft-cursor-neoforge")
+        }
+    }
+}
+
 dependencies {
     implementation project(":neoforge")
+
+    localRuntime libs.minecraftCursor.neoforge
 }

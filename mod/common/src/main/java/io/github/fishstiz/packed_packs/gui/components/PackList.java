@@ -501,7 +501,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
         @Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (ContainerEventHandlerPatch.super.mouseClicked(mouseX, mouseY, button) || isRightClick(button)) {
+            if (super.mouseClicked(mouseX, mouseY, button) || isRightClick(button)) {
                 if (!listModel.isFolderOpened()) return true;
                 // ideally folderWidget should return false on #shouldTakeFocusAfterInteraction,
                 // #shouldTakeFocusAfterInteraction also does not bubble up,
@@ -653,8 +653,13 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             renderSelection(graphics, top, left, width, height);
             renderWidgetSprites(graphics, innerTop, innerLeft, mouseX, mouseY);
 
-            for (Renderable renderable : this.renderables) {
-                renderable.render(graphics, mouseX, mouseY, partialTick);
+            if (!renderables.isEmpty()) {
+                graphics.pose().pushPose();
+                graphics.pose().translate(0f, 0f, 0.1f);
+                for (Renderable renderable : this.renderables) {
+                    renderable.render(graphics, mouseX, mouseY, partialTick);
+                }
+                graphics.pose().popPose();
             }
 
             if (devMenu != null) {

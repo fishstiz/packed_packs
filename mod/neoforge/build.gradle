@@ -44,8 +44,8 @@ repositories {
             }
         }
         filter {
-            includeModule ("io.github.fishstiz", "minecraft-cursor-neoforge")
-            includeModule ("io.github.fishstiz", "minecraft-cursor-common-api")
+            includeModule("io.github.fishstiz", "minecraft-cursor-neoforge")
+            includeModule("io.github.fishstiz", "minecraft-cursor-common-api")
         }
     }
     maven { url = "https://maven.frohnmeyer-wds.de/artifacts" }

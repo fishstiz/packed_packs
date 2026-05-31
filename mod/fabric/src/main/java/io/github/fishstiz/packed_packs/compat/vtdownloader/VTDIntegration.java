@@ -46,13 +46,13 @@ public class VTDIntegration extends ModIntegration {
 
         api.eventBus().register(InitializePackEntryEvent.class, this.id(), event -> {
             ScreenContext ctx = event.screenContext();
-            if (ctx.isClientResources()) {
-                var button = ctx.wrapWidget(vtdEditButton, getWidgetPrefText(vtdEditButton), VTDEditButtonWidget.create(
+            if (ctx.isClientResources() && (ctx.devMode() || vtdEditButton.get())) {
+                var button = VTDEditButtonWidget.create(
                         vtdEditButton,
                         ctx.screen(),
                         event.packContext().pack(),
                         event.packContext()::fileModifiable
-                ));
+                );
                 if (button != null) event.addBottomRight(PENCIL_MARGIN_RIGHT, button);
             }
         });

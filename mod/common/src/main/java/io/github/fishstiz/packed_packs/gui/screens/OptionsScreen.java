@@ -12,7 +12,7 @@ import io.github.fishstiz.packed_packs.gui.layouts.OptionsLayout;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.CommonComponents;
-import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 public class OptionsScreen extends FZScreen {
     private final Screen previous;
@@ -46,6 +46,8 @@ public class OptionsScreen extends FZScreen {
     @Override
     public void onClose() {
         Config.get().save();
-        this.minecraft.setScreen(this.previous);
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(this.previous);
+        }
     }
 }

@@ -47,8 +47,8 @@ repositories {
             }
         }
         filter {
-            includeModule ("io.github.fishstiz", "minecraft-cursor-fabric")
-            includeModule ("io.github.fishstiz", "minecraft-cursor-fabric-api")
+            includeModule("io.github.fishstiz", "minecraft-cursor-fabric")
+            includeModule("io.github.fishstiz", "minecraft-cursor-fabric-api")
         }
     }
     exclusiveContent {

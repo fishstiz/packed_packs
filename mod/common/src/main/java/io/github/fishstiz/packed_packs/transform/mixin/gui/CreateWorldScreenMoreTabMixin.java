@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(targets = "net.minecraft.client.gui.screens.worldselection.CreateWorldScreen$MoreTab")
 public abstract class CreateWorldScreenMoreTabMixin {
     @Final
-    @Shadow(aliases = "this$0")
+    @Shadow(aliases = {"this$0", "field_42178"})
     CreateWorldScreen this$0;
 
     @Shadow

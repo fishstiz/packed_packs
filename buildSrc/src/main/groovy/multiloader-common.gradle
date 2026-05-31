@@ -51,7 +51,6 @@ repositories {
         }
         filter { includeGroup('io.github.fishstiz.fidgetz') }
     }
-//    mavenLocal()
 }
 
 tasks.named("sourcesJar", Jar) {
