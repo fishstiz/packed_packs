@@ -3,6 +3,7 @@
 - Added buttons to toggle **default** and **lock** of profiles next to the profile list when on dev mode. 
 - Increased the max height of context menu.
 - Fixed folder pack order not saving when the folder pack list is not closed.
+- Fixed 'Open File' and 'Show File Manager' context menu options not appearing when the pack file is locked.
 - Fixed pack entries getting stuck with the incompatible title and description when navigating by keyboard.
 - Fixed hidden override not immediately reflecting on the pack screen when toggling dev mode.
 - Fixed profile name failing to resolve when the profiles directory has not yet created.
