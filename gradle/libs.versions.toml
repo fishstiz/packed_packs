@@ -10,9 +10,9 @@ fidgetz-common = { module = "io.github.fishstiz.fidgetz:fidgetz-common", version
 fidgetz-fabric = { module = "io.github.fishstiz.fidgetz:fidgetz-fabric", version.ref = "fidgetz" }
 fidgetz-neoforge = { module = "io.github.fishstiz.fidgetz:fidgetz-neoforge", version.ref = "fidgetz" }
 
-minecraftCursor-common-api = { module = "io.github.fishstiz:minecraft-cursor-common-api", version.ref = "minecraftCursor" }
+minecraftCursor-api-common = { module = "io.github.fishstiz:minecraft-cursor-common-api", version.ref = "minecraftCursor" }
+minecraftCursor-api-fabric = { module = "io.github.fishstiz:minecraft-cursor-fabric-api", version.ref = "minecraftCursor" }
 minecraftCursor-fabric = { module = "io.github.fishstiz:minecraft-cursor-fabric", version.ref = "minecraftCursor" }
-minecraftCursor-fabric-api = { module = "io.github.fishstiz:minecraft-cursor-fabric-api", version.ref = "minecraftCursor" }
 minecraftCursor-neoforge = { module = "io.github.fishstiz:minecraft-cursor-neoforge", version.ref = "minecraftCursor" }
 
 modmenu = { module = "com.terraformersmc:modmenu", version = "11.0.3" }

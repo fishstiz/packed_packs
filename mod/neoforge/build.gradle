@@ -72,7 +72,7 @@ dependencies {
     api libs.fidgetz.neoforge
     jarJar(libs.fidgetz.neoforge)
 
-    compileOnly libs.minecraftCursor.common.api
+    compileOnly libs.minecraftCursor.api.common
     localRuntime libs.minecraftCursor.neoforge
 
     compileOnly libs.resourcify

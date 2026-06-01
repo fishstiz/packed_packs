@@ -22,9 +22,6 @@ dependencies {
 }
 
 loom {
-    mixin {
-        defaultRefmapName.set("${mod_id}.refmap.json")
-    }
     runs {
         remove client
         remove server

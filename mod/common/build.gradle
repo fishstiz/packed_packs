@@ -50,7 +50,7 @@ dependencies {
     compileOnly libs.bundles.mixin
     annotationProcessor libs.mixin.extras
 
-    compileOnly libs.minecraftCursor.common.api
+    compileOnly libs.minecraftCursor.api.common
     compileOnly libs.resourcify
     compileOnly libs.bundles.respackopts
 }

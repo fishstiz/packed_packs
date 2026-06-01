@@ -13,10 +13,6 @@ loom {
         accessWidenerPath.set(aw)
     }
 
-    mixin {
-        defaultRefmapName.set("${mod_id}.refmap.json")
-    }
-
     mods {
         "${mod_id}" {
             sourceSet sourceSets.main
@@ -84,7 +80,7 @@ dependencies {
     modCompileOnly libs.modmenu
     modLocalRuntime libs.modmenu
 
-    modCompileOnly libs.minecraftCursor.fabric.api
+    modCompileOnly libs.minecraftCursor.api.fabric
     modLocalRuntime libs.minecraftCursor.fabric
 
     modCompileOnly libs.resourcify
@@ -96,8 +92,8 @@ publishMods {
     type = ReleaseType.of(release_type)
     changelog = rootProject.file("CHANGELOG.md").text
     displayName = "Fabric v${this.version}"
-    file = jar.archiveFile
-    additionalFiles.from(sourcesJar.archiveFile)
+    file = remapJar.archiveFile
+    additionalFiles.from(remapSourcesJar.archiveFile)
     modLoaders.add("fabric")
 
     github {
