@@ -218,7 +218,7 @@ public class PackedPacksScreen extends FZScreen {
                     FZFlexLayout leftRibbon = ribbon.child(horizontal(), ribbon.flexChildHorizontalSettings());
 
                     this.availableSearch = leftRibbon.child(FZTextField.bind("AvailableSearchField", store
-                                    .map(s -> s.available().query().search())
+                                    .map(s -> s.available().query().unmodifiedSearch())
                                     .map(value -> FZTextField.builder()
                                             .text(value == null ? "" : value)
                                             .onChange(e -> store.dispatch(new PackListIntent.Search(
@@ -242,6 +242,7 @@ public class PackedPacksScreen extends FZScreen {
                                         .hideMessage(true)
                                         .message(sortText)
                                         .tooltip(CommonComponents.optionNameValue(sortText, valueText))
+                                        .entryDivider(null)
                                         .leftIcon(sort == null ? null : padded16Sprite(sort.icon()));
 
                                 for (Query.SortOption option : Query.SortOption.values()) {
@@ -306,7 +307,7 @@ public class PackedPacksScreen extends FZScreen {
                                     .toProps())));
 
                     this.enabledSearch = rightRibbon.child(FZTextField.bind("EnabledSearchField", store
-                                    .map(s -> s.enabled().query().search())
+                                    .map(s -> s.enabled().query().unmodifiedSearch())
                                     .map(value -> FZTextField.builder()
                                             .text(value == null ? "" : value)
                                             .onChange(e -> store.dispatch(new PackListIntent.Search(
@@ -353,7 +354,8 @@ public class PackedPacksScreen extends FZScreen {
                         FZDropdown.Builder dropdown = FZDropdown.builder(this)
                                 .hideMessage()
                                 .size(20, 20)
-                                .minContainerWidth(150, HorizontalDirection.LEFT);
+                                .minContainerWidth(150, HorizontalDirection.LEFT)
+                                .entryDivider(null);
 
                         for (Path path : paths) {
                             dropdown.entry(Component.literal(path.getFileName().toString()), () -> Util.getPlatform().openPath(path));

@@ -60,7 +60,6 @@ class PackWidget implements Renderable, LayoutElement {
         descriptionWidget.setMaxWidth(bodyWidth);
 
         this.cachedBodyWidth = bodyWidth;
-        this.warningShown = false;
     }
 
     private void repositionVertical() {
@@ -125,7 +124,7 @@ class PackWidget implements Renderable, LayoutElement {
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         GuiGraphicsUtils.texture(graphics, model.icon(), x + SPACING, y, ICON_SIZE, ICON_SIZE);
-        nameWidget.extractWidgetRenderState(graphics, mouseX, mouseY, partialTick);
+        nameWidget.extractRenderState(graphics, mouseX, mouseY, partialTick);
         this.descriptionWidget.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
