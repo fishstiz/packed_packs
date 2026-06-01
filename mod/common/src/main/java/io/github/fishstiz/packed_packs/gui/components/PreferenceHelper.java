@@ -87,7 +87,7 @@ public class PreferenceHelper extends WrappedComponent implements FZContextMenu.
     @Override
     protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.renderWidget(graphics, mouseX, mouseY, partialTick);
-        if (widget.visible) {
+        if (get().visible) {
             extractOverlay(graphics, preference, getX(), getY(), getWidth(), getHeight());
         }
     }
@@ -95,7 +95,7 @@ public class PreferenceHelper extends WrappedComponent implements FZContextMenu.
     @Override
     public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
         FZContextMenu.Source.super.fidgetz$updateContextEntries(x, y, collector);
-        if (widget.isActive()) {
+        if (get().isActive()) {
             collector.addEntry(createEntry(preference, label));
         }
     }

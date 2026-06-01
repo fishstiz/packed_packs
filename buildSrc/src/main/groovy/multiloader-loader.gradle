@@ -63,18 +63,3 @@ tasks.named('sourcesJar', Jar) {
     dependsOn(configurations.commonResources)
     from(configurations.commonResources)
 }
-
-processResources {
-    doLast {
-        def modId = project.findProperty("mod_id")
-        if (project.name == 'neoforge') {
-            def mixinConfigFile = file("${sourceSets.main.output.resourcesDir}/${modId}.mixins.json")
-            if (mixinConfigFile.exists()) {
-                def jsonSlurper = new JsonSlurper()
-                def mixinConfig = jsonSlurper.parse(mixinConfigFile)
-                mixinConfig.remove("refmap")
-                mixinConfigFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(mixinConfig))
-            }
-        }
-    }
-}

@@ -45,7 +45,9 @@ repositories {
 }
 
 dependencies {
-    api include(project(path: ":api:fabric", configuration: "namedElements"))
+    api project(path: ":api:fabric", configuration: "namedElements")
+    include(project(":api:fabric"))
+
     modApi libs.fidgetz.fabric
     include(libs.fidgetz.fabric)
 
