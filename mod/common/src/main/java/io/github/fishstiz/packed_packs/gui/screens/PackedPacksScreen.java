@@ -222,7 +222,7 @@ public class PackedPacksScreen extends FZScreen {
                     FZFlexLayout leftRibbon = ribbon.child(horizontal(), ribbon.flexChildHorizontalSettings());
 
                     this.availableSearch = leftRibbon.child(FZTextField.bind("AvailableSearchField", store
-                                    .map(s -> s.available().query().search())
+                                    .map(s -> s.available().query().unmodifiedSearch())
                                     .map(value -> FZTextField.builder()
                                             .text(value == null ? "" : value)
                                             .onChange(e -> store.dispatch(new PackListIntent.Search(
@@ -311,7 +311,7 @@ public class PackedPacksScreen extends FZScreen {
                                     .toProps())));
 
                     this.enabledSearch = rightRibbon.child(FZTextField.bind("EnabledSearchField", store
-                                    .map(s -> s.enabled().query().search())
+                                    .map(s -> s.enabled().query().unmodifiedSearch())
                                     .map(value -> FZTextField.builder()
                                             .text(value == null ? "" : value)
                                             .onChange(e -> store.dispatch(new PackListIntent.Search(

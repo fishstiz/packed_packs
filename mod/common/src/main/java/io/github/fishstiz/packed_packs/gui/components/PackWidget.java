@@ -63,7 +63,6 @@ class PackWidget implements Renderable, LayoutElement {
         descriptionWidget.setMaxWidth(bodyWidth);
 
         this.cachedBodyWidth = bodyWidth;
-        this.warningShown = false;
     }
 
     private void repositionVertical() {

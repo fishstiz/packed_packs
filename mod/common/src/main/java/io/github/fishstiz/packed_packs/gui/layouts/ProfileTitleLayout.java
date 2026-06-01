@@ -9,7 +9,6 @@ import io.github.fishstiz.packed_packs.gui.intents.ProfileIntent;
 import io.github.fishstiz.packed_packs.gui.model.PackedPacksStore;
 import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
 import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
-import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentUtils;
@@ -35,48 +34,44 @@ public class ProfileTitleLayout {
                         .onPress(() -> store.dispatch(new ProfileIntent.ToggleRenaming()))
                         .toProps()));
 
+        FZTextField nameField = FZTextField.bind("ProfileNameField", store.map(PackedPacksState::profiles).map(state -> {
+            Profile selected = state.selectedProfile();
+            return FZTextField.builder()
+                    .height(20)
+                    .visible(selected != null)
+                    .active(selected != null)
+                    .hint(selected == null ? NO_PROFILE_TEXT : ProfileManager.getDefaultNameComponent())
+                    .maxLength(ProfileManager.getNameMaxLength())
+                    .text(selected == null ? "" : selected.getName())
+                    .onChange(e -> {
+                        if (selected == null) return;
+                        store.dispatch(new ProfileIntent.Rename(selected, e.value()));
+                    })
+                    .toProps();
+        }));
+
         FZFlexLayout title = FZFlexLayout.horizontal().spacing(SPACING);
         {
             title.defaultChildSettings().visible();
 
             title.child(editButton);
             title.child(WrappedComponent.bind("ProfileNameContainer", store
-                    .map(PackedPacksState::profiles)
-                    .map(profilesState -> profilesState.canRename() && profilesState.renaming()
-                            ? FZTextField.bind("ProfileName", store
                             .map(PackedPacksState::profiles)
-                            .map(state -> createNameFieldProps(store, state)))
-                            : FZText.bind("ProfileName", store
-                            .map(PackedPacksState::profiles)
-                            .map(ProfileTitleLayout::createNameProps))
-                    )), title.flexChildHorizontalSettings());
+                            .map(profilesState -> profilesState.canRename() && profilesState.renaming()
+                                    ? nameField
+                                    : buildNameReadonly(profilesState))),
+                    title.flexChildHorizontalSettings());
         }
 
         return title;
     }
 
-    private static FZTextField.Props createNameFieldProps(PackedPacksStore store, ProfilesState profilesState) {
-        Profile selected = profilesState.selectedProfile();
-        return FZTextField.builder()
-                .height(20)
-                .visible(selected != null)
-                .active(selected != null)
-                .hint(selected == null ? NO_PROFILE_TEXT : ProfileManager.getDefaultNameComponent())
-                .maxLength(ProfileManager.getNameMaxLength())
-                .text(selected == null ? "" : selected.getName())
-                .onChange(e -> {
-                    if (selected == null) return;
-                    store.dispatch(new ProfileIntent.Rename(selected, e.value()));
-                })
-                .toProps();
-    }
-
-    private static FZText.Props createNameProps(ProfilesState profilesState) {
+    private static FZText buildNameReadonly(ProfilesState profilesState) {
         Profile selected = profilesState.selectedProfile();
         return FZText.builder(getDisplayName(selected))
                 .height(20)
                 .visible(selected != null)
-                .toProps();
+                .build();
     }
 
     private static Component getDisplayName(@Nullable Profile profile) {
