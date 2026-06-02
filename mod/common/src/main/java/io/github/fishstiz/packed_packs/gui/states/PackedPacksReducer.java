@@ -156,8 +156,8 @@ public class PackedPacksReducer {
                     CollectionUtils.addIf(packs, payload, p -> canTransfer(target, p, options));
                     if (!packs.isEmpty()) {
                         yield this.reduce(newState, switch (destination.type()) {
-                            case AVAILABLE -> new PackListIntent.Disable(destination, ctx, packs);
-                            case ENABLED -> new PackListIntent.Enable(destination, ctx, packs, position);
+                            case AVAILABLE -> new PackListIntent.Disable(destination, ctx, packs.reversed());
+                            case ENABLED -> new PackListIntent.Enable(destination, ctx, packs.reversed(), position);
                         });
                     }
                 }
@@ -246,11 +246,14 @@ public class PackedPacksReducer {
                 List<Pack> ordered = sortByOrderOf(state.visiblePacks(), move.payload());
                 List<Pack> newPacks = new ObjectArrayList<>(state.packs());
                 int to = move.index();
+                int insertOffset = 0;
                 for (Pack pack : ordered) {
                     int previous = newPacks.indexOf(pack);
-                    int target = previous != -1 && previous < to ? to - 1 : to;
+                    boolean isBeforeTo = previous != -1 && previous < to;
+                    int target = isBeforeTo ? to - 1 : to + insertOffset;
                     newPacks.remove(pack);
                     newPacks.add(Math.clamp(target, 0, newPacks.size()), pack);
+                    if (!isBeforeTo) insertOffset++;
                 }
                 yield newPacks.equals(state.packs()) ? state : state.withPacks(newPacks, options);
             }

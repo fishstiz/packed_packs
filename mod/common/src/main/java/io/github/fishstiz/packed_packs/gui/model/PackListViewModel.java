@@ -416,7 +416,7 @@ public class PackListViewModel {
 
             List<Pack> payload = createPayload();
             if (!payload.isEmpty()) {
-                List<Pack> orderedPayload = sortByOrderOf(state.get().visiblePacks(), payload).reversed();
+                List<Pack> orderedPayload = sortByOrderOf(state.get().visiblePacks(), payload);
                 dispatch.accept(new PackListIntent.Drag(target, this, new ObjectLinkedOpenHashSet<>(orderedPayload)));
             }
         }
