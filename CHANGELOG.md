@@ -12,4 +12,4 @@
 --- 
 **Packed Packs API**
 - Added methods to add `Renderable` and `Renderable & LayoutElement`s to `InitializePackEntryEvent`.
-- Added `ScreenContext#minecraft()`
+- Added `ScreenContext#getMinecraft()`

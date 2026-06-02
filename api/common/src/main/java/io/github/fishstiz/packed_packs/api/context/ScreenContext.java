@@ -27,7 +27,7 @@ public interface ScreenContext {
     /**
      * @return The Minecraft client instance
      */
-    Minecraft minecraft();
+    Minecraft getMinecraft();
 
     /**
      * @return the currently displayed screen instance.
