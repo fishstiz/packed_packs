@@ -144,7 +144,7 @@ The Java API, designed as an optional dependency, allows mods to extend function
 Packed Packs. This includes subscribing to various events and registering custom preferences
 to add configurable widgets at certain positions of the screen.
 
-You can find example implementations in the [**testmod**](https://github.com/fishstiz/packed_packs/tree/master/mod/common/src/testmod), 
+You can find example implementations in the [**testmod**](https://github.com/fishstiz/packed_packs/tree/master/testmod/common/src/main/java/io/github/fishstiz/testmod), 
 and in the [**compat**](https://github.com/fishstiz/packed_packs/tree/mc/1.21.11/mod/common/src/main/java/io/github/fishstiz/packed_packs/compat) 
 package of the **main** source set. 
 
