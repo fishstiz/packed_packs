@@ -52,7 +52,7 @@ public abstract class ModIntegration implements PackedPacksInitializer {
 
             return () -> {
                 try {
-                    Minecraft.getInstance().setScreen(screenCtor.newInstance(args));
+                    Minecraft.getInstance().gui.setScreen(screenCtor.newInstance(args));
                 } catch (Exception e) {
                     PackedPacks.LOGGER.error("[packed_packs] Failed to open mod screen: '{}'", className, e);
                 }

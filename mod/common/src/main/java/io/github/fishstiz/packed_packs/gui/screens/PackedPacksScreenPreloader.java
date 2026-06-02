@@ -59,7 +59,7 @@ public class PackedPacksScreenPreloader implements Renderable {
                 PackedPacks.LOGGER.info("[packed_packs] ======== Preloaded PackedPacksScreen in {}ms ========", duration);
             }
         }, Util.backgroundExecutor()).thenRunAsync(() -> {
-            if (minecraft.screen == screen) {
+            if (minecraft.gui.screen() == screen) {
                 detach();
             }
         }, minecraft);

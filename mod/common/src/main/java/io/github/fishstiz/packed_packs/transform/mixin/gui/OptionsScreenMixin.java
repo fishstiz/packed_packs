@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import io.github.fishstiz.packed_packs.gui.screens.PackedPacksScreen;
 import io.github.fishstiz.packed_packs.gui.screens.PackedPacksScreenPreloader;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
@@ -26,11 +26,11 @@ public abstract class OptionsScreenMixin extends Screen {
 
     @WrapWithCondition(method = "applyPacks", at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/Minecraft;setScreen(Lnet/minecraft/client/gui/screens/Screen;)V"
+            target = "Lnet/minecraft/client/gui/Gui;setScreen(Lnet/minecraft/client/gui/screens/Screen;)V"
     ))
-    public boolean shouldCloseOnApplyPacks(Minecraft instance, Screen guiScreen) {
+    public boolean shouldCloseOnApplyPacks(Gui instance, Screen screen) {
         // apply packs without closing the screen
-        return !(this.minecraft.screen instanceof PackedPacksScreen);
+        return !(instance.screen() instanceof PackedPacksScreen);
     }
 
     @ModifyReturnValue(method = "openScreenButton", at = @At("RETURN"))

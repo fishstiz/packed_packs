@@ -20,7 +20,7 @@ public class FocusPathRenderer extends TestFeatureRenderer {
 
     @Override
     protected int renderFeature(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, int y, float partialTick) {
-        Screen screen = minecraft.screen;
+        Screen screen = minecraft.gui.screen();
         if (screen == null) return y;
 
         guiGraphics.fill(0, y, minecraft.font.width(LABEL), y + minecraft.font.lineHeight, 0x7FFF0000);

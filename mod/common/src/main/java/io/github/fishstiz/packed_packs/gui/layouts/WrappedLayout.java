@@ -99,4 +99,9 @@ public class WrappedLayout implements FZLayout {
     public boolean fidgetz$isVisible() {
         return layout.fidgetz$isVisible();
     }
+
+    @Override
+    public void removeChildren() {
+        layout.removeChildren();
+    }
 }

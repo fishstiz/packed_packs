@@ -6,20 +6,18 @@ import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.gui.screens.PackSelectionScreenArgs;
 import io.github.fishstiz.packed_packs.gui.screens.PackedPacksScreen;
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionScreenAccessor;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
-import java.util.concurrent.Executor;
-
-@Mixin(Minecraft.class)
-public abstract class MinecraftMixin implements Executor {
+@Mixin(Gui.class)
+public abstract class GuiMixin {
     @Shadow
     @Nullable
-    public Screen screen;
+    private Screen screen;
 
     @WrapMethod(method = "setScreen")
     private void replacePackScreen(Screen guiScreen, Operation<Void> original) {

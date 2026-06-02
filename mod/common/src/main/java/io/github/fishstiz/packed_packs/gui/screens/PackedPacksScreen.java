@@ -202,9 +202,9 @@ public class PackedPacksScreen extends FZScreen {
                     .icon(new WidgetElements(PackedPacks.id("icon/exit"), 16, 16))
                     .onPress(() -> {
                         if (parent instanceof PackSelectionScreen screen) {
-                            minecraft.setScreen(screen);
+                            minecraft.gui.setScreen(screen);
                         } else {
-                            minecraft.setScreen(original.createScreen(parent));
+                            minecraft.gui.setScreen(original.createScreen(parent));
                         }
                     })
                     .build()).ifPresent(header::child);
@@ -509,15 +509,15 @@ public class PackedPacksScreen extends FZScreen {
 
     @Override
     public void onFilesDrop(List<Path> files) {
-        minecraft.setScreen(new ConfirmScreen(
+        minecraft.gui.setScreen(new ConfirmScreen(
                 confirmed -> {
                     if (!confirmed) {
-                        minecraft.setScreen(this);
+                        minecraft.gui.setScreen(this);
                         return;
                     }
                     PackUtil.PathValidationResults results = PackUtil.validatePaths(files);
                     if (!results.symlinkWarnings().isEmpty()) {
-                        minecraft.setScreen(NoticeWithLinkScreen.createPackSymlinkWarningScreen(() -> minecraft.setScreen(this)));
+                        minecraft.gui.setScreen(NoticeWithLinkScreen.createPackSymlinkWarningScreen(() -> minecraft.gui.setScreen(this)));
                         return;
                     }
                     if (!results.valid().isEmpty()) {
@@ -526,14 +526,14 @@ public class PackedPacksScreen extends FZScreen {
                     }
                     if (!results.rejected().isEmpty()) {
                         String rejectedNames = PackUtil.joinPackNames(results.rejected());
-                        minecraft.setScreen(new AlertScreen(
-                                () -> minecraft.setScreen(this),
+                        minecraft.gui.setScreen(new AlertScreen(
+                                () -> minecraft.gui.setScreen(this),
                                 Component.translatable("pack.dropRejected.title"),
                                 Component.translatable("pack.dropRejected.message", rejectedNames)
                         ));
                         return;
                     }
-                    minecraft.setScreen(this);
+                    minecraft.gui.setScreen(this);
                 },
                 Component.translatable("pack.dropConfirm"),
                 Component.literal(PackUtil.joinPackNames(files))
@@ -553,7 +553,7 @@ public class PackedPacksScreen extends FZScreen {
             ((PackSelectionModelAccessor) packScreen.packed_packs$model()).packed_packs$reset();
             packScreen.packed_packs$reload();
         }
-        minecraft.setScreen(parent);
+        minecraft.gui.setScreen(parent);
     }
 
     @Override

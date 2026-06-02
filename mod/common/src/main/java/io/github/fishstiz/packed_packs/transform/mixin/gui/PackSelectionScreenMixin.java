@@ -94,7 +94,7 @@ public abstract class PackSelectionScreenMixin extends Screen implements PackSel
                 .square()
                 .tooltip(Component.literal(PackedPacks.MOD_NAME))
                 .icon(new WidgetElements(PackedPacks.id("icon/packed_packs"), 16, 16))
-                .onPress(() -> minecraft.setScreen(new PackedPacksScreen(previous, packed_packs$original)))
+                .onPress(() -> minecraft.gui.setScreen(new PackedPacksScreen(previous, packed_packs$original)))
                 .build();
 
         PackedPacksScreenPreloader.attach(this, this.packed_packs$button);

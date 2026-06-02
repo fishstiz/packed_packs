@@ -1,5 +1,5 @@
 [versions]
-fidgetz = "0.5.2+26.1"
+fidgetz = "0.5.2-alpha.1+26.2"
 
 [libraries]
 mixin = { module = "org.spongepowered:mixin", version = "0.8.7" }
@@ -9,7 +9,7 @@ fidgetz-common = { module = "io.github.fishstiz.fidgetz:fidgetz-common", version
 fidgetz-fabric = { module = "io.github.fishstiz.fidgetz:fidgetz-fabric", version.ref = "fidgetz" }
 fidgetz-neoforge = { module = "io.github.fishstiz.fidgetz:fidgetz-neoforge", version.ref = "fidgetz" }
 
-modmenu = { module = "com.terraformersmc:modmenu", version = "18.0.0-alpha.8" }
+modmenu = { module = "com.terraformersmc:modmenu", version = "20.0.0-alpha.1" }
 
 resourcify = { module = "maven.modrinth:resourcify", version = "mrfZqvOq" }
 polytone = { module = "maven.modrinth:polytone", version = "4TzQaJSC" }

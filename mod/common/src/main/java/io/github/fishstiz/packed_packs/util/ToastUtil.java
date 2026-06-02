@@ -16,7 +16,7 @@ public class ToastUtil {
     public static void onDevModeToggleToast(boolean enabled) {
         Component enableText = enabled ? CommonComponents.OPTION_ON : CommonComponents.OPTION_OFF;
         SystemToast.addOrUpdate(
-                Minecraft.getInstance().getToastManager(),
+                Minecraft.getInstance().gui.toastManager(),
                 DEV_MODE_ID,
                 Component.literal(PackedPacks.MOD_NAME),
                 Component.translatable("packed_packs.dev_mode", enableText)
@@ -25,7 +25,7 @@ public class ToastUtil {
 
     public static void onFileFailToast(Component message) {
         SystemToast.addOrUpdate(
-                Minecraft.getInstance().getToastManager(),
+                Minecraft.getInstance().gui.toastManager(),
                 FILE_OPS_FAIL_ID,
                 Component.translatable("packed_packs.file.fail"),
                 message

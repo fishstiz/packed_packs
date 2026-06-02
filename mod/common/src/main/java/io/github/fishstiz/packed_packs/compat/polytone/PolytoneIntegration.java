@@ -51,7 +51,8 @@ public class PolytoneIntegration extends ModIntegration {
                         try {
                             PackSelectionScreen original = screenContext.originalScreen();
                             ((PackSelectionScreenAccessor) original).packed_packs$setActualScreen(screenContext.screen());
-                            Minecraft.getInstance().setScreen(Polytone.CONFIGS.createScreenForPack(original));
+                            //noinspection resource
+                            screenContext.minecraft().gui.setScreen(Polytone.CONFIGS.createScreenForPack(original));
                         } catch (Throwable e) {
                             PackedPacks.LOGGER.error("[packed_packs] Failed to open Polytone config screen ", e);
                         }

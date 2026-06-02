@@ -36,7 +36,7 @@ public class HoveredElementRenderer extends TestFeatureRenderer {
 
     @Override
     protected int renderFeature(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, int y, float partialTick) {
-        Screen screen = minecraft.screen;
+        Screen screen = minecraft.gui.screen();
         if (screen == null) return y;
 
         GuiEventListener hovered = getHovered(screen, mouseX, mouseY);

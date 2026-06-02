@@ -16,11 +16,11 @@ import java.util.function.Function;
 public abstract class PackSelectionModelMixin implements PackSelectionModelAccessor {
     @Shadow
     @Final
-    List<Pack> unselected;
+    private List<Pack> unselected;
 
     @Shadow
     @Final
-    List<Pack> selected;
+    private List<Pack> selected;
 
     @Shadow
     @Final
@@ -28,11 +28,11 @@ public abstract class PackSelectionModelMixin implements PackSelectionModelAcces
 
     @Shadow
     @Final
-    Function<Pack, Identifier> iconGetter;
+    private Function<Pack, Identifier> iconGetter;
 
     @Shadow
     @Final
-    Consumer<PackSelectionModel.EntryBase> onListChanged;
+    private Consumer<PackSelectionModel.EntryBase> onListChanged;
 
     @Shadow
     @Final

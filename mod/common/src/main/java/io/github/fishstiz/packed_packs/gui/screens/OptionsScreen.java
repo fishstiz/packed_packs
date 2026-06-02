@@ -46,6 +46,6 @@ public class OptionsScreen extends FZScreen {
     @Override
     public void onClose() {
         Config.get().save();
-        this.minecraft.setScreen(this.previous);
+        this.minecraft.gui.setScreen(this.previous);
     }
 }
