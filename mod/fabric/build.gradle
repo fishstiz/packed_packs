@@ -78,6 +78,7 @@ publishMods {
 
     github {
         parent rootProject.tasks.named("publishGithub")
+        accessToken = findProperty("GITHUB_TOKEN") ?: ""
     }
 
     modrinth {
