@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 public record ScreenContextImpl(
-        Minecraft minecraft,
+        Minecraft getMinecraft,
         @Nullable Screen previousScreen,
         PackedPacksScreen screen,
         PackedPacksStore store,
