@@ -247,7 +247,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
     private @Nullable Entry getSelected() {
         for (Entry entry : children()) {
-            if (entry.entryModel.selected()) {
+            if (entry.entryModel.selectedLast()) {
                 return entry;
             }
         }
