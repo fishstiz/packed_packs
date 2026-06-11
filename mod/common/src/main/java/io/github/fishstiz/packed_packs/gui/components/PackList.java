@@ -326,7 +326,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 this.component.scrollToEntry(this.child);
             }
             if (this.select && !this.child.entryModel.selectedLast()) {
-                this.child.entryModel.select();
+                this.child.entryModel.selectExclusive();
             }
         }
     }
