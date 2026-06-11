@@ -7,6 +7,7 @@ import net.minecraft.server.packs.repository.Pack;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public final class FolderPackMeta {
     private List<String> packIds = new ArrayList<>();
@@ -24,7 +25,8 @@ public final class FolderPackMeta {
     }
 
     public List<String> getPackIds() {
-        return List.copyOf(this.packIds);
+        // filter non-null for corrupted/incorrectly formatted metadata
+        return this.packIds.stream().filter(Objects::nonNull).toList();
     }
 
     public void save(Path path) {
