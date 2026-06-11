@@ -1,2 +1,3 @@
-- Fixed focus not correctly resolving on updating a pack list if multiple packs are selected.
-- Fixed inconsistent move order when dragging and dropping multiple packs to the same pack list 
+- Port to 26.2
+- Fixed being unable to apply packs if there are folder packs with invalid metadata [#59](https://github.com/fishstiz/packed_packs/issues/59)
+- Fixed background texture scaling of pack lists
