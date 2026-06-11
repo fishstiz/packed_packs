@@ -337,6 +337,11 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 this.child.entryModel.selectExclusive();
             }
         }
+
+        @Override
+        public GuiEventListener leafComponent() {
+            return child;
+        }
     }
 
     private void selectOnKeyPress(@Nullable Entry entry) {
