@@ -1,0 +1,31 @@
+{
+  "required": true,
+  "package": "io.github.fishstiz.packed_packs.transform.mixin",
+  "refmap": "${mod_id}.refmap.json",
+  "compatibilityLevel": "JAVA_21",
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "client": [
+    "PackSelectionModelAccessor",
+    "PackSelectionModelMixin",
+    "PackSelectionScreenAccessor",
+    "UtilAccess",
+    "aliases.OptionsMixin",
+    "folders.FolderRepositorySourceMixin",
+    "folders.PackMixin",
+    "folders.additional.CreateWorldScreenMixin",
+    "folders.additional.FolderRepositorySourceAccessor",
+    "folders.additional.MinecraftMixin",
+    "folders.additional.PackRepositoryAccessor",
+    "folders.additional.ServerPacksSourceMixin",
+    "gui.MinecraftMixin",
+    "gui.OptionsScreenMixin",
+    "gui.PackSelectionScreenMixin",
+    "overrides.CreateWorldScreenMixin",
+    "overrides.OptionsMixin",
+    "overrides.PackMixin",
+    "overrides.PackRepositoryMixin",
+    "overrides.PackSelectionModelMixin"
+  ]
+}

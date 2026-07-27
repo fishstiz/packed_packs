@@ -1,3 +1,0 @@
-accessWidener v2 named
-extendable method net/minecraft/client/gui/components/AbstractSelectionList getEntryAtPosition (DD)Lnet/minecraft/client/gui/components/AbstractSelectionList$Entry;
-accessible method net/minecraft/client/gui/screens/packs/PackSelectionScreen copyPacks (Lnet/minecraft/client/Minecraft;Ljava/util/List;Ljava/nio/file/Path;)V

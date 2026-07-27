@@ -1,0 +1,53 @@
+package io.github.fishstiz.packed_packs.impl;
+
+import io.github.fishstiz.packed_packs.PackedPacks;
+import io.github.fishstiz.packed_packs.api.PackedPacksApi;
+import io.github.fishstiz.packed_packs.api.PackedPacksInitializer;
+import io.github.fishstiz.packed_packs.platform.Services;
+
+public final class PackedPacksApiImpl implements PackedPacksApi {
+    private final EventBusImpl eventBus = new EventBusImpl();
+    private final PreferenceRegistryImpl preferenceRegistry = new PreferenceRegistryImpl();
+
+    private PackedPacksApiImpl() {
+    }
+
+    public static PackedPacksApiImpl getInstance() {
+        return Holder.INSTANCE;
+    }
+
+    @Override
+    public PreferenceRegistryImpl preferences() {
+        return this.preferenceRegistry;
+    }
+
+    @Override
+    public EventBusImpl eventBus() {
+        return this.eventBus;
+    }
+
+    private static final class Holder {
+        private static final PackedPacksApiImpl INSTANCE;
+
+        private Holder() {
+        }
+
+        static {
+            PackedPacksApiImpl api = new PackedPacksApiImpl();
+
+            for (PackedPacksInitializer extension : Services.PLATFORM.getModExtensions()) {
+                try {
+                    extension.onInitialize(api);
+                } catch (Throwable e) {
+                    PackedPacks.LOGGER.error(
+                            "[packed_packs] An error occurred while initializing PackedPacksInitializer implementation '{}'",
+                            extension.getClass().getName(), e
+                    );
+                }
+            }
+            api.eventBus.freeze();
+
+            INSTANCE = api;
+        }
+    }
+}

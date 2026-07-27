@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${mod_version}",
+  "name": "${mod_name}",
+  "description": "${mod_description}",
+  "authors": [
+    "${mod_author}"
+  ],
+  "contributors": [
+    "${credits}"
+  ],
+  "contact": {
+    "sources": "${sources}",
+    "issues": "${issues}"
+  },
+  "license": "${license}",
+  "icon": "icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "modmenu": [
+      "io.github.fishstiz.packed_packs.compat.modmenu.PackedPacksModMenu"
+    ],
+    "packed_packs": [
+      "io.github.fishstiz.packed_packs.compat.etf.ETFIntegration",
+      "io.github.fishstiz.packed_packs.compat.resourcify.ResourcifyIntegration",
+      "io.github.fishstiz.packed_packs.compat.respackopts.RespackoptsIntegration",
+      "io.github.fishstiz.packed_packs.compat.vtdownloader.VTDIntegration"
+    ]
+  },
+  "mixins": [
+    {
+      "config": "${mod_id}.mixins.json",
+      "environment": "client"
+    },
+    {
+      "config": "${mod_id}.fabric.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "accessWidener": "${mod_id}.accesswidener",
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "minecraft": "${fabric_minecraft_version_range}",
+    "java": ">=${java_version}",
+    "fabric-api": "*",
+    "fidgetz": "*"
+  }
+}

@@ -1,0 +1,67 @@
+name: "Compatibility Issue"
+description: "Report a bug with a supposedly compatible mod with Packed Packs."
+labels: [ "compatibility", "bug" ]
+body:
+  - type: input
+    id: mc_version
+    attributes:
+      label: "Minecraft Version"
+      description: "Enter the Minecraft version where the issue occurs."
+      placeholder: "1.21.10"
+    validations:
+      required: true
+
+  - type: input
+    id: mod_version
+    attributes:
+      label: "Packed Packs Version"
+      description: "Enter the version of Packed Packs."
+      placeholder: "v1.2.0+1.21.9"
+    validations:
+      required: true
+
+  - type: input
+    id: other_mod_version
+    attributes:
+      label: "Other Mod and Version"
+      description: "Enter the name and version of the other mod involved."
+      placeholder: "Resourcify v1.7.4"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmed
+    attributes:
+      label: "Confirmation"
+      options:
+        - label: "I have confirmed this issue only occurs with Packed Packs."
+          required: true
+
+  - type: textarea
+    id: bug_description
+    attributes:
+      label: "Describe the Bug"
+      description: "Explain what happens and what you expected to happen."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to Reproduce"
+      description: "List the steps to reproduce the issue."
+      placeholder: |
+        1. Install both mods
+        2. Launch Minecraft
+        3. Perform X action
+        4. Observe issue
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: "Additional Context"
+      description: "Add any extra information and attach relevant logs, screenshots, or files. For logs, use a paste site like https://mclo.gs/"
+    validations:
+      required: false

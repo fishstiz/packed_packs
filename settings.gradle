@@ -1,10 +1,64 @@
 pluginManagement {
-	repositories {
-		maven {
-			name = 'Fabric'
-			url = 'https://maven.fabricmc.net/'
-		}
-		mavenCentral()
-		gradlePluginPortal()
-	}
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = 'Fabric'
+                    url = uri('https://maven.fabricmc.net')
+                }
+            }
+            filter {
+                includeGroup('net.fabricmc')
+                includeGroup('net.fabricmc.unpick')
+                includeGroup('fabric-loom')
+            }
+        }
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = 'Sponge'
+                    url = uri('https://repo.spongepowered.org/repository/maven-public')
+                }
+            }
+            filter {
+                includeGroupAndSubgroups("org.spongepowered")
+            }
+        }
+    }
+}
+
+rootProject.name = 'packed_packs'
+
+include(':fidgetz', ':fidgetz:common', ':fidgetz:fabric', ':fidgetz:neoforge')
+
+include(':common', ':fabric', ':neoforge')
+project(':common').projectDir = file('mod/common')
+project(':fabric').projectDir = file('mod/fabric')
+project(':neoforge').projectDir = file('mod/neoforge')
+
+include('api', 'api:common', 'api:fabric', 'api:neoforge')
+
+// https://github.com/gradle/gradle/issues/24680 workaround
+gradle.beforeProject { project ->
+    if (project.parent != null && project.parent != rootProject) {
+        def parentPropsFile = new File(project.parent.projectDir, 'gradle.properties')
+        if (parentPropsFile.exists()) {
+            def projectPropsFile = new File(project.projectDir, 'gradle.properties')
+            def projectProps = new Properties()
+            if (projectPropsFile.exists()) {
+                projectPropsFile.withInputStream { projectProps.load(it) }
+            }
+
+            def props = new Properties()
+            parentPropsFile.withInputStream { props.load(it) }
+            props.each { k, v ->
+                def key = k.toString();
+                if (!projectProps.containsKey(key)) {
+                    project.ext.set(key, v)
+                }
+            }
+        }
+    }
 }

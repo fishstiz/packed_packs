@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "io.github.fishstiz.packed_packs.transform.mixin",
+  "refmap": "${mod_id}.refmap.json",
+  "compatibilityLevel": "JAVA_21",
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "client": [
+    "compat.vtd.VTDownloaderScreenMixin"
+  ],
+  "plugin": "io.github.fishstiz.packed_packs.platform.FabricMixinConfigPlugin"
+}

@@ -1,0 +1,95 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+plugins {
+    id 'multiloader-common'
+}
+
+class LoaderExtension {
+    String common = ':common'
+    SourceSet[] sources
+
+    LoaderExtension(SourceSet source) {
+        this.sources = new SourceSet[]{source}
+    }
+}
+
+def loaderExtension = extensions.create('loader', LoaderExtension, sourceSets.main)
+
+def configureSourceSet(String sourceSetName, String commonPath) {
+    def isMain = sourceSetName == 'main'
+    def suffix = isMain ? '' : sourceSetName.capitalize()
+    def javaConfig = commonJavaConfig(sourceSetName) as String
+    def resourcesConfig = commonResourcesConfig(sourceSetName) as String
+
+    configurations.create(javaConfig) { canBeResolved = true }
+    configurations.create(resourcesConfig) { canBeResolved = true }
+
+    dependencies {
+        if (isMain) {
+            compileOnly project(path: commonPath)
+        } else {
+            def commonSourceSet = project(commonPath).sourceSets.findByName(sourceSetName);
+            if (commonSourceSet) {
+                "${sourceSetName}CompileOnly" commonSourceSet.output
+            }
+        }
+
+        add(javaConfig, project(path: commonPath, configuration: javaConfig))
+        add(resourcesConfig, project(path: commonPath, configuration: resourcesConfig))
+    }
+
+    tasks.named("compile${suffix}Java", JavaCompile) {
+        dependsOn(configurations.named(javaConfig))
+        source(configurations.named(javaConfig))
+    }
+
+    tasks.named("process${suffix}Resources") {
+        dependsOn(configurations.named(resourcesConfig))
+        from(configurations.named(resourcesConfig))
+    }
+
+    tasks.named('sourcesJar', Jar) {
+        dependsOn(configurations.named(javaConfig))
+        from(configurations.named(javaConfig))
+        dependsOn(configurations.named(resourcesConfig))
+        from(configurations.named(resourcesConfig))
+    }
+}
+
+afterEvaluate {
+    def common = loaderExtension.common
+
+    if (!common) {
+        throw new GradleException("loader.common not configured for loader ${project.path}")
+    }
+
+    loaderExtension.sources.each { sourceSet ->
+        configureSourceSet(sourceSet.getName(), common)
+    }
+
+    processResources {
+        doLast {
+            def fabric = 'fabric'
+            def forge = 'forge'
+            def neoForge = 'neoforge'
+            def modId = project.findProperty("mod_id")
+
+            if (project.name == neoForge || project.name == forge) {
+                delete "$project.sourceSets.main.output.resourcesDir/${modId}.accesswidener"
+            }
+            if (project.name == fabric) {
+                delete "$project.sourceSets.main.output.resourcesDir/META-INF/accesstransformer.cfg"
+            }
+            if (project.name == neoForge) {
+                def mixinConfigFile = file("${sourceSets.main.output.resourcesDir}/${modId}.mixins.json")
+                if (mixinConfigFile.exists()) {
+                    def jsonSlurper = new JsonSlurper()
+                    def mixinConfig = jsonSlurper.parse(mixinConfigFile)
+                    mixinConfig.remove("refmap")
+                    mixinConfigFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(mixinConfig))
+                }
+            }
+        }
+    }
+}

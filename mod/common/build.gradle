@@ -1,0 +1,61 @@
+plugins {
+    id 'multiloader-common-provider'
+    id 'net.neoforged.moddev'
+}
+
+sourceSets {
+    testmod {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.runtimeClasspath
+    }
+}
+
+commonProvider {
+    sources = [sourceSets.main, sourceSets.testmod]
+}
+
+neoForge {
+    neoFormVersion = neo_form_version
+
+    def at = file('src/main/resources/META-INF/accesstransformer.cfg')
+    if (at.exists()) {
+        accessTransformers.from(at.absolutePath)
+    }
+
+    parchment {
+        minecraftVersion = parchment_minecraft
+        mappingsVersion = parchment_version
+    }
+}
+
+repositories {
+    maven { url = "https://raw.githubusercontent.com/fishstiz/maven/m2" }
+    maven { url = "https://maven.frohnmeyer-wds.de/artifacts" }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = "https://api.modrinth.com/maven"
+            }
+        }
+        filter {
+            includeGroup "maven.modrinth"
+        }
+    }
+}
+
+dependencies {
+    compileOnlyApi project(path: ":fidgetz:common")
+    compileOnlyApi project(path: ":api:common")
+    
+    testmodCompileOnly project(":api:common")
+
+    compileOnly group: 'org.spongepowered', name: 'mixin', version: "$mixin_version"
+    compileOnly group: 'io.github.llamalad7', name: 'mixinextras-common', version: "$mixinextras_version"
+    annotationProcessor group: 'io.github.llamalad7', name: 'mixinextras-common', version: "$mixinextras_version"
+
+    compileOnly "io.github.fishstiz:minecraft-cursor-common-api:$minecraft_cursor_version"
+    compileOnly "maven.modrinth:resourcify:$resourcify_version"
+    compileOnly "maven.modrinth:respackopts:$respackopts_version"
+    compileOnly "io.gitlab.jfronny.libjf:libjf-resource-pack-entry-widgets-forge:$libjf_resource_pack_entry_widgets_version"
+}

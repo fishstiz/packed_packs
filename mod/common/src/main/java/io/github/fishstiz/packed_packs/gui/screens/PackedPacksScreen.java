@@ -1,0 +1,646 @@
+package io.github.fishstiz.packed_packs.gui.screens;
+
+import io.github.fishstiz.fidgetz.gui.components.*;
+import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenu;
+import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuContainer;
+import io.github.fishstiz.fidgetz.gui.components.contextmenu.ContextMenuItemBuilder;
+import io.github.fishstiz.fidgetz.gui.layouts.FlexLayout;
+import io.github.fishstiz.fidgetz.gui.renderables.sprites.Sprite;
+import io.github.fishstiz.fidgetz.util.lang.CollectionsUtil;
+import io.github.fishstiz.fidgetz.util.lang.ObjectsUtil;
+import io.github.fishstiz.packed_packs.api.Preference;
+import io.github.fishstiz.packed_packs.api.context.ScreenContext;
+import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
+import io.github.fishstiz.packed_packs.api.events.InitializeEvent;
+import io.github.fishstiz.packed_packs.api.events.InitializeLayoutEvent;
+import io.github.fishstiz.packed_packs.api.events.ClosingEvent;
+import io.github.fishstiz.packed_packs.compat.minecraftcursor.MinecraftCursor;
+import io.github.fishstiz.packed_packs.config.*;
+import io.github.fishstiz.packed_packs.gui.FocusTarget;
+import io.github.fishstiz.packed_packs.gui.UiEffect;
+import io.github.fishstiz.packed_packs.gui.components.PreferenceToggle;
+import io.github.fishstiz.packed_packs.gui.components.profile.ProfilesSidebar;
+import io.github.fishstiz.packed_packs.gui.states.DragActionRenderer;
+import io.github.fishstiz.packed_packs.gui.components.contextmenu.*;
+import io.github.fishstiz.packed_packs.gui.components.pack.*;
+import io.github.fishstiz.packed_packs.gui.intents.PackListIntent;
+import io.github.fishstiz.packed_packs.gui.layouts.OptionsLayout;
+import io.github.fishstiz.packed_packs.gui.layouts.PackLayout;
+import io.github.fishstiz.packed_packs.gui.metadata.PackSelectionScreenArgs;
+import io.github.fishstiz.packed_packs.gui.model.*;
+import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
+import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
+import io.github.fishstiz.packed_packs.impl.context.ScreenContextImpl;
+import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
+import io.github.fishstiz.packed_packs.pack.*;
+import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionModelAccessor;
+import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionScreenAccessor;
+import io.github.fishstiz.packed_packs.util.PackUtil;
+import io.github.fishstiz.packed_packs.util.ResourceUtil;
+import io.github.fishstiz.packed_packs.util.constants.Theme;
+import net.minecraft.Util;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.gui.screens.AlertScreen;
+import net.minecraft.client.gui.screens.ConfirmScreen;
+import net.minecraft.client.gui.screens.NoticeWithLinkScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
+import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
+import static com.mojang.blaze3d.platform.InputConstants.*;
+import static io.github.fishstiz.packed_packs.util.InputUtil.*;
+import static io.github.fishstiz.packed_packs.util.PackUtil.joinPackNames;
+import static io.github.fishstiz.packed_packs.util.PackUtil.validatePaths;
+import static io.github.fishstiz.packed_packs.util.constants.GuiConstants.*;
+
+public class PackedPacksScreen extends Screen implements HoverStateHandler, ToggleableDialogContainer, ContextMenuContainer {
+    private static final Component OPEN_FOLDER_TEXT = Component.translatable("pack.openFolder");
+    private final Screen previous;
+    private final PackSelectionScreenArgs original;
+    private final PackedPacksViewModel viewModel;
+    private final ScreenContext context;
+    private final LayoutWrapper<FlexLayout> layout;
+    private final ProfilesSidebar profilesSidebar;
+    private final PackLayout availableLayout;
+    private final PackLayout enabledLayout;
+    private final ContextMenu contextMenu;
+    private final Modal<OptionsLayout> optionsModal;
+    private final List<ToggleableDialog<?>> dialogs;
+    private final DragActionRenderer dragActionRenderer;
+    private @Nullable GuiEventListener hoveredElement;
+    private boolean refreshOnInit = true;
+    private boolean initialized = false;
+
+    static {
+        // force load API
+        //noinspection ResultOfMethodCallIgnored,resource
+        Util.backgroundExecutor().execute(PackedPacksApiImpl::getInstance);
+    }
+
+    public PackedPacksScreen(Minecraft minecraft, Screen previous, PackSelectionScreenArgs original) {
+        super(ResourceUtil.getModName());
+
+        this.minecraft = minecraft;
+        this.previous = previous;
+        this.original = original;
+        this.viewModel = new PackedPacksViewModel(this.minecraft, original);
+        this.context = new ScreenContextImpl(previous, this, this.viewModel, original);
+        this.viewModel.startWatcher(this.context);
+
+        Components components = Components.create(this, this.context, this.viewModel);
+        this.profilesSidebar = components.profilesSidebar();
+        this.availableLayout = components.availableLayout();
+        this.enabledLayout = components.enabledLayout();
+        this.contextMenu = components.contextMenu();
+        this.optionsModal = components.optionsModal();
+        this.dialogs = components.dialogs();
+
+        this.dragActionRenderer = new DragActionRenderer(minecraft.font);
+        this.layout = new LayoutWrapper<>(FlexLayout.vertical(this::getMaxHeight).spacing(SPACING));
+        this.layout.setPadding(SPACING);
+
+        this.viewModel.addEffectListener(this::onUiEffect);
+    }
+
+    @Override
+    public void added() {
+        if (this.initialized) {
+            this.viewModel.initializeState();
+            this.viewModel.refreshRepository();
+            this.viewModel.startWatcher(this.context);
+        }
+    }
+
+    @Override
+    public void removed() {
+        this.viewModel.cancelRefresh();
+        this.viewModel.stopWatcher();
+        this.viewModel.saveState();
+    }
+
+    @Override
+    protected void init() {
+        if (this.initialized) return;
+
+        List<Consumer<InitializeEvent.Post>> postActions = new ArrayList<>();
+        PackedPacksApiImpl.getInstance().eventBus().post(new InitializeEvent.Pre(this.context, postActions::add));
+
+        InitializeLayoutEvent event = PackedPacksApiImpl.getInstance().eventBus().post(new InitializeLayoutEvent(this.context));
+        this.layout.layout().addChild(this.createHeader(event));
+        this.layout.layout().addFlexChild(this.createContents());
+        this.layout.layout().addChild(this.createFooter(event));
+
+        this.dialogs.forEach(this::addWidget);
+        this.layout.visitWidgets(this::addRenderableWidget);
+        CollectionsUtil.forEachReverse(this.dialogs, this::addRenderableOnly);
+        this.repositionElements();
+
+        this.viewModel.initializeState();
+        if (this.refreshOnInit) this.viewModel.refreshRepository();
+
+        this.refreshOnInit = true;
+        this.initialized = true;
+
+        InitializeEvent.Post postInit = new InitializeEvent.Post(this.context);
+        postActions.forEach(listener -> listener.accept(postInit));
+        PackedPacksApiImpl.getInstance().eventBus().post(postInit);
+    }
+
+    private void addExtensions(FlexLayout layout, InitializeLayoutEvent.Pos pos, InitializeLayoutEvent extensions) {
+        extensions.getPendingWidgets(pos).forEach(layout::addChild);
+    }
+
+    private FlexLayout createHeader(InitializeLayoutEvent extensions) {
+        FlexLayout header = FlexLayout.horizontal(this::getMaxWidth).spacing(SPACING);
+
+        header.addChild(FidgetzButton.builder()
+                .makeSquare()
+                .setMessage(ProfilesViewModel.TITLE_TEXT)
+                .setTooltip(Tooltip.create(ProfilesViewModel.TITLE_TEXT))
+                .setSprite(HAMBURGER_SPRITE)
+                .setOnPress(this.profilesSidebar::toggle)
+                .build());
+
+        header.addChild(PreferenceToggle.wrap(Preferences.ACTION_BAR_WIDGET, FidgetzButton.<Void>builder()
+                .makeSquare()
+                .setTooltip(Tooltip.create(ResourceUtil.getText("toggle_actionbar.info")))
+                .setSprite(Sprite.of16(ResourceUtil.getIcon("filter")))
+                .setOnPress(this::toggleActionBar)
+                .build()));
+
+        header.addFlexChild(this.profilesSidebar.getProfileHeader());
+
+        this.addExtensions(header, InitializeLayoutEvent.Pos.AFTER_TITLE, extensions);
+
+        header.addChild(PreferenceToggle.wrap(Preferences.OPTIONS_WIDGET, FidgetzButton.<Void>builder()
+                .makeSquare()
+                .setMessage(OPTIONS_TEXT)
+                .setTooltip(Tooltip.create(OPTIONS_TEXT.copy().append(CommonComponents.ELLIPSIS)))
+                .setSprite(Sprite.of16(ResourceUtil.getIcon("gear")))
+                .setOnPress(this.optionsModal::toggle)
+                .build()));
+
+        header.addChild(PreferenceToggle.wrap(Preferences.ORIGINAL_SCREEN_WIDGET, FidgetzButton.<Void>builder()
+                .makeSquare()
+                .setTooltip(Tooltip.create(ResourceUtil.getText("original_screen.info").append(CommonComponents.ELLIPSIS)))
+                .setSprite(Sprite.of16(ResourceUtil.getIcon("exit")))
+                .setOnPress(() -> {
+                    if (this.previous instanceof PackSelectionScreen) {
+                        this.onClose();
+                    } else {
+                        this.minecraft.setScreen(this.original.createScreen(this.previous));
+                    }
+                })
+                .build()));
+
+        return header;
+    }
+
+    private FlexLayout createContents() {
+        FlexLayout contents = FlexLayout.horizontal(this::getMaxWidth).spacing(SPACING);
+        contents.addFlexChild(this.availableLayout, true);
+        contents.addFlexChild(this.enabledLayout, true);
+        return contents;
+    }
+
+    private FlexLayout createFooter(InitializeLayoutEvent extensions) {
+        FlexLayout footer = FlexLayout.horizontal(this::getMaxWidth).spacing(SPACING);
+        FlexLayout leftColumn = FlexLayout.horizontal().spacing(SPACING);
+        FlexLayout rightColumn = FlexLayout.horizontal().spacing(SPACING);
+        this.addExtensions(leftColumn, InitializeLayoutEvent.Pos.BEFORE_FOOTER, extensions);
+        leftColumn.addFlexChild(FidgetzButton.builder()
+                .setMessage(OPEN_FOLDER_TEXT)
+                .setTooltip(Tooltip.create(Component.translatable("pack.folderInfo")))
+                .setOnPress(this.viewModel::openBaseDir)
+                .build());
+        this.addExtensions(leftColumn, InitializeLayoutEvent.Pos.AFTER_LEFT_FOOTER, extensions);
+        this.addExtensions(rightColumn, InitializeLayoutEvent.Pos.BEFORE_RIGHT_FOOTER, extensions);
+        if (this.context.isClientResources()) {
+            rightColumn.addFlexChild(FidgetzButton.builder().setMessage(ResourceUtil.getText("apply")).setOnPress(this.viewModel::commit).build());
+        }
+        this.addExtensions(rightColumn, InitializeLayoutEvent.Pos.BETWEEN_RIGHT_FOOTER, extensions);
+        rightColumn.addFlexChild(FidgetzButton.builder().setMessage(CommonComponents.GUI_DONE).setOnPress(this::onClose).build());
+        this.addExtensions(rightColumn, InitializeLayoutEvent.Pos.AFTER_FOOTER, extensions);
+        footer.addFlexChild(leftColumn);
+        footer.addFlexChild(rightColumn);
+        return footer;
+    }
+
+    public int getMaxHeight() {
+        return this.height - SPACING * 2;
+    }
+
+    public int getMaxWidth() {
+        return this.width - SPACING * 2;
+    }
+
+    private void toggleActionBar() {
+        Config.get().setShowActionBar(!Config.get().isShowActionBar());
+        this.repositionLists();
+    }
+
+    private void repositionLists() {
+        this.availableLayout.setHeaderVisibility(Config.get().isShowActionBar());
+        this.enabledLayout.setHeaderVisibility(Config.get().isShowActionBar());
+    }
+
+    @Override
+    protected void repositionElements() {
+        this.layout.arrangeElements();
+        this.layout.setPosition(0, 0);
+        this.dialogs.forEach(ToggleableDialog::repositionElements);
+        this.contextMenu.setOpen(false);
+        this.repositionLists();
+    }
+
+    @Override
+    public void rebuildWidgets() {
+        if (!this.initialized) return;
+        this.viewModel.cancelRefresh();
+        this.clearWidgets();
+        this.viewModel.saveSelectedProfile();
+        Profile profile = this.viewModel.getSelectedProfile();
+        InitMode initMode = profile == null
+                ? new InitMode.WithPacks(new PackGroup(this.viewModel.getEnabledPacks(), this.viewModel.getAvailablePacks()))
+                : new InitMode.WithProfile(profile);
+        this.viewModel.saveState();
+        this.viewModel.prepareInitialState(initMode);
+        this.layout.setLayout(FlexLayout.vertical(this::getMaxHeight).spacing(SPACING));
+        this.refreshOnInit = false;
+        this.initialized = false;
+        this.init();
+    }
+
+    @Override
+    public void onFilesDrop(@NotNull List<Path> files) {
+        if (this.minecraft == null) return;
+        this.minecraft.setScreen(new ConfirmScreen(
+                confirmed -> {
+                    if (!confirmed) {
+                        this.minecraft.setScreen(this);
+                        return;
+                    }
+                    PackUtil.PathValidationResults results = validatePaths(files);
+                    if (!results.symlinkWarnings().isEmpty()) {
+                        this.minecraft.setScreen(NoticeWithLinkScreen.createPackSymlinkWarningScreen(() -> this.minecraft.setScreen(this)));
+                        return;
+                    }
+                    if (!results.valid().isEmpty()) {
+                        PackSelectionScreen.copyPacks(this.minecraft, results.valid(), this.viewModel.getBaseDir());
+                        this.viewModel.refreshRepository();
+                    }
+                    if (!results.rejected().isEmpty()) {
+                        String rejectedNames = joinPackNames(results.rejected());
+                        this.minecraft.setScreen(new AlertScreen(
+                                () -> this.minecraft.setScreen(this),
+                                Component.translatable("pack.dropRejected.title"),
+                                Component.translatable("pack.dropRejected.message", rejectedNames)
+                        ));
+                        return;
+                    }
+                    this.minecraft.setScreen(this);
+                },
+                Component.translatable("pack.dropConfirm"),
+                Component.literal(joinPackNames(files))
+        ));
+    }
+
+    @Override
+    public void onClose() {
+        var closingEvent = PackedPacksApiImpl.getInstance().eventBus().post(new ClosingEvent(this.context));
+        if (closingEvent.isCommitted() || this.viewModel.shouldCommitOnClose()) {
+            this.viewModel.commit();
+        }
+        if (this.context.isServerData() && !(this.previous instanceof PackSelectionScreen)) {
+            return;
+        }
+        if (this.previous instanceof PackSelectionScreenAccessor packScreen) {
+            ((PackSelectionModelAccessor) packScreen.getModel()).packed_packs$reset();
+            packScreen.invokeReload();
+        }
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(this.previous);
+        }
+    }
+
+    @Override
+    public void tick() {
+        this.viewModel.pollWatcher();
+    }
+
+    private PackLayout getPackLayout(PackListType type) {
+        return switch (type) {
+            case AVAILABLE -> this.availableLayout;
+            case ENABLED -> this.enabledLayout;
+        };
+    }
+
+    private void visitDeepestList(PackListType type, Consumer<PackList> visitor) {
+        this.getPackLayout(type).container().visitDeepestList(visitor);
+    }
+
+    @Override
+    public void setFocused(@Nullable GuiEventListener focused) {
+        if (this.getFocused() != focused) {
+            super.setFocused(focused);
+        }
+    }
+
+    private void applyFocusTarget(PackListType type, FocusTarget target) {
+        this.clearFocus();
+        PackListContainer listContainer = this.getPackLayout(type).container();
+        this.setFocused(listContainer);
+        ObjectsUtil.ifPresent(listContainer.getFocusPath(target), path -> path.applyFocus(true));
+    }
+
+    private void onUiEffect(UiEffect effect) {
+        switch (effect) {
+            case UiEffect.ScrollToTop(PackListType type) -> this.visitDeepestList(type, PackList::scrollToTop);
+            case UiEffect.ScrollToLastSelected(PackListType type) ->
+                    this.visitDeepestList(type, PackList::scrollToLastSelected);
+            case UiEffect.FocusList(PackListType type) -> this.setFocused(this.getPackLayout(type).container());
+            case UiEffect.Focus(PackListType type, String packId, boolean scroll) when packId == null ->
+                    this.applyFocusTarget(type, new FocusTarget.LastSelected(scroll));
+            case UiEffect.Focus(PackListType type, String packId, boolean scroll) ->
+                    this.applyFocusTarget(type, new FocusTarget.PackEntry(packId, scroll));
+        }
+    }
+
+    private @Nullable PackLayout getFocusedOrHoveredLayout() {
+        return ObjectsUtil.firstNonNull(
+                ObjectsUtil.pick(this.availableLayout, this.enabledLayout, pl -> pl.container() == this.getFocused()),
+                ObjectsUtil.pick(this.availableLayout, this.enabledLayout, pl -> pl.container().isHovered()),
+                ObjectsUtil.pick(this.availableLayout, this.enabledLayout, pl -> pl.container().isFocused())
+        );
+    }
+
+    private @Nullable PackLayout getFocusedLayout() {
+        return ObjectsUtil.firstNonNull(
+                ObjectsUtil.pick(this.availableLayout, this.enabledLayout, pl -> pl.container() == this.getFocused()),
+                ObjectsUtil.pick(this.availableLayout, this.enabledLayout, pl -> pl.container().isFocused())
+        );
+    }
+
+    private ToggleableEditBox<Void> focusSearchField(PackLayout packLayout) {
+        if (!Config.get().isShowActionBar()) this.toggleActionBar();
+        ToggleableEditBox<Void> searchField = packLayout.getSearchField();
+        this.clearFocus();
+        this.setFocused(searchField);
+        return searchField;
+    }
+
+    @Override
+    public boolean charTyped(char codePoint, int modifiers) {
+        if (this.viewModel.isDragging()) {
+            return true;
+        }
+        if (super.charTyped(codePoint, modifiers)) {
+            return true;
+        }
+        if (CollectionsUtil.anyMatch(this.dialogs, ToggleableDialog::isOpen)) {
+            return false;
+        }
+        if (codePoint != KEY_SPACE && (noModifiers(modifiers) || shiftOnly(modifiers))) {
+            PackLayout packLayout = this.getFocusedOrHoveredLayout();
+            if (packLayout != null && !packLayout.getSearchField().isFocused()) {
+                return this.focusSearchField(packLayout).charTyped(codePoint, modifiers);
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (this.viewModel.isDragging()) {
+            return true;
+        }
+        this.contextMenu.setOpen(false);
+        if (keyCode == KEY_ESCAPE) {
+            PackLayout packLayout = this.getFocusedLayout();
+            if (packLayout != null) {
+                PackListType type = packLayout.key().type();
+                if (this.viewModel.closeFolder(type) || this.viewModel.closeFolder(type.other())) {
+                    return true;
+                }
+            } else if (this.viewModel.closeFolder()) {
+                return true;
+            }
+        }
+        if (isDeveloperMode(keyCode, modifiers)) {
+            this.viewModel.toggleDevMode();
+            this.rebuildWidgets();
+            return true;
+        }
+        if (isSwitchDefaultProfile(keyCode, modifiers)) {
+            this.viewModel.switchDefaultProfile();
+            return true;
+        }
+        if (isRefresh(keyCode, modifiers) && this.viewModel.canRefresh()) {
+            this.viewModel.refreshRepository();
+            return true;
+        }
+        if (isOpenProfiles(keyCode, modifiers)) {
+            this.profilesSidebar.toggle();
+            return true;
+        }
+        if (super.keyPressed(keyCode, scanCode, modifiers)) {
+            return true;
+        }
+        if (isRedo(keyCode, modifiers)) {
+            this.viewModel.redo();
+            return true;
+        }
+        if (isUndo(keyCode, modifiers)) {
+            this.viewModel.undo();
+            return true;
+        }
+        if (keyCode == KEY_BACKSPACE) {
+            PackLayout packLayout = this.getFocusedOrHoveredLayout();
+            if (packLayout != null) {
+                ToggleableEditBox<Void> searchField = packLayout.getSearchField();
+                if (!searchField.isFocused() && !searchField.getValue().isEmpty()) {
+                    return this.focusSearchField(packLayout).keyPressed(keyCode, scanCode, modifiers);
+                }
+            }
+        }
+        return false;
+    }
+
+    private void openContextMenu(int mouseX, int mouseY) {
+        if (this.contextMenu.isMouseOver(mouseX, mouseY)) return;
+
+        var extensions = ContextMenuEventImpl.postScreen(this.context);
+        new ContextMenuItemBuilder()
+                .whenNonNull(extensions.getItems(ContextMenuEvent.Screen.Pos.TOP))
+                .ifTrue((items, b) -> b.addAll(items))
+                .then(b -> this.buildItems(b, mouseX, mouseY))
+                .whenNonNull(this.context.devMode() ? ContextMenuEventImpl.postPreferences(this.context) : null)
+                .ifTrue((ext, dev) -> dev
+                        .separatorIfNonEmpty()
+                        .whenNonNull(this.viewModel.getSelectedProfile())
+                        .ifTrue(b -> b.
+                                add(devItem(ResourceUtil.getText("profile.save"))
+                                        .action(this.viewModel::saveSelectedProfile)
+                                        .build())
+                                .separator())
+                        .parent(children -> devItem(ResourceUtil.getText("preferences"))
+                                .addChildren(children)
+                                .build(), prefsBuilder -> prefsBuilder
+                                .whenNonNull(ext.getItems(ContextMenuEvent.Preferences.Pos.TOP))
+                                .ifTrue((items, b) -> b.addAll(items))
+                                .addAll(PreferenceToggle.standardOptions())
+                                .whenNonNull(ext.getItems(ContextMenuEvent.Preferences.Pos.BOTTOM))
+                                .ifTrue((items, b) -> b.addAll(items))
+                                .add(devItem(ResourceUtil.getText("preferences.reset"))
+                                        .closeOnInteract(false)
+                                        .action(() -> {
+                                            PreferenceToggle.resetStandardOptions();
+                                            ext.getPreferences().forEach(Preference::reset);
+                                        }).build())))
+                .separatorIfNonEmpty()
+                .simpleItem(ResourceUtil.getText("reset_enabled"), this.viewModel::isUnlocked, this.viewModel::resetChanges)
+                .simpleItem(ResourceUtil.getText("refresh"), this.viewModel::canRefresh, this.viewModel::refreshRepository)
+                .when(this.viewModel.getAdditionalFolders(), List::isEmpty)
+                .ifTrue(b -> b.simpleItem(OPEN_FOLDER_TEXT, this.viewModel::openBaseDir))
+                .orElse((dirs, b) -> b
+                        .parent(OPEN_FOLDER_TEXT, p -> p
+                                .add(new DirectoryMenuItem(this.viewModel.getBaseDir()))
+                                .separator()
+                                .iterate(dirs)
+                                .map(DirectoryMenuItem::new)))
+                .whenNonNull(extensions.getItems(ContextMenuEvent.Screen.Pos.BOTTOM))
+                .ifTrue((items, b) -> b.addAll(items))
+                .peek(items -> {
+                    boolean hasHeader = !items.isEmpty() && items.getFirst() instanceof PackMenuHeader;
+                    int yOffset = hasHeader ? this.contextMenu.getItemHeight() : 0;
+                    this.contextMenu.open(mouseX, mouseY - yOffset, items);
+                });
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (this.viewModel.isDragging()) {
+            return true;
+        }
+        if (isClickForward(button)) {
+            this.viewModel.redo();
+            return true;
+        }
+        if (isClickBack(button)) {
+            this.viewModel.undo();
+            return true;
+        }
+
+        boolean clicked = ToggleableDialogContainer.super.mouseClicked(mouseX, mouseY, button);
+
+        if (isRightClick(button) && !this.optionsModal.isMouseOver(mouseX, mouseY)) {
+            this.openContextMenu((int) mouseX, (int) mouseY);
+        } else if (clicked && !this.contextMenu.isMouseOver(mouseX, mouseY)) {
+            this.contextMenu.setOpen(false);
+        }
+
+        if (!clicked && this.hoveredElement == null) {
+            ObjectsUtil.ifPresent(this.getCurrentFocusPath(), path -> path.applyFocus(false));
+        }
+
+        return clicked;
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        return this.viewModel.isDragging() || ToggleableDialogContainer.super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        ActiveAction.Dragging dragged = this.viewModel.state().dragging();
+        if (isLeftClick(button) && dragged != null) {
+            if (this.availableLayout.container().isHovered()) {
+                this.availableLayout.container().onDrop(dragged, (int) mouseX, (int) mouseY);
+            } else if (this.enabledLayout.container().isHovered()) {
+                this.enabledLayout.container().onDrop(dragged, (int) mouseX, (int) mouseY);
+            } else {
+                this.viewModel.dispatch(new PackListIntent.Drop(dragged.target(), dragged.ctx(), dragged.payload(), null, 0));
+            }
+            return true;
+        }
+
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public List<ToggleableDialog<?>> getDialogs() {
+        return this.dialogs;
+    }
+
+    @Override
+    public @Nullable GuiEventListener getHovered() {
+        return this.hoveredElement;
+    }
+
+    @Override
+    public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        this.hoveredElement = this.findHovered(mouseX, mouseY);
+
+        super.render(guiGraphics, mouseX, mouseY, partialTick);
+
+        if (this.viewModel.isDragging()) {
+            if (this.viewModel.isUnlocked()) {
+                this.dragActionRenderer.render(
+                        this.availableLayout.container(),
+                        this.enabledLayout.container(),
+                        this.viewModel.state().dragging(),
+                        guiGraphics,
+                        mouseX,
+                        mouseY,
+                        partialTick
+                );
+            } else {
+                MinecraftCursor.get().setNotAllowed();
+            }
+        }
+
+        if (this.context.devMode()) {
+            float scale = 0.5f;
+            int y = (int) ((height - this.font.lineHeight * scale) / scale);
+
+            guiGraphics.pose().pushMatrix();
+            guiGraphics.pose().scale(scale);
+            guiGraphics.drawString(this.font, ResourceUtil.getText("dev_mode", DEV_MODE_SHORTCUT), 0, y, Theme.WHITE.getARGB());
+            guiGraphics.pose().popMatrix();
+        }
+    }
+
+    @Override
+    public <T extends GuiEventListener & NarratableEntry> @NotNull T addWidget(@NotNull T widget) {
+        return super.addWidget(widget);
+    }
+
+    @Override
+    public <T extends Renderable> @NotNull T addRenderableOnly(@NotNull T renderable) {
+        return super.addRenderableOnly(renderable);
+    }
+
+    @Override
+    public <T extends GuiEventListener & Renderable & NarratableEntry> @NotNull T addRenderableWidget(@NotNull T widget) {
+        return super.addRenderableWidget(widget);
+    }
+
+    @Override
+    public void removeWidget(@NotNull GuiEventListener widget) {
+        super.removeWidget(widget);
+    }
+}

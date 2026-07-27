@@ -1,0 +1,49 @@
+name: "Bug Report"
+description: "Report a bug with Packed Packs."
+labels: [ "bug" ]
+body:
+  - type: input
+    id: mc_version
+    attributes:
+      label: "Minecraft Version"
+      description: "Enter the Minecraft version where the issue occurs."
+      placeholder: "1.21.10"
+    validations:
+      required: true
+
+  - type: input
+    id: mod_version
+    attributes:
+      label: "Packed Packs Version"
+      description: "Enter the version of Packed Packs."
+      placeholder: "v1.2.0+1.21.9"
+    validations:
+      required: true
+
+  - type: textarea
+    id: bug_description
+    attributes:
+      label: "Describe the Bug"
+      description: "Explain what happens and what you expected to happen."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to Reproduce"
+      description: "List the steps to reproduce the issue."
+      placeholder: |
+        1. Go to Packed Packs Screen
+        2. Click on '...'
+        3. Observe issue
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: "Additional Context"
+      description: "Add any extra information and attach relevant logs, screenshots, or files. For logs, use a paste site like https://mclo.gs/"
+    validations:
+      required: false
