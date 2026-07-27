@@ -61,6 +61,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         this.listModel = listModel;
         this.applyTheme();
         this.listModel.subscribe(PackListViewModel.Property.PACKS, this::refreshEntries);
+        setScrollRate(SCROLL_RATE);
     }
 
     public PackListKey key() {
@@ -75,11 +76,6 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     @Override
     protected int rowSpacing() {
         return -1;
-    }
-
-    @Override
-    public double scrollRate() {
-        return SCROLL_RATE;
     }
 
     private void applyTheme() {
@@ -120,7 +116,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     }
 
     public void scrollToLastSelected() {
-        Entry selected = getSelected();
+        Entry selected = getLastSelected();
         if (selected != null) scrollToEntry(selected);
     }
 
@@ -245,7 +241,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
     }
 
-    private @Nullable Entry getSelected() {
+    private @Nullable Entry getLastSelected() {
         for (Entry entry : children()) {
             if (entry.entryModel.selectedLast()) {
                 return entry;
@@ -256,7 +252,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
     private @Nullable Entry getFocusedOrSelected() {
         Entry focused = getFocused();
-        return focused == null ? getSelected() : focused;
+        return focused == null ? getLastSelected() : focused;
     }
 
     private @Nullable Entry getEntry(String packId) {
@@ -288,7 +284,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         if (this.children().isEmpty()) return null;
 
         Entry targetEntry = switch (target) {
-            case FocusTarget.LastSelected ignored -> getSelected();
+            case FocusTarget.LastSelected ignored -> getLastSelected();
             case FocusTarget.PackEntry entry -> getEntry(entry.packId());
         };
 
@@ -303,10 +299,10 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             case FocusNavigationEvent.InitialFocus ignored -> getFocusedOrSelected();
             case FocusNavigationEvent.TabNavigation ignored -> isFocused()
                     ? null
-                    : Objects.requireNonNullElse(getSelected(), children().getFirst());
+                    : Objects.requireNonNullElse(getLastSelected(), children().getFirst());
             case FocusNavigationEvent.ArrowNavigation(ScreenDirection direction) -> isFocused()
                     ? getNextEntryAt(direction)
-                    : Objects.requireNonNullElse(getSelected(), children().getFirst());
+                    : Objects.requireNonNullElse(getLastSelected(), children().getFirst());
             default -> null;
         };
 
@@ -380,19 +376,13 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        boolean scrolling = updateScrolling(mouseX, mouseY, button);
-        return super.mouseClicked(mouseX, mouseY, button) || scrolling;
-    }
-
-    @Override
     protected void extractEntriesRenderState(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         if (!listModel.isFolderOpened()) {
             super.extractEntriesRenderState(graphics, mouseX, mouseY, partialTick);
         }
     }
 
-    public class Entry extends FZAbstractListWidget.Entry implements SelectableEntry, ContainerEventHandlerPatch, FZContextMenu.Source, ElementSink {
+    public class Entry extends FZAbstractListWidget.Entry<Entry> implements SelectableEntry, ContainerEventHandlerPatch, FZContextMenu.Source, ElementSink {
         private static final int ICON_SIZE = 32;
         private static final Tooltip FOLDER_OPEN_INFO = Tooltip.create(FolderPack.FOLDER_OPEN_TEXT);
         private static final RenderableRectangle SELECTED_OVERLAY = Renderables.fill(Colors.alpha(Colors.BLUE_500, 0.25f));

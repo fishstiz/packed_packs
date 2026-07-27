@@ -107,7 +107,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         repositionEntries();
     }
 
-    protected static final class Entry extends FZAbstractListWidget.Entry implements FZContextMenu.Source {
+    protected static final class Entry extends FZAbstractListWidget.Entry<Entry> implements FZContextMenu.Source {
         private static final ResourceLocation STAR_OUTLINE_SPRITE = PackedPacks.id("icon/star_outline");
         private static final WidgetSprites LOCK_SPRITES = new WidgetSprites(
                 LOCK_SPRITE,
