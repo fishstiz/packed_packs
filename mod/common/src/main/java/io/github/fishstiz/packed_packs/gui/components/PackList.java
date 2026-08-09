@@ -277,10 +277,10 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         Entry selectedEntry = getFocusedOrSelected();
         return switch (direction) {
             case UP -> Objects.equals(selectedEntry, children().getFirst())
-                    ? selectedEntry
+                    ? null
                     : getPreviousEntry(selectedEntry);
             case DOWN -> Objects.equals(selectedEntry, children().getLast())
-                    ? selectedEntry
+                    ? null
                     : getNextEntry(selectedEntry);
             case LEFT -> key().type().available() ? selectedEntry : null;
             case RIGHT -> key().type().enabled() ? selectedEntry : null;
@@ -360,8 +360,9 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             return true;
         }
         if (isUp(keyEvent) || isDown(keyEvent)) {
-            selectOnKeyPress(getNextEntryAt(isUp(keyEvent) ? ScreenDirection.UP : ScreenDirection.DOWN));
-            return true;
+            Entry nextEntry = getNextEntryAt(isUp(keyEvent) ? ScreenDirection.UP : ScreenDirection.DOWN);
+            selectOnKeyPress(nextEntry);
+            return nextEntry != null;
         }
         if (isHome(keyEvent) || isEnd(keyEvent)) {
             if (children().isEmpty()) return true;
