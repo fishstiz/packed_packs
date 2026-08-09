@@ -21,6 +21,7 @@ neoForge {
             type = "client"
             gameDirectory = project.file('run/testmod')
             ideName = "NeoForge Client Test ($project.path)"
+            jvmArgument("-Dpacked_packs.debug")
         }
     }
 }
