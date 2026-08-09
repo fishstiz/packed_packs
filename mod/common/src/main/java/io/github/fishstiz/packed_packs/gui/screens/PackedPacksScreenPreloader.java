@@ -47,14 +47,14 @@ public class PackedPacksScreenPreloader implements Renderable {
             long start = 0;
             boolean debug = System.getProperty("packed_packs.debug") != null;
 
-            if (Services.PLATFORM.isDev() || debug) {
+            if (debug) {
                 start = System.nanoTime();
                 PackedPacks.LOGGER.info("[packed_packs] ======== Preloading PackedPacksScreen ========");
             }
 
             PackedPacksScreen.preload(minecraft);
 
-            if (Services.PLATFORM.isDev() || debug) {
+            if (debug) {
                 long duration = (System.nanoTime() - start) / 1_000_000;
                 PackedPacks.LOGGER.info("[packed_packs] ======== Preloaded PackedPacksScreen in {}ms ========", duration);
             }

@@ -46,6 +46,7 @@ loom {
             setConfigName('Fabric Client Test')
             ideConfigGenerated(true)
             runDir('run/testmod')
+            vmArg("-Dpacked_packs.debug")
         }
     }
 }
