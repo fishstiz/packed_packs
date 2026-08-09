@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs.transform.mixin.overrides;
 
 import com.google.common.collect.ImmutableMap;
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.sugar.Share;
@@ -79,14 +80,13 @@ public abstract class PackRepositoryMixin implements MappedPackRepository {
         return map;
     }
 
-    @WrapMethod(method = "discoverAvailable")
-    private Map<String, Pack> createAliasMap(Operation<Map<String, Pack>> original, @Share("mutableMap") LocalRef<Map<String, Pack>> mutableMapRef) {
-        Map<String, Pack> immutableMap = original.call();
+    @ModifyReturnValue(method = "discoverAvailable", at = @At("RETURN"))
+    private Map<String, Pack> createAliasMap(Map<String, Pack> original, @Share("mutableMap") LocalRef<Map<String, Pack>> mutableMapRef) {
         Map<String, Pack> mutableMap = mutableMapRef.get();
 
         if (this.packed_packs$config == null || !this.packed_packs$config.hasAliases() || mutableMap == null) {
             this.packed_packs$hasAlias = false;
-            return immutableMap;
+            return original;
         }
 
         this.packed_packs$hasAlias = true;
