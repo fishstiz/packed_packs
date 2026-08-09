@@ -14,8 +14,6 @@ neoForge {
 }
 
 dependencies {
-    compileOnly libs.fidgetz.common
-
     compileOnly libs.bundles.mixin
     annotationProcessor libs.mixin.extras
 }

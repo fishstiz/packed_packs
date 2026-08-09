@@ -22,7 +22,3 @@ neoForge {
         }
     }
 }
-
-dependencies {
-    compileOnly libs.fidgetz.neoforge
-}
