@@ -1,5 +1,5 @@
 [versions]
-fidgetz = "0.5.2+26.1"
+fidgetz = "0.6.2+26.1"
 
 [libraries]
 mixin = { module = "org.spongepowered:mixin", version = "0.8.7" }
