@@ -3,6 +3,7 @@ package io.github.fishstiz.packed_packs.gui.layouts;
 import io.github.fishstiz.fidgetz.v0.gui.components.*;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
+import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.gui.components.ProfileList;
 import io.github.fishstiz.packed_packs.gui.model.PackedPacksStore;
 import io.github.fishstiz.packed_packs.gui.model.ProfilesViewModel;
@@ -17,7 +18,7 @@ public class SidebarLayout extends WrappedLayout {
         super(layout);
     }
 
-    public static SidebarLayout create(PackedPacksStore store, Runnable close) {
+    public static SidebarLayout create(ScreenContext context, PackedPacksStore store, Runnable close) {
         final ProfilesViewModel model = store.createProfilesSlice();
         return new SidebarLayout(FZFlexLayout.vertical().also(sidebar -> {
             sidebar.spacing(SPACING).maxWidth(WIDTH);
@@ -57,7 +58,7 @@ public class SidebarLayout extends WrappedLayout {
                         .build());
             });
 
-            sidebar.child(new ProfileList(model), sidebar.flexChildSettings().minFlexWidth(WIDTH));
+            sidebar.child(new ProfileList(context, model), sidebar.flexChildSettings().minFlexWidth(WIDTH));
         }));
     }
 }
