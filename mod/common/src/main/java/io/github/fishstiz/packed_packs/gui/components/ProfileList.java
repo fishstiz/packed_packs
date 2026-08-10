@@ -1,13 +1,18 @@
 package io.github.fishstiz.packed_packs.gui.components;
 
 import io.github.fishstiz.fidgetz.v0.gui.components.*;
+import io.github.fishstiz.fidgetz.v0.gui.components.events.FZHoverableElement;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.packed_packs.PackedPacks;
+import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.config.Config;
+import io.github.fishstiz.packed_packs.config.DevConfig;
+import io.github.fishstiz.packed_packs.config.DevConfig.ResourcePacks.LoadDefaultCondition;
 import io.github.fishstiz.packed_packs.gui.model.ProfilesViewModel;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.layouts.LayoutElement;
@@ -23,9 +28,11 @@ import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
 
 public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> implements Layout {
     private static final Component EMPTY_TEXT = Component.translatable("packed_packs.profile.empty");
+    private final ScreenContext context;
     private final ProfilesViewModel model;
 
-    public ProfileList(ProfilesViewModel model) {
+    public ProfileList(ScreenContext context, ProfilesViewModel model) {
+        this.context = context;
         this.model = model;
         refreshEntries();
         model.subscribe(ProfilesViewModel.Property.ALL, this::refreshEntries);
@@ -44,7 +51,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         clearEntries();
 
         model.forEachEntry((entryModel, ignored) -> {
-            Entry entry = new Entry(entryModel);
+            Entry entry = new Entry(context, entryModel);
             addEntry(entry);
             if (entryModel.id().equals(focusedId)) {
                 setFocused(entry);
@@ -113,9 +120,11 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         private final List<AbstractWidget> children = new ArrayList<>();
         private final FZFlexLayout layout;
         private final ProfilesViewModel.Entry model;
+        private final ScreenContext context;
 
-        private Entry(ProfilesViewModel.Entry model) {
+        private Entry(ScreenContext context, ProfilesViewModel.Entry model) {
             this.model = model;
+            this.context = context;
             this.layout = FZFlexLayout.horizontal();
 
             boolean deleteActive = !model.isLocked() && !model.isDefault();
@@ -154,6 +163,12 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
                                 : Component.translatable("packed_packs.profile.lock"))
                         .onPress(model::toggleLock)
                         .build()));
+            }
+
+            for (AbstractWidget child : children) {
+                if (child instanceof FZHoverableElement hoverableElement) {
+                    hoverableElement.fidgetz$setHovered(fidgetz$isHovered());
+                }
             }
 
             layout.arrangeElements();
@@ -195,6 +210,34 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
                     .message(Component.translatable("packed_packs.profile." + (model.isLocked() ? "lock" : "unlock")))
                     .icon(createIcon(() -> model.isLocked() ? LOCK_SPRITE_SMALL : UNLOCK_SPRITE_SMALL))
                     .onPress(model::toggleLock)));
+
+            if (context.isServerData()) {
+                return;
+            }
+
+            DevConfig.ResourcePacks config = DevConfig.get().getResourcepacks();
+
+            FZPopoverMenuItem.Builder loadConditionEntry = buildDevEntry(FZPopoverMenuItem.builder())
+                    .message(Component.translatable("packed_packs.profile.default.resource_pack.load"))
+                    .tooltip(Tooltip.create(Component.translatable("packed_packs.profile.default.resource_pack.load.info")));
+
+            loadConditionEntry.child(GuiUtils.buildDevEntry(FZPopoverMenuItem.builder())
+                    .message(Component.translatable("packed_packs.profile.default.resource_pack.load.no_options_or_version"))
+                    .tooltip(Tooltip.create(Component.translatable("packed_packs.profile.default.resource_pack.load.no_options_or_version.info")))
+                    .icon(GuiUtils.toggleRect(() -> config.getLoadDefaultCondition() == LoadDefaultCondition.NO_OPTIONS_OR_VERSION_FILE))
+                    .onPress(() -> DevConfig.get().getResourcepacks().setLoadDefaultCondition(LoadDefaultCondition.NO_OPTIONS_OR_VERSION_FILE))
+                    .closeOnInteraction(false)
+                    .build());
+
+            loadConditionEntry.child(GuiUtils.buildDevEntry(FZPopoverMenuItem.builder())
+                    .message(Component.translatable("packed_packs.profile.default.resource_pack.load.no_options"))
+                    .tooltip(Tooltip.create(Component.translatable("packed_packs.profile.default.resource_pack.load.no_options.info")))
+                    .icon(GuiUtils.toggleRect(() -> config.getLoadDefaultCondition() == LoadDefaultCondition.NO_OPTIONS_FILE))
+                    .onPress(() -> DevConfig.get().getResourcepacks().setLoadDefaultCondition(LoadDefaultCondition.NO_OPTIONS_FILE))
+                    .closeOnInteraction(false)
+                    .build());
+
+            collector.addEntry(loadConditionEntry.build());
         }
 
         @Override
