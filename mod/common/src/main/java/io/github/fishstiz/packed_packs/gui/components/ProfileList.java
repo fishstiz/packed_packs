@@ -216,7 +216,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
                     .icon(createIcon(() -> model.isLocked() ? LOCK_SPRITE_SMALL : UNLOCK_SPRITE_SMALL))
                     .onPress(model::toggleLock)));
 
-            if (context.isServerData()) {
+            if (!model.isDefault() || context.isServerData()) {
                 return;
             }
 
