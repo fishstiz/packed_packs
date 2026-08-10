@@ -15,7 +15,12 @@ import java.util.regex.PatternSyntaxException;
 
 public final class DevConfig {
     private static final String FILENAME = "config.meta.json";
-    private static final DevConfig INSTANCE = JsonLoader.loadOrDefault(getPath(), DevConfig.class, DevConfig::new);
+    private static final DevConfig INSTANCE = JsonLoader.loadOrDefault(getPath(), DevConfig.class, () -> {
+        DevConfig devConfig = new DevConfig();
+        devConfig.resourcepacks.setLoadDefaultCondition(ResourcePacks.LoadDefaultCondition.NO_OPTIONS_OR_VERSION_FILE);
+        return devConfig;
+    });
+
     private final ResourcePacks resourcepacks = new ResourcePacks();
     private final DataPacks datapacks = new DataPacks();
 
@@ -148,6 +153,21 @@ public final class DevConfig {
     }
 
     public static final class ResourcePacks extends Packs {
+        private LoadDefaultCondition loadDefaultCondition = LoadDefaultCondition.NO_OPTIONS_FILE;
+
+        public void setLoadDefaultCondition(LoadDefaultCondition loadDefaultCondition) {
+            this.loadDefaultCondition = loadDefaultCondition;
+        }
+
+        public LoadDefaultCondition getLoadDefaultCondition() {
+            return Objects.requireNonNullElse(this.loadDefaultCondition, LoadDefaultCondition.NO_OPTIONS_FILE);
+        }
+
+        public enum LoadDefaultCondition {
+            NO_OPTIONS_FILE,
+            NO_OPTIONS_OR_VERSION_FILE
+        }
+
         @Override
         public PackType packType() {
             return PackType.CLIENT_RESOURCES;
