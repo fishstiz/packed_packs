@@ -479,7 +479,7 @@ public class PackedPacksScreen extends FZScreen {
     }
 
     private void initSidebar() {
-        SidebarLayout sidebarLayout = SidebarLayout.create(store, () -> sidebarOpen.set(false));
+        SidebarLayout sidebarLayout = SidebarLayout.create(context, store, () -> sidebarOpen.set(false));
         dialogManager.put(FZModal.bind("ProfilesSidebar", sidebarOpen.map(open -> FZModal.builder(this, sidebarLayout)
                 .id("ProfilesSidebar")
                 .popoverOrder(5)
