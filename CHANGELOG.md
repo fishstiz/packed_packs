@@ -13,7 +13,7 @@
         - Used as the default condition when the `config.meta.json` is newly created.
         - **Note**: You should not ship the `__version.json` file in modpacks, and since it's new to this update,
           switching to this option will reset the resource pack configuration for existing users.
-    - `NO_OPTIONS`: Triggers only when the `options.txt` is missing.
+    - `NO_OPTIONS_FILE`: Triggers only when the `options.txt` is missing.
         - Only exists to preserve the resource pack configuration for existing users when updating to this or newer
           versions of the mod, otherwise use the above option.
         - Used as the default load condition when the `config.meta.json` file already exists.
