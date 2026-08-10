@@ -117,7 +117,8 @@ controls.
       original screen.
     - Enabled packs under the default profile are automatically marked as compatible.
     - Default profiles load automatically in the following cases:
-        - **Resource Packs**: when the `options.txt` file is missing.
+        - **Resource Packs**:  when the `options.txt`, or in newer versions the `config/packed_packs/__version.json`, is missing.
+          - Users that updated from before the `_version.json` file was added may only load the default profile when the `options.txt` is missing. This can be configured in the right-click context menu of the default profile.
         - **Data Packs**: when creating a new world.
 - **Copy to Clipboard**: Copy the select pack's ID.
 - **Pack Aliases**: Add aliases to Pack IDs
