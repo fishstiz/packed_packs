@@ -11,4 +11,5 @@
         - Used as the default load condition when the `config.meta.json` file already exists.
 - Updated Russian Translation ([#70](https://github.com/fishstiz/packed_packs/pull/70) by iceban)
 - Improved compatibility with smooth scrolling ([#71](https://github.com/fishstiz/packed_packs/issues/71))
+- Fixed translation keys for toggling the default and lock setting of profiles being inverted in the context menu.
 - Arrow key navigation in pack lists is no longer constrained.

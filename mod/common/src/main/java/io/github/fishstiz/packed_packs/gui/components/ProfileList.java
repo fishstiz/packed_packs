@@ -207,12 +207,12 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
             collector.nextSection();
 
             collector.addEntry(builder -> buildDevEntry(builder)
-                    .message(Component.translatable("packed_packs.profile.default." + (model.isDefault() ? "set" : "unset")))
+                    .message(Component.translatable("packed_packs.profile.default." + (model.isDefault() ? "unset" : "set")))
                     .icon(createIcon(() -> model.isDefault() ? STAR_SPRITE : STAR_OUTLINE_SPRITE))
                     .onPress(model::toggleDefault));
 
             collector.addEntry(builder -> buildDevEntry(builder
-                    .message(Component.translatable("packed_packs.profile." + (model.isLocked() ? "lock" : "unlock")))
+                    .message(Component.translatable("packed_packs.profile." + (model.isLocked() ? "unlock" : "lock")))
                     .icon(createIcon(() -> model.isLocked() ? LOCK_SPRITE_SMALL : UNLOCK_SPRITE_SMALL))
                     .onPress(model::toggleLock)));
 
