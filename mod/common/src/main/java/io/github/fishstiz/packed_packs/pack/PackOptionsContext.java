@@ -2,6 +2,7 @@ package io.github.fishstiz.packed_packs.pack;
 
 import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.config.Profile;
+import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
 import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
@@ -43,7 +44,7 @@ public class PackOptionsContext implements PackOptions {
 
     @Override
     public PackSelectionConfig getSelectionConfig(Pack pack) {
-        return this.resolver.getSelectionConfigOrDefault(pack);
+        return this.resolver.getSelectionConfigOrDefault(pack) ;
     }
 
     public Optional<Profile> getProfile() {

@@ -12,7 +12,8 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.SequencedCollection;
-
+// everything should be id-based/or not for optimization so we dont have to keep mapping
+// should remove some payload that can be gotten from state
 public sealed interface PackListIntent extends Intent {
     PackListKey target();
 
@@ -124,7 +125,7 @@ public sealed interface PackListIntent extends Intent {
     record Drop(
             PackListKey target,
             PackContext ctx,
-            SequencedCollection<Pack> payload,
+            SequencedCollection<Pack> payload, // payload can be removed
             @Nullable PackListKey destination,
             int index
     ) implements ScreenScoped, Entry {
@@ -152,7 +153,7 @@ public sealed interface PackListIntent extends Intent {
             PackListKey target,
             PackContext ctx,
             FolderPack folderPack,
-            List<Pack> contents
+            List<Pack> contents // todo remove this, should
     ) implements ListScoped, Entry {
     }
 

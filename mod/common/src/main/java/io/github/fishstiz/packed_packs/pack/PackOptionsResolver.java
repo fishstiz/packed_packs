@@ -16,20 +16,17 @@ import java.util.function.*;
 /**
  * Checks the default profile first, then the selected profile, then pack defaults.
  */
-public record PackOptionsResolver(
-        Supplier<@Nullable Profile> profileSupplier,
-        Supplier<@Nullable Profile> defaultProfileSupplier
-) implements PackOptions {
+public record PackOptionsResolver(@Nullable Profile selectedProfile, @Nullable Profile defaultProfile) implements PackOptions {
     public static final PackOptionsResolver DATA_PACKS = new PackOptionsResolver(ProfileManager.get(PackType.SERVER_DATA));
     public static final PackOptionsResolver RESOURCE_PACKS = new PackOptionsResolver(ProfileManager.get(PackType.CLIENT_RESOURCES));
 
     public PackOptionsResolver(ProfileManager manager) {
-        this(FunctionUtils.nullSupplier(), manager::getDefault);
+        this(null, manager.getDefault());
     }
 
     @Override
-    public boolean isHidden(Pack pack) {
-        return Boolean.TRUE.equals(this.inDefaultOrSelected(pack, Profile::isHidden, Profile::isHidden));
+    public boolean isHidden(String packId) {
+        return Boolean.TRUE.equals(this.inDefaultOrSelected(packId, Profile::isHidden, Profile::isHidden));
     }
 
     public boolean isRequired(Pack pack) {
@@ -85,7 +82,7 @@ public record PackOptionsResolver(
         return selected != null && option.test(selected, pack);
     }
 
-    private <T> T getOrDefault(Pack pack, BiFunction<PackOptions, Pack, T> option, Predicate<T> predicate, Function<Pack, T> defaultValue) {
+    private <T> T getOrDefault(Pack pack, BiFunction<PackOptions, String, T> option, Predicate<T> predicate, Function<Pack, T> defaultValue) {
         T value = option.apply(this, pack);
         return predicate.test(value) ? value : defaultValue.apply(pack);
     }

@@ -2,6 +2,8 @@ package io.github.fishstiz.packed_packs.gui.model;
 
 import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.gui.states.PackListState;
+import io.github.fishstiz.packed_packs.gui2.models.PackEntry;
+import io.github.fishstiz.packed_packs.gui2.models.ProfileSelection;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.packs.repository.Pack;
 
@@ -76,6 +78,19 @@ public final class PackListUtils {
         return -1;
     }
 
+    public static int getMoveUpIndex(List<PackEntry> packs, PackEntry pack, ProfileSelection profile) {
+        for (int i = packs.indexOf(pack) - 1; i >= 0; i--) {
+            PackEntry nextPack = packs.get(i);
+            if (profile.isPackFixed(nextPack)) {
+                return -1;
+            }
+            if (!profile.isPackHidden(nextPack)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     public static int getMoveDownIndex(List<Pack> packs, Pack pack, PackOptions options) {
         for (int i = packs.indexOf(pack) + 1; i < packs.size(); i++) {
             Pack nextPack = packs.get(i);
@@ -83,6 +98,19 @@ public final class PackListUtils {
                 return -1;
             }
             if (!options.isHidden(nextPack)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public static int getMoveDownIndex(List<PackEntry> packs, PackEntry pack, ProfileSelection profile) {
+        for (int i = packs.indexOf(pack) + 1; i < packs.size(); i++) {
+            PackEntry nextPack = packs.get(i);
+            if (profile.isPackFixed(nextPack)) {
+                return -1;
+            }
+            if (!profile.isPackHidden(nextPack)) {
                 return i;
             }
         }

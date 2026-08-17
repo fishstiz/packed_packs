@@ -3,10 +3,10 @@ package io.github.fishstiz.packed_packs.util;
 import com.sun.jna.platform.FileUtils;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
+import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.pack.PackGroup;
 import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
-import io.github.fishstiz.packed_packs.pack.folder.FolderResources;
 import io.github.fishstiz.packed_packs.platform.Services;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.transform.mixin.UtilAccess;
@@ -23,6 +23,7 @@ import net.minecraft.server.packs.repository.PackDetector;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.world.level.validation.ForbiddenSymlinkInfo;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -78,19 +79,7 @@ public class PackUtil {
         return new PackLocationInfo(id, info.title(), info.source(), info.knownPackInfo());
     }
 
-    public static long getLastUpdatedEpochMs(Pack pack) {
-        Path path = ((FilePack) pack).packed_packs$getPath();
-        if (path == null) {
-            return -1;
-        }
 
-        try {
-            return Files.getLastModifiedTime(path).toInstant().toEpochMilli();
-        } catch (IOException e) {
-            PackedPacks.LOGGER.error("Failed to get age of pack '{}'", pack.getId());
-            return -1;
-        }
-    }
 
     public static List<String> extractPackIds(Collection<Pack> packs) {
         return CollectionUtils.map(packs, Pack::getId);
@@ -105,21 +94,19 @@ public class PackUtil {
     }
 
     public static boolean hasFolderConfig(Path path) {
-        return Files.isRegularFile(path.resolve(FolderResources.FOLDER_CONFIG_FILENAME), LinkOption.NOFOLLOW_LINKS);
+        return Files.isRegularFile(path.resolve(FolderPackMeta.FILENAME), LinkOption.NOFOLLOW_LINKS);
     }
 
-    public static boolean isBuiltIn(Pack pack) {
-        PackSource packSource = pack.getPackSource();
-        return packSource == PackSource.BUILT_IN || Services.PLATFORM.isBuiltInPack(pack);
+    public static boolean isBuiltIn(PackSource packSource) {
+        return packSource == PackSource.BUILT_IN || Services.PLATFORM.isBuiltInPack(packSource);
     }
 
-    public static boolean isEssential(Pack pack) {
-        String packId = pack.getId();
+    public static boolean isEssential(String packId) {
         return packId.equals(VANILLA_ID) || packId.equals(FABRIC_ID) || packId.equals(NEOFORGE_ID);
     }
 
-    public static boolean isFeature(Pack pack) {
-        return pack.getPackSource() == PackSource.FEATURE;
+    public static boolean isFeature(PackSource packSource) {
+        return packSource == PackSource.FEATURE;
     }
 
     public static boolean isNonPackDirectory(Path path) {
@@ -194,8 +181,7 @@ public class PackUtil {
         return validPaths;
     }
 
-    public static void openPack(Pack pack) {
-        var path = ((FilePack) pack).packed_packs$getPath();
+    public static void openPack(@Nullable Path path) {
         if (path != null) {
             Util.getPlatform().openPath(path);
         }
@@ -208,7 +194,9 @@ public class PackUtil {
         }
     }
 
-    public static void openParent(Path path) {
+    public static void openParent(@Nullable Path path) {
+        if (path == null) return;
+
         File file = path.toFile();
         if (!file.exists()) return;
 
@@ -330,7 +318,7 @@ public class PackUtil {
             this.rejected.remove(path);
         }
     }
-
+// todo, instead of computing in reducer, just reset state
     public static PackGroup syncPackSelection(ObjectOpenHashSet<Pack> allPacks, List<Pack> unselectedPacks, List<Pack> selectedPacks, PackOptions options) {
         Set<Pack> seen = new ObjectOpenHashSet<>(allPacks.size());
 
@@ -367,4 +355,6 @@ public class PackUtil {
 
         return new PackGroup(newSelectedPacks, newUnselectedPacks);
     }
+
+
 }

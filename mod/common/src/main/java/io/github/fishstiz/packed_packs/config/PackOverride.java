@@ -2,12 +2,11 @@ package io.github.fishstiz.packed_packs.config;
 
 import com.google.gson.*;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.transform.interfaces.ConfiguredPack;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
 
-import java.io.Serializable;
 import java.lang.reflect.Type;
+import java.util.Objects;
 
 public final class PackOverride {
     private static final String HIDDEN_SERIALIZED_NAME = "hidden";
@@ -54,23 +53,36 @@ public final class PackOverride {
         this.position = position;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) return true;
+        if (obj == null || obj.getClass() != this.getClass()) return false;
+        PackOverride other = (PackOverride) obj;
+        return Objects.equals(other.hidden, this.hidden) &&
+               Objects.equals(other.required, this.required) &&
+               other.position == this.position;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.hidden, this.required, this.position);
+    }
+
     public enum Position {
-        UNFIXED(null),
-        TOP(Pack.Position.TOP),
-        BOTTOM(Pack.Position.BOTTOM);
-
-        private final Pack.Position position;
-
-        Position(Pack.Position position) {
-            this.position = position;
-        }
+        UNFIXED,
+        TOP,
+        BOTTOM;
 
         public boolean fixed() {
             return this != UNFIXED;
         }
 
-        Pack.Position get(Pack pack) {
-            return this.fixed() ? this.position : ((ConfiguredPack) pack).packed_packs$originalConfig().defaultPosition();
+        public Pack.@Nullable Position override() {
+            return switch (this) {
+                case TOP -> Pack.Position.TOP;
+                case BOTTOM -> Pack.Position.BOTTOM;
+                default -> null;
+            };
         }
     }
 

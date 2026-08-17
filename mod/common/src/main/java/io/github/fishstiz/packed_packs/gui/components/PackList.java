@@ -6,6 +6,7 @@ import io.github.fishstiz.fidgetz.v0.gui.components.events.FZHoverableElement;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.RenderableRectangle;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
+import io.github.fishstiz.packed_packs.api.context.PackContext;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
 import io.github.fishstiz.packed_packs.api.events.InitializePackEntryEvent;
@@ -265,7 +266,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
     private @Nullable Entry getEntry(String packId) {
         for (Entry entry : this.children()) {
-            if (entry.pack().getId().equals(packId)) {
+            if (entry.pack().id().equals(packId)) {
                 return entry;
             }
         }
@@ -402,7 +403,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
     }
 
-    public class Entry extends FZAbstractListWidget.Entry implements SelectableEntry, ContainerEventHandlerPatch, FZContextMenu.Source, ElementSink {
+    class Entry extends FZAbstractListWidget.Entry implements SelectableEntry, ContainerEventHandlerPatch, FZContextMenu.Source, ElementSink {
         private static final int ICON_SIZE = 32;
         private static final Tooltip FOLDER_OPEN_INFO = Tooltip.create(FolderPack.FOLDER_OPEN_TEXT);
         private static final RenderableRectangle SELECTED_OVERLAY = Renderables.fill(Colors.alpha(Colors.BLUE_500, 0.25f));
@@ -431,6 +432,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         private @Nullable PackWidget packWidget;
         private @Nullable AbstractWidget folderWidget;
         private @Nullable PackListDevMenu devMenu;
+        private @Nullable PackContext packContext;
         private boolean initialized;
 
         Entry(PackListViewModel.Entry entryModel, int index) {
@@ -466,11 +468,34 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
             this.initialized = true;
 
-            InitializePackEntryEvent event = new InitializePackEntryEvent(screenContext, entryModel, packWidget, this);
-            PackedPacksApiImpl.getInstance().eventBus().post(event);
+            if (this.entryModel.pack() instanceof PackEntry.Leaf leaf) {
+                this.packContext = new PackContext() {
+                    @Override
+                    public Pack pack() {
+                        return leaf.pack();
+                    }
+
+                    @Override
+                    public Identifier icon() {
+                        return entryModel.icon();
+                    }
+
+                    @Override
+                    public boolean fileModifiable() {
+                        return entryModel.fileModifiable();
+                    }
+                };
+
+                PackedPacksApiImpl.getInstance().eventBus().post(new InitializePackEntryEvent(
+                        screenContext,
+                        packContext,
+                        packWidget,
+                        this
+                ));
+            }
         }
 
-        public Pack pack() {
+        public PackEntry pack() {
             return entryModel.pack();
         }
 
@@ -577,11 +602,11 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 return true;
             }
             if (isOpenFile(keyEvent)) {
-                PackUtil.openPack(pack());
+                PackUtil.openPack(pack().path());
                 return true;
             }
             if (isOpenFolder(keyEvent)) {
-                PackUtil.openParent(pack());
+                PackUtil.openParent(pack().path());
                 return true;
             }
             if (isDelete(keyEvent) && entryModel.fileModifiable()) {
@@ -596,7 +621,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
 
         public void renderBack(GuiGraphicsExtractor graphics, int top, int left, int width, int height) {
-            if (!pack().getCompatibility().isCompatible() && !entryModel.incompatibleWarningsHidden()) {
+            if (!pack().compatibility().isCompatible() && !entryModel.incompatibleWarningsHidden()) {
                 int margin = INNER_ITEM_PADDING / 2;
                 int backgroundLeft = left + margin;
                 int backgroundTop = top + margin;
@@ -678,13 +703,14 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
             ContextMenuEventImpl<ContextMenuEvent.PackEntry.Pos> extensions = ContextMenuEventImpl.postPackEntry(
                     screenContext,
-                    entryModel
+                    packContext
             );
+
 
             extensions.entries(ContextMenuEvent.PackEntry.Pos.BEFORE_HEADER).forEach(collector::addEntry);
 
             collector.addEntry(builder -> builder
-                    .message(pack().getTitle())
+                    .message(pack().title())
                     .icon(padded16Rect(Renderables.texture(entryModel.icon(), 32, 32)))
                     .background(Renderables.fill(Colors.GRAY_500))
                     .onPress(e -> {
@@ -723,9 +749,9 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                         .onPress(entryModel::delete));
             }
 
-            if (PackUtil.validatePackPath(pack()) != null) {
-                collector.addEntry(builder -> builder.message(OPEN_FILE_TEXT).onPress(() -> PackUtil.openPack(pack())));
-                collector.addEntry(builder -> builder.message(OPEN_PARENT_TEXT).onPress(() -> PackUtil.openParent(pack())));
+            if (pack().path() != null) {
+                collector.addEntry(builder -> builder.message(OPEN_FILE_TEXT).onPress(() -> PackUtil.openPack(pack().path())));
+                collector.addEntry(builder -> builder.message(OPEN_PARENT_TEXT).onPress(() -> PackUtil.openParent(pack().path())));
             }
 
             extensions.entries(ContextMenuEvent.PackEntry.Pos.AFTER_PACK).forEach(collector::addEntry);
