@@ -1,7 +1,5 @@
 package io.github.fishstiz.packed_packs.transform.mixin.gui;
 
-import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.gui.screens.PackSelectionScreenArgs;
 import io.github.fishstiz.packed_packs.gui.screens.PackedPacksScreen;
@@ -12,6 +10,8 @@ import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 @Mixin(Gui.class)
 public abstract class GuiMixin {
@@ -19,9 +19,9 @@ public abstract class GuiMixin {
     @Nullable
     private Screen screen;
 
-    @WrapMethod(method = "setScreen")
-    private void replacePackScreen(Screen guiScreen, Operation<Void> original) {
-        if (guiScreen instanceof PackSelectionScreen packScreen &&
+    @ModifyVariable(method = "setScreen", at = @At("HEAD"), argsOnly = true)
+    private Screen replacePackScreen(Screen original) {
+        if (original instanceof PackSelectionScreen packScreen &&
             (((PackSelectionScreenAccessor) packScreen).packed_packs$getPrevious() == null) &&
             !(this.screen instanceof PackedPacksScreen)) {
 
@@ -29,9 +29,10 @@ public abstract class GuiMixin {
 
             if (Config.packs(args.packType()).isReplaceOriginal()) {
                 ((PackSelectionScreenAccessor) packScreen).packed_packs$closeWatcher();
-                guiScreen = new PackedPacksScreen(this.screen, args);
+                return new PackedPacksScreen(this.screen, args);
             }
         }
-        original.call(guiScreen);
+
+        return original;
     }
 }

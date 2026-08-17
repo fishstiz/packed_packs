@@ -1,8 +1,11 @@
 package io.github.fishstiz.packed_packs.gui;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.components.events.ContainerEventHandler;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.input.MouseButtonEvent;
+import org.jspecify.annotations.Nullable;
 
 public interface ContainerEventHandlerPatch extends ContainerEventHandler {
     @Override
@@ -30,6 +33,15 @@ public interface ContainerEventHandlerPatch extends ContainerEventHandler {
             }
             return false;
         }).orElse(false);
+    }
+
+    @Override
+    default @Nullable ComponentPath getCurrentFocusPath() {
+        GuiEventListener focused = this.getFocused();
+        if (focused == null) return null;
+
+        ComponentPath path = focused.getCurrentFocusPath();
+        return path == null ? ComponentPath.leaf(focused) : ComponentPath.path(this, path);
     }
 
     @Override

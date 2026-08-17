@@ -5,19 +5,22 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.fidgetz.v0.gui.state.FZMutableRef;
+import io.github.fishstiz.fidgetz.v0.gui.state.FZRef;
 import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
-import io.github.fishstiz.packed_packs.gui.intents.PackListIntent;
-import io.github.fishstiz.packed_packs.gui.model.PackListKey;
-import io.github.fishstiz.packed_packs.gui.model.PackedPacksStore;
+import io.github.fishstiz.packed_packs.gui.actions.intents.Intent;
+import io.github.fishstiz.packed_packs.gui.states.PackListKey;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
-import io.github.fishstiz.packed_packs.api.context.PackContext;
+import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
+import io.github.fishstiz.packed_packs.pack.PackIconCache;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.packs.repository.Pack;
 import org.apache.commons.io.FilenameUtils;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import static io.github.fishstiz.packed_packs.util.PackUtil.ZIP_PACK_EXTENSION;
@@ -44,27 +47,36 @@ public class PackRenameLayout extends WrappedLayout {
         closeHandler.run();
     }
 
-    public static PackRenameLayout create(PackedPacksStore store) {
-        ActiveAction.RenamingPack renamingPack = store.value().renamingPack();
+    public static PackRenameLayout create(
+            FZRef<ActiveAction.@Nullable RenamingPack> state,
+            Consumer<? super Intent> dispatcher,
+            PackIconCache iconCache
+    ) {
+        ActiveAction.RenamingPack renamingPack = state.value();
         if (renamingPack == null) {
             return new PackRenameLayout(error(Component.literal("renamingPack is null")));
         }
 
-        final PackListKey target = renamingPack.target();
-        final PackContext ctx = renamingPack.ctx();
-        final String previousName = sanitizeNameForEdit(ctx.pack());
+        final PackNode pack = renamingPack.pack();
+        final PackListKey target = renamingPack.src();
+        final String previousName = sanitizeNameForEdit(pack);
         final FZMutableRef<String> nameRef = new FZMutableRef<>(previousName);
-        final String suggestion = PackUtil.isZipPack(ctx.pack()) ? ZIP_PACK_EXTENSION : null;
-        final Runnable closeHandler = () -> store.dispatch(new PackListIntent.CloseRename(target, ctx));
+        final String suggestion = PackUtil.isZipPath(pack.path()) ? ZIP_PACK_EXTENSION : null;
+        final Runnable closeHandler = () -> {
+            ActiveAction.RenamingPack renaming = state.value();
+            if (renaming == null || !renaming.loading()) {
+                dispatcher.accept(new PackListIntent.CloseRenameModal(target, pack));
+            }
+        };
 
         return new PackRenameLayout(closeHandler, FZFlexLayout.vertical().spacing(SPACING).maxWidth(WIDTH).also(root -> {
             root.child(FZFlexLayout.horizontal(), root.flexChildHorizontalSettings()).also(header -> {
                 header.maxWidth(WIDTH).spacing(SPACING).defaultChildSettings().alignVerticallyMiddle();
 
-                header.child(FZIcon.builder(Renderables.texture(ctx.icon(), 32, 32))
+                header.child(FZIcon.builder(Renderables.texture(iconCache.get(pack), 32, 32))
                         .size(16, 16)
                         .build());
-                header.child(FZText.builder(ctx.pack().getTitle())
+                header.child(FZText.builder(pack.title())
                         .build(), header.flexChildHorizontalSettings());
                 header.child(FZIconButton.builder()
                         .square()
@@ -72,6 +84,22 @@ public class PackRenameLayout extends WrappedLayout {
                         .onPress(closeHandler)
                         .build());
             });
+
+            FZButton closeButton = FZButton.builder().message(CommonComponents.GUI_CANCEL)
+                    .onPress(closeHandler)
+                    .focusOnInteraction(false)
+                    .build();
+
+            FZButton saveButton = FZButton.bind("SaveButton", nameRef.map(value -> FZButton.builder()
+                    .message(CommonComponents.GUI_DONE)
+                    .active(canSave(previousName, value))
+                    .focusOnInteraction(false)
+                    .onPress(() -> {
+                        if (canSave(previousName, value)) {
+                            dispatcher.accept(new PackListIntent.Rename(target, pack, sanitizeNameForSave(pack, value)));
+                        }
+                    })
+                    .toProps()));
 
             root.child(FZTextField.bind("NameField", nameRef.map(value -> FZTextField.builder()
                     .width(WIDTH)
@@ -85,7 +113,13 @@ public class PackRenameLayout extends WrappedLayout {
                     .onConfirm(e -> {
                         String newValue = e.target().getValue();
                         if (canSave(previousName, newValue)) {
-                            store.dispatch(new PackListIntent.Rename(target, ctx, sanitizeNameForSave(ctx.pack(), newValue)));
+                            dispatcher.accept(new PackListIntent.Rename(target, pack, sanitizeNameForSave(pack, newValue)));
+                            ActiveAction.RenamingPack result = state.value();
+                            if (result != null && result.loading()) {
+                                e.target().active = false;
+                                closeButton.active = false;
+                                saveButton.active = false;
+                            }
                             e.confirm();
                         }
                     })
@@ -93,19 +127,8 @@ public class PackRenameLayout extends WrappedLayout {
 
             root.child(FZFlexLayout.horizontal(), root.flexChildHorizontalSettings()).also(footer -> {
                 footer.maxWidth(WIDTH).spacing(SPACING).defaultChildSettings().flexMain();
-
-                footer.child(FZButton.builder().message(CommonComponents.GUI_CANCEL)
-                        .onPress(closeHandler)
-                        .build());
-                footer.child(FZButton.bind("SaveButton", nameRef.map(value -> FZButton.builder()
-                        .message(CommonComponents.GUI_DONE)
-                        .active(canSave(previousName, value))
-                        .onPress(() -> {
-                            if (canSave(previousName, value)) {
-                                store.dispatch(new PackListIntent.Rename(target, ctx, sanitizeNameForSave(ctx.pack(), value)));
-                            }
-                        })
-                        .toProps())));
+                footer.child(closeButton);
+                footer.child(saveButton);
             });
 
             root.arrangeElements();
@@ -123,14 +146,14 @@ public class PackRenameLayout extends WrappedLayout {
         return testIllegalChars(newName);
     }
 
-    private static String sanitizeNameForEdit(Pack pack) {
-        String name = pack.getTitle().getString();
-        return PackUtil.isZipPack(pack) ? name.replaceFirst(Pattern.quote(ZIP_PACK_EXTENSION) + "$", "") : name;
+    private static String sanitizeNameForEdit(PackNode pack) {
+        String name = pack.title().getString();
+        return PackUtil.isZipPath(pack.path()) ? name.replaceFirst(Pattern.quote(ZIP_PACK_EXTENSION) + "$", "") : name;
     }
 
-    private static String sanitizeNameForSave(Pack pack, String newName) {
+    private static String sanitizeNameForSave(PackNode pack, String newName) {
         newName = FilenameUtils.getName(newName).trim();
-        return PackUtil.isZipPack(pack) ? newName + ZIP_PACK_EXTENSION : newName;
+        return PackUtil.isZipPath(pack.path()) ? newName + ZIP_PACK_EXTENSION : newName;
     }
 
     private static boolean testInput(String input) {

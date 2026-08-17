@@ -70,6 +70,12 @@ public class OptionsLayout extends WrappedLayout {
         ).tooltip(Component.translatable("packed_packs.options.hide_incompatible_warnings.info")).build());
 
         layout.child(toggle(
+                Component.translatable("packed_packs.options.folders_module_by_default"),
+                config::setFoldersModuleByDefault,
+                config::areFoldersModuleByDefault
+        ).build());
+
+        layout.child(toggle(
                 Component.translatable("packed_packs.options.remember_last_viewed_profile"),
                 config::setRememberLastViewedProfile,
                 config::isLastViewedProfileRemembered
