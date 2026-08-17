@@ -2,10 +2,12 @@ package io.github.fishstiz.packed_packs.transform.mixin.overrides;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import io.github.fishstiz.packed_packs.config.PackOverride;
 import io.github.fishstiz.packed_packs.config.Profile;
-import io.github.fishstiz.packed_packs.pack.PackOptionsResolver;
+import io.github.fishstiz.packed_packs.config.ProfileManager;
 import io.github.fishstiz.packed_packs.transform.interfaces.ConfiguredPack;
 import net.minecraft.server.packs.PackSelectionConfig;
+import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackCompatibility;
 import org.jetbrains.annotations.Nullable;
@@ -24,47 +26,61 @@ public abstract class PackMixin implements ConfiguredPack {
     @Final
     private PackSelectionConfig selectionConfig;
 
+    @Shadow
+    public abstract String getId();
+
+    @Shadow
+    public abstract boolean isRequired();
+
+    @Shadow
+    public abstract Pack.Position getDefaultPosition();
+
+    @Shadow
+    public abstract boolean isFixedPosition();
+
     @Unique
     @Nullable
-    private PackOptionsResolver packed_packs$resolver;
+    private PackType packed_packs$packType;
 
     @Override
-    public void packed_packs$setConfigurationResolver(PackOptionsResolver resolver) {
-        this.packed_packs$resolver = resolver;
+    public void packed_packs$setPackType(PackType packType) {
+        this.packed_packs$packType = packType;
+    }
+
+    @Unique
+    private @Nullable Profile packed_packs$getDefaultProfile() {
+        return this.packed_packs$packType == null ? null : ProfileManager.get(this.packed_packs$packType).getDefault();
     }
 
     @Override
     public boolean packed_packs$isHidden() {
-        return this.packed_packs$resolver != null && this.packed_packs$resolver.isHidden(packed_packs$self());
-    }
-
-    @Unique
-    private Pack packed_packs$self() {
-        return (Pack) (Object) this;
+        Profile profile = packed_packs$getDefaultProfile();
+        return profile != null && profile.isHidden(getId());
     }
 
     @WrapMethod(method = "isRequired")
     private boolean resolveRequired(Operation<Boolean> original) {
-        PackOptionsResolver resolver = this.packed_packs$resolver;
-        if (resolver != null && resolver.overridesRequired(packed_packs$self())) {
-            return resolver.isRequired(packed_packs$self());
+        Profile profile = packed_packs$getDefaultProfile();
+        if (profile != null && profile.overridesRequired(getId())) {
+            return profile.isRequired(getId());
         }
         return original.call();
     }
 
     @WrapMethod(method = "isFixedPosition")
     private boolean resolveFixed(Operation<Boolean> original) {
-        PackOptionsResolver resolver = this.packed_packs$resolver;
-        if (resolver != null && resolver.overridesPosition(packed_packs$self())) {
-            return resolver.isFixed(packed_packs$self());
+        Profile profile = packed_packs$getDefaultProfile();
+        if (profile != null && profile.overridesPosition(getId())) {
+            return profile.isFixed(getId());
         }
         return original.call();
     }
 
     @WrapMethod(method = "getDefaultPosition")
     private Pack.Position resolvePosition(Operation<Pack.Position> original) {
-        if (this.packed_packs$resolver != null) {
-            Pack.Position position = this.packed_packs$resolver.getPosition(packed_packs$self());
+        Profile profile = packed_packs$getDefaultProfile();
+        if (profile != null) {
+            Pack.Position position = profile.getPosition(getId());
             if (position != null) {
                 return position;
             }
@@ -74,33 +90,37 @@ public abstract class PackMixin implements ConfiguredPack {
 
     @WrapMethod(method = "selectionConfig")
     private PackSelectionConfig resolveSelectionConfig(Operation<PackSelectionConfig> original) {
-        if (this.packed_packs$resolver != null) {
-            PackSelectionConfig selectionConfig = this.packed_packs$resolver.getSelectionConfig(packed_packs$self());
-            if (selectionConfig != null) {
-                return selectionConfig;
+        Profile profile = packed_packs$getDefaultProfile();
+
+        if (profile != null) {
+            PackOverride override = profile.getOverrides(getId());
+            if (override != null) {
+                Boolean required = override.required();
+                PackOverride.Position position = override.position();
+                if (required != null || position != null) {
+                    return new PackSelectionConfig(isRequired(), getDefaultPosition(), isFixedPosition());
+                }
             }
         }
+
         return original.call();
     }
 
     @WrapMethod(method = "getCompatibility")
     private PackCompatibility resolveCompatibility(Operation<PackCompatibility> original) {
-        if (this.packed_packs$resolver != null) {
-            Profile defaultProfile = this.packed_packs$resolver.defaultProfileSupplier().get();
-            if (defaultProfile != null && defaultProfile.includes(packed_packs$self())) {
-                return PackCompatibility.COMPATIBLE;
-            }
+        Profile profile = packed_packs$getDefaultProfile();
+        if (profile != null && profile.includes(getId())) {
+            return PackCompatibility.COMPATIBLE;
         }
         return original.call();
     }
 
     @Override
     public boolean packed_packs$isConfigured() {
-        if (this.packed_packs$resolver != null) {
-            Profile defaultProfile = this.packed_packs$resolver.defaultProfileSupplier().get();
-            return defaultProfile != null && defaultProfile.includes(packed_packs$self());
+        Profile profile = packed_packs$getDefaultProfile();
+        if (profile != null) {
+            return profile.includes(getId());
         }
-
         return false;
     }
 

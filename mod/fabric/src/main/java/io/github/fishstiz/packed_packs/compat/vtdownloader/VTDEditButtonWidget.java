@@ -2,6 +2,7 @@ package io.github.fishstiz.packed_packs.compat.vtdownloader;
 
 import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenu;
 import io.github.fishstiz.packed_packs.api.Preference;
+import io.github.fishstiz.packed_packs.api.context.PackContext;
 import io.github.fishstiz.packed_packs.compat.ModIntegration;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.gui.components.PreferenceHelper;
@@ -31,11 +32,11 @@ public class VTDEditButtonWidget extends AbstractButton implements FZContextMenu
     private static final int PENCIL_TEXTURE_SIZE = 32;
     private static final int PENCIL_SIZE = 16;
     private final Screen previous;
-    private final Pack pack;
+    private final PackContext pack;
     private final BooleanSupplier editable;
     private final Preference<Boolean> preference;
 
-    private VTDEditButtonWidget(Preference<Boolean> prefKey, Screen previous, Pack pack, BooleanSupplier editable) {
+    private VTDEditButtonWidget(Preference<Boolean> prefKey, Screen previous, PackContext pack, BooleanSupplier editable) {
         super(0, 0, PENCIL_SIZE, PENCIL_SIZE, CommonComponents.EMPTY);
         this.preference = prefKey;
         this.previous = previous;
@@ -44,7 +45,7 @@ public class VTDEditButtonWidget extends AbstractButton implements FZContextMenu
         this.active = this.editable.getAsBoolean();
     }
 
-    public static @Nullable VTDEditButtonWidget create(Preference<Boolean> prefKey, Screen previous, Pack pack, BooleanSupplier editable) {
+    public static @Nullable VTDEditButtonWidget create(Preference<Boolean> prefKey, Screen previous, PackContext pack, BooleanSupplier editable) {
         return pack.getDescription().getString().contains(VT_DESCRIPTION_MARKER) ? new VTDEditButtonWidget(prefKey, previous, pack, editable) : null;
     }
 
@@ -79,7 +80,7 @@ public class VTDEditButtonWidget extends AbstractButton implements FZContextMenu
     @Override
     public void onPress() {
         if (this.active) {
-            VTDIntegration.createVTDScreenSetter(this.previous, this.pack).run();
+            VTDIntegration.createVTDScreenSetter(this.previous, pack).run();
         }
     }
 

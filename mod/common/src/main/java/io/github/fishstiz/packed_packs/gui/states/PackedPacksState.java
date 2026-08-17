@@ -1,7 +1,6 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
-import io.github.fishstiz.packed_packs.gui.model.PackListKey;
-import io.github.fishstiz.packed_packs.gui.model.PackListType;
+
 import org.jetbrains.annotations.Nullable;
 
 public record PackedPacksState(
@@ -9,44 +8,52 @@ public record PackedPacksState(
         PackListState enabled,
         ProfilesState profiles,
         PackListKey lastTarget,
-        @Nullable ActiveAction action
+        @Nullable ActiveAction action,
+        boolean devMode
 ) {
-    private static final PackedPacksState EMPTY = new PackedPacksState(PackListState.empty(), PackListState.empty(), ProfilesState.empty());
+    private static final PackedPacksState EMPTY = new PackedPacksState(
+            PackListState.empty(),
+            PackListState.empty(),
+            ProfilesState.empty(),
+            PackListKey.available(),
+            null,
+            false
+    );
 
     public static PackedPacksState empty() {
         return EMPTY;
     }
 
-    public PackedPacksState(PackListState available, PackListState enabled, ProfilesState profiles) {
-        this(available, enabled, profiles, PackListKey.available(), null);
-    }
-
     public PackedPacksState with(PackListState available, PackListState enabled, ProfilesState profiles) {
-        return new PackedPacksState(available, enabled, profiles, this.lastTarget, null);
+        return new PackedPacksState(available, enabled, profiles, lastTarget, null, devMode);
     }
 
     public PackedPacksState withAvailable(PackListState newAvailable, PackListKey target) {
-        return new PackedPacksState(newAvailable, this.enabled, this.profiles, target, null);
+        return new PackedPacksState(newAvailable, enabled, profiles, target, null, devMode);
     }
 
     public PackedPacksState withEnabled(PackListState newEnabled, PackListKey target) {
-        return new PackedPacksState(this.available, newEnabled, this.profiles, target, null);
+        return new PackedPacksState(available, newEnabled, profiles, target, null, devMode);
     }
 
     public PackedPacksState withPackLists(PackListState available, PackListState enabled, PackListKey target) {
-        return new PackedPacksState(available, enabled, this.profiles, target, null);
+        return new PackedPacksState(available, enabled, profiles, target, null, devMode);
     }
 
     public PackedPacksState withPackLists(PackListState available, PackListState enabled) {
-        return new PackedPacksState(available, enabled, this.profiles, this.lastTarget, null);
+        return new PackedPacksState(available, enabled, profiles, lastTarget, null, devMode);
     }
 
     public PackedPacksState withProfiles(ProfilesState newProfiles) {
-        return new PackedPacksState(this.available, this.enabled, newProfiles, this.lastTarget, null);
+        return new PackedPacksState(available, enabled, newProfiles, lastTarget, null, devMode);
     }
 
     public PackedPacksState withAction(@Nullable ActiveAction action) {
-        return new PackedPacksState(this.available, this.enabled, this.profiles, action == null ? this.lastTarget : action.target(), action);
+        return new PackedPacksState(available, enabled, profiles, action == null ? lastTarget : action.src(), action, devMode);
+    }
+
+    public PackedPacksState withDevMode(boolean devMode) {
+        return new PackedPacksState(available, enabled, profiles, lastTarget, action, devMode);
     }
 
     public ActiveAction.@Nullable RenamingPack renamingPack() {
@@ -61,33 +68,37 @@ public record PackedPacksState(
         return this.action instanceof ActiveAction.Dragging dragging ? dragging : null;
     }
 
-    private PackListState rootTargetList(PackListType type) {
+    public PackListState getHeadList(PackListType type) {
         return switch (type) {
             case AVAILABLE -> this.available;
             case ENABLED -> this.enabled;
         };
     }
 
-    private @Nullable PackListState targetList(PackListState state, PackListKey listKey, int depth) {
+    private @Nullable PackListState getList(PackListState state, PackListKey listKey, int depth) {
         if (listKey.depth() == depth) {
             return state;
         }
         if (state.folder() == null || listKey.depth() < 0) {
             return null;
         }
-        return this.targetList(state.folder().contents(), listKey, depth + 1);
+        return this.getList(state.folder(), listKey, depth + 1);
     }
 
-    public @Nullable PackListState targetList(PackListKey key) {
-        return this.targetList(this.rootTargetList(key.type()), key, 0);
+    public @Nullable PackListState getList(PackListKey key) {
+        return this.getList(this.getHeadList(key.type()), key, 0);
     }
 
-    private PackListKey deepestTarget(PackListState state, PackListKey key) {
+    private PackListKey getTailKey(PackListState state, PackListKey key) {
         if (state.folder() == null) return key;
-        return this.deepestTarget(state.folder().contents(), key.nest());
+        return this.getTailKey(state.folder(), key.nest());
     }
 
-    public PackListKey deepestTarget(PackListType type) {
-        return this.deepestTarget(this.rootTargetList(type), PackListKey.root(type));
+    public PackListKey getTailKey(PackListType type) {
+        return this.getTailKey(this.getHeadList(type), PackListKey.head(type));
+    }
+
+    public PackListState getTailList(PackListType type) {
+        return getList(getTailKey(type));
     }
 }

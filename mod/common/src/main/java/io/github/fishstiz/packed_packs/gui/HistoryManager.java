@@ -1,22 +1,22 @@
 package io.github.fishstiz.packed_packs.gui;
 
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.List;
 import java.util.Optional;
 
 public class HistoryManager<S> {
     private static final int DEFAULT_CAPACITY = 25;
     private final int capacity;
-    private final Deque<S> history;
-    private final Deque<S> undone;
+    private final S[] buffer;
+    private int start = 0;
+    private int size = 0;
+    private int cursor = -1;
 
+    @SuppressWarnings("unchecked")
     public HistoryManager(S initialState, int capacity) {
+        if (capacity <= 0) {
+            throw new IllegalArgumentException("Capacity must be greater than 0");
+        }
         this.capacity = capacity;
-        this.history = new ArrayDeque<>(capacity);
-        this.undone = new ArrayDeque<>(capacity);
+        this.buffer = (S[]) new Object[capacity];
         this.push(initialState);
     }
 
@@ -24,78 +24,60 @@ public class HistoryManager<S> {
         this(initialState, DEFAULT_CAPACITY);
     }
 
+    private S currentState() {
+        return cursor == -1 ? null : buffer[cursor];
+    }
+
     public void push(S state) {
         if (state == null) {
             return;
         }
-        if (!this.history.isEmpty() && this.history.peekLast().equals(state)) {
+
+        S current = currentState();
+        if (current != null && current.equals(state)) {
             return;
         }
-        while (this.history.size() >= this.capacity) {
-            this.history.removeFirst();
+
+        if (cursor != -1) {
+            int currentOffset = (cursor - start + capacity) % capacity;
+            size = currentOffset + 1;
         }
-        this.undone.clear();
-        this.history.addLast(state);
+
+        if (size == capacity) {
+            start = (start + 1) % capacity;
+            cursor = (start + size - 1) % capacity;
+        } else {
+            cursor = (start + size) % capacity;
+            size++;
+        }
+
+        buffer[cursor] = state;
     }
 
     public Optional<S> undo() {
-        if (this.history.size() > 1) {
-            this.undone.addLast(this.history.removeLast());
-            return Optional.of(this.history.getLast());
+        if (cursor == start || size <= 1) {
+            return Optional.empty();
         }
-        return Optional.empty();
+        cursor = (cursor - 1 + capacity) % capacity;
+        return Optional.of(buffer[cursor]);
     }
 
     public Optional<S> redo() {
-        if (!this.undone.isEmpty()) {
-            S state = this.undone.removeLast();
-            this.history.addLast(state);
-            return Optional.of(state);
+        int tail = (start + size - 1) % capacity;
+        if (cursor == tail || size == 0) {
+            return Optional.empty();
         }
-        return Optional.empty();
+        cursor = (cursor + 1) % capacity;
+        return Optional.of(buffer[cursor]);
     }
 
     public void reset(S initialState) {
-        this.history.clear();
-        this.undone.clear();
-        this.push(initialState);
-    }
-
-    public List<S> getStack() {
-        List<S> stack = new ObjectArrayList<>(this.history.size() + this.undone.size());
-        stack.addAll(this.history);
-        stack.addAll(this.undone);
-        return stack;
-    }
-
-    public int stackIndex() {
-        if (this.history.isEmpty()) {
-            return -1;
+        for (int i = 0; i < capacity; i++) {
+            buffer[i] = null;
         }
-        return this.history.size() - 1;
-    }
-
-    public Optional<S> getState(int index) {
-        List<S> stack = this.getStack();
-        int totalSize = stack.size();
-
-        if (index < 0 || index >= totalSize) {
-            return Optional.empty();
-        }
-
-        this.history.clear();
-        this.undone.clear();
-
-        for (int i = 0; i <= index; i++) {
-            this.history.addLast(stack.get(i));
-        }
-        for (int i = index + 1; i < totalSize; i++) {
-            this.undone.addLast(stack.get(i));
-        }
-        if (!this.history.isEmpty()) {
-            return Optional.of(this.history.getLast());
-        }
-
-        return Optional.empty();
+        start = 0;
+        size = 0;
+        cursor = -1;
+        push(initialState);
     }
 }

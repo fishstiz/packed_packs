@@ -1,5 +1,6 @@
 package io.github.fishstiz.packed_packs.api.context;
 
+import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.repository.Pack;
 import org.jetbrains.annotations.ApiStatus;
@@ -8,7 +9,7 @@ import org.jetbrains.annotations.ApiStatus;
  * Provides contextual information about a specific resource or data pack.
  */
 @ApiStatus.NonExtendable
-public interface PackContext {
+public interface PackContext extends PackSelectionModel.Entry {
     /**
      * @return the underlying pack instance associated with this context
      */

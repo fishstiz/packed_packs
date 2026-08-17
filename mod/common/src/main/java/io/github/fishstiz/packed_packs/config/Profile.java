@@ -2,12 +2,9 @@ package io.github.fishstiz.packed_packs.config;
 
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.util.PackUtil;
-import io.github.fishstiz.packed_packs.util.Utils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.repository.Pack;
 import org.jetbrains.annotations.Nullable;
 
@@ -15,13 +12,14 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-public final class Profile implements PackOptions {
+public final class Profile {
     private boolean locked = false;
     private String name;
     private Map<String, PackOverride> overrides = new Object2ObjectOpenHashMap<>();
     private Set<String> packIds = new ObjectLinkedOpenHashSet<>();
     transient String id;
     transient boolean temp = false;
+    transient int overrideGen;
 
     Profile(String id) {
         this.id = id;
@@ -73,130 +71,114 @@ public final class Profile implements PackOptions {
         this.name = name;
     }
 
-    public boolean includes(Pack pack) {
-        return this.packIds.contains(pack.getId());
+    public boolean includes(String packId) {
+        return this.packIds.contains(packId);
     }
 
     public List<String> getPackIds() {
         return List.copyOf(this.packIds);
     }
 
-    public void setPacks(Collection<Pack> selected) {
+    public void setPacks(Collection<String> selected) {
         if (!this.locked) {
-            this.packIds = new ObjectLinkedOpenHashSet<>(PackUtil.flattenPackIds(selected));
+            this.packIds = new ObjectLinkedOpenHashSet<>(selected);
         }
     }
 
-    public void syncPacks(Collection<Pack> available, Collection<Pack> selected) {
+    public void syncPacks(Set<String> available, SequencedSet<String> enabled) {
         if (!this.locked) {
-            this.packIds = new ObjectLinkedOpenHashSet<>(PackUtil.flattenPackIds(selected));
-            Set<String> availableIds = new ObjectOpenHashSet<>(PackUtil.flattenPackIds(available));
-
+            this.packIds = enabled;
             this.overrides.entrySet().removeIf(entry -> {
                 PackOverride override = entry.getValue();
                 String packId = entry.getKey();
-                return !override.hasOverride() || (!this.packIds.contains(packId) && !availableIds.contains(packId));
+                return !override.hasOverride() || (!this.packIds.contains(packId) && !available.contains(packId));
             });
         }
     }
 
-    public void setHidden(boolean hidden, Collection<Pack> packs) {
-        for (Pack pack : PackUtil.flattenPacks(packs)) {
-            this.setHidden(hidden, pack);
+    public Profile withHiddenOverride(boolean hidden, String packId) {
+        applyOrRemoveOverride(packId, hidden ? true : null, PackOverride::setHidden);
+        return this;
+    }
+
+    public Profile withRequiredOverride(@Nullable Boolean required, String packId) {
+        if (!Boolean.FALSE.equals(required) || !PackUtil.isEssential(packId)) {
+            applyOrRemoveOverride(packId, required, PackOverride::setRequired);
         }
+        return this;
     }
 
-    public void setHidden(boolean hidden, Pack pack) {
-        this.applyOrRemoveOverride(pack.getId(), hidden ? true : null, PackOverride::setHidden);
+    public Profile withPositionOverride(PackOverride.@Nullable Position position, String packId) {
+        applyOrRemoveOverride(packId, position, PackOverride::setPosition);
+        return this;
     }
 
-    public void setRequired(@Nullable Boolean required, Collection<Pack> packs) {
-        for (Pack pack : PackUtil.flattenPacks(packs)) {
-            this.setRequired(required, pack);
-        }
-    }
-
-    public void setRequired(@Nullable Boolean required, Pack pack) {
-        if (!Boolean.FALSE.equals(required) || !PackUtil.isEssential(pack)) {
-            this.applyOrRemoveOverride(pack.getId(), required, PackOverride::setRequired);
-        }
-    }
-
-    public void setPosition(PackOverride.@Nullable Position position, Collection<Pack> packs) {
-        for (Pack pack : PackUtil.flattenPacks(packs)) {
-            this.setPosition(position, pack);
-        }
-    }
-
-    public void setPosition(PackOverride.@Nullable Position position, Pack pack) {
-        this.applyOrRemoveOverride(pack.getId(), position, PackOverride::setPosition);
-    }
-
-    public void setLocked(boolean locked) {
+    public Profile withLocked(boolean locked) {
         this.locked = locked;
+        return this;
+    }
+
+    public Profile withName(String name) {
+        this.name = name;
+        return this;
     }
 
     public boolean isLocked() {
         return this.locked;
     }
 
-    @Override
-    public boolean isHidden(Pack pack) {
-        return Boolean.TRUE.equals(Utils.mapOrElse(this.overrides.get(pack.getId()), false, PackOverride::hidden));
+    public @Nullable PackOverride getOverrides(String packId) {
+        return this.overrides.get(packId);
     }
 
-    @Override
-    public boolean isRequired(Pack pack) {
-        return Boolean.TRUE.equals(Utils.mapOrElse(this.overrides.get(pack.getId()), false, PackOverride::required));
+    public boolean isHidden(String packId) {
+        return Boolean.TRUE.equals(PackedPacks.mapOrElse(this.overrides.get(packId), false, PackOverride::hidden));
     }
 
-    @Override
-    public boolean isFixed(Pack pack) {
-        if (this.overridesPosition(pack)) {
-            return Objects.requireNonNull(this.overrides.get(pack.getId()).position()).fixed();
+    public boolean isRequired(String packId) {
+        return Boolean.TRUE.equals(PackedPacks.mapOrElse(this.overrides.get(packId), false, PackOverride::required));
+    }
+
+    public boolean isFixed(String packId) {
+        if (this.overridesPosition(packId)) {
+            return Objects.requireNonNull(this.overrides.get(packId).position()).fixed();
         }
         return false;
     }
 
-    @Override
-    public Pack.@Nullable Position getPosition(Pack pack) {
-        if (this.overridesPosition(pack)) {
-            return Objects.requireNonNull(this.overrides.get(pack.getId()).position()).get(pack);
+    public Pack.@Nullable Position getPosition(String packId) {
+        PackOverride override = this.overrides.get(packId);
+        if (override != null) {
+            PackOverride.Position position = override.position();
+            if (position != null) {
+                return position.override();
+            }
         }
         return null;
     }
 
-    public PackOverride.@Nullable Position getPositionOverride(Pack pack) {
-        if (this.overridesPosition(pack)) {
-            return this.overrides.get(pack.getId()).position();
+    public PackOverride.@Nullable Position getPositionOverride(String packId) {
+        if (this.overridesPosition(packId)) {
+            return this.overrides.get(packId).position();
         }
         return null;
     }
 
-    @Override
-    public @Nullable PackSelectionConfig getSelectionConfig(Pack pack) {
-        PackOverride packEntry = this.overrides.get(pack.getId());
-        if (packEntry != null && (packEntry.required() != null || packEntry.position() != null)) {
-            return new PackSelectionConfig(this.isRequired(pack), this.getPosition(pack), this.isFixed(pack));
-        }
-        return null;
+    public boolean overridesRequired(String packId) {
+        return this.overridesProperty(packId, PackOverride::required);
     }
 
-    public boolean overridesRequired(Pack pack) {
-        return this.overridesProperty(pack, PackOverride::required);
+    public boolean overridesPosition(String packId) {
+        return this.overridesProperty(packId, PackOverride::position);
     }
 
-    public boolean overridesPosition(Pack pack) {
-        return this.overridesProperty(pack, PackOverride::position);
-    }
-
-    private boolean overridesProperty(Pack pack, Function<PackOverride, @Nullable Object> property) {
-        PackOverride entry = this.overrides.get(pack.getId());
+    private boolean overridesProperty(String packId, Function<PackOverride, @Nullable Object> property) {
+        PackOverride entry = this.overrides.get(packId);
         return entry != null && property.apply(entry) != null;
     }
 
-    public boolean hasOverride(Pack pack) {
-        PackOverride entry = this.overrides.get(pack.getId());
+    public boolean hasOverride(String packId) {
+        PackOverride entry = this.overrides.get(packId);
         return entry != null && entry.hasOverride();
     }
 
@@ -204,24 +186,28 @@ public final class Profile implements PackOptions {
         PackOverride override = this.overrides.computeIfAbsent(packId, id -> new PackOverride());
         setter.accept(override, property);
         if (!override.hasOverride()) this.overrides.remove(packId);
+        this.overrideGen++;
+    }
+
+    public int overridesGen() {
+        return overrideGen;
+    }
+
+    // immutability is too much of a hassle. just override equals and hashcode for state
+    // and never push profile mutations to history
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof Profile profile)) return false;
+        return locked == profile.locked
+               && Objects.equals(name, profile.name)
+               && Objects.equals(overrides, profile.overrides)
+               && Objects.equals(packIds, profile.packIds)
+               && Objects.equals(id, profile.id);
     }
 
     @Override
     public int hashCode() {
-        return this.id.hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj == null) {
-            return false;
-        }
-        if (obj == this) {
-            return true;
-        }
-        if (!(obj instanceof Profile other)) {
-            return false;
-        }
-        return Objects.equals(other.getId(), this.getId());
+        return Objects.hash(locked, name, overrides, packIds, id);
     }
 }

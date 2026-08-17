@@ -3,9 +3,7 @@ package io.github.fishstiz.packed_packs.pack;
 import io.github.fishstiz.fidgetz.v0.utils.timer.ConcurrentPollingDebouncer;
 import io.github.fishstiz.fidgetz.v0.utils.timer.PollingDebouncer;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.api.context.ScreenContext;
-import io.github.fishstiz.packed_packs.api.events.WatchEvent;
-import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
+import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import net.minecraft.Util;
 import org.apache.commons.io.IOCase;
 import org.apache.commons.io.monitor.FileAlterationListenerAdaptor;
@@ -19,6 +17,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import static io.github.fishstiz.packed_packs.util.PackUtil.hasFolderConfig;
 import static io.github.fishstiz.packed_packs.util.PackUtil.hasMcmeta;
@@ -41,16 +40,13 @@ public class PackWatcher implements AutoCloseable {
 
     private long lastPollTime;
 
-    public PackWatcher(ScreenContext context, Collection<Path> directories, Runnable onChangeCallback) {
-        this.monitor.setThreadFactory(r -> {
+    public PackWatcher(Collection<Path> directories, Consumer<Path> onChangeCallback) {
+        this.monitor.setThreadFactory(ignored -> {
             throw new IllegalStateException("PackWatcher monitor should not be creating a new thread.");
         });
         this.onChangeCallback = new ConcurrentPollingDebouncer<>(path -> {
             if (!this.closed.get() && this.pauseCount.get() == 0) {
-                WatchEvent watchEvent = new WatchEvent(context, path);
-                if (!PackedPacksApiImpl.getInstance().eventBus().post(watchEvent).isCanceled()) {
-                    onChangeCallback.run();
-                }
+                onChangeCallback.accept(path);
             }
         }, DEBOUNCED_CHANGE_DELAY_MS);
         directories.forEach(this::addDirectory);
@@ -179,7 +175,10 @@ public class PackWatcher implements AutoCloseable {
         }
 
         private void onEvent(File file) {
-            PackWatcher.this.onChangeCallback.accept(file.toPath());
+            Path path = file.toPath().toAbsolutePath().normalize();
+            if (!path.endsWith(FolderPackMeta.FILENAME)) {
+                PackWatcher.this.onChangeCallback.accept(path);
+            }
         }
     }
 }

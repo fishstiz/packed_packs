@@ -7,11 +7,10 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
 import io.github.fishstiz.fidgetz.v0.gui.screens.FZScreen;
 import io.github.fishstiz.fidgetz.v0.gui.state.FZMutableRef;
-import io.github.fishstiz.fidgetz.v0.gui.text.TextStyleMatcher;
+import io.github.fishstiz.fidgetz.v0.gui.state.FZRef;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.Event;
 import io.github.fishstiz.packed_packs.api.Preference;
-import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.ClosingEvent;
 import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
 import io.github.fishstiz.packed_packs.api.events.InitializeEvent;
@@ -19,36 +18,25 @@ import io.github.fishstiz.packed_packs.api.events.InitializeLayoutEvent;
 import io.github.fishstiz.packed_packs.compat.minecraftcursor.MinecraftCursor;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.config.Preferences;
-import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.gui.FocusTarget;
 import io.github.fishstiz.packed_packs.gui.UiEffect;
-import io.github.fishstiz.packed_packs.gui.components.PackList;
-import io.github.fishstiz.packed_packs.gui.components.PackListContainer;
-import io.github.fishstiz.packed_packs.gui.components.PreferenceHelper;
-import io.github.fishstiz.packed_packs.gui.intents.PackListIntent;
+import io.github.fishstiz.packed_packs.gui.components.*;
 import io.github.fishstiz.packed_packs.gui.layouts.*;
-import io.github.fishstiz.packed_packs.gui.model.*;
-import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
-import io.github.fishstiz.packed_packs.gui.states.DragActionRenderer;
-import io.github.fishstiz.packed_packs.gui.states.InitMode;
-import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
+import io.github.fishstiz.packed_packs.gui.states.*;
+import io.github.fishstiz.packed_packs.gui.actions.intents.Intent;
+import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
+import io.github.fishstiz.packed_packs.gui.actions.intents.ProfileIntent;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
-import io.github.fishstiz.packed_packs.impl.context.ScreenContextImpl;
 import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
-import io.github.fishstiz.packed_packs.pack.PackGroup;
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionModelAccessor;
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionScreenAccessor;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.PackUtil;
-import io.github.fishstiz.packed_packs.util.ToastUtil;
 import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.AlertScreen;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.NoticeWithLinkScreen;
@@ -77,8 +65,7 @@ public class PackedPacksScreen extends FZScreen {
             .withStyle(Style.EMPTY.applyFormats(ChatFormatting.GRAY, ChatFormatting.ITALIC));
     private final @Nullable Screen parent;
     private final PackSelectionScreenArgs original;
-    private final ScreenContext context;
-    private final PackedPacksStore store;
+    private final PackedPacksContext context;
     private final FZMutableRef<Boolean> ribbonOpen = new FZMutableRef<>(Config.get().isShowActionBar());
     private final FZMutableRef<Boolean> sidebarOpen = new FZMutableRef<>(false);
     private final PackListContainer availableList;
@@ -87,25 +74,24 @@ public class PackedPacksScreen extends FZScreen {
     private @Nullable FZLayout layout;
     private @Nullable FZTextField availableSearch;
     private @Nullable FZTextField enabledSearch;
-    private boolean refreshOnInit = true;
     private boolean initialized = false;
     private boolean preloading;
 
-    public PackedPacksScreen(Minecraft minecraft, @Nullable Screen parent, PackSelectionScreenArgs original) {
+    public PackedPacksScreen(Minecraft minecraft, @Nullable Screen parent, PackSelectionScreenArgs args) {
         super(Component.literal(PackedPacks.MOD_NAME));
+        this.minecraft = minecraft;
         this.parent = parent;
-        this.original = original;
-        this.store = new PackedPacksStore(minecraft, original);
-        this.context = new ScreenContextImpl(minecraft, parent, this, store, original);
-        store.startWatcher(context);
+        this.original = args;
 
-        this.availableList = new PackListContainer(context, store.createPackListSlice(PackListType.AVAILABLE));
-        this.enabledList = new PackListContainer(context, store.createPackListSlice(PackListType.ENABLED));
-        this.dragActionRenderer = new DragActionRenderer(minecraft.font, 100, availableList, enabledList);
+        this.context = new PackedPacksContext(minecraft, parent, this, args);
 
-        store.setEffectListener(this::onUiEffect);
-        store.subscribe("RenameModal", PackedPacksState::renamingPack, this::initRenameModal);
-        store.subscribe("AliasModal", PackedPacksState::editingAliases, this::initAliasModal);
+        this.availableList = PackListContainer.createHead(context, PackListType.AVAILABLE);
+        this.enabledList = PackListContainer.createHead(context, PackListType.ENABLED);
+        this.dragActionRenderer = new DragActionRenderer(context.iconCache(), 100.0f, minecraft.font, availableList, enabledList);
+
+        context.setEffectHandler(this::onUiEffect);
+        context.state().subscribe("RenameModal", PackedPacksState::renamingPack, this::initRenameModal);
+        context.state().subscribe("AliasModal", PackedPacksState::editingAliases, this::initAliasModal);
         sidebarOpen.subscribe("ProfilesSidebar", this::initSidebar);
     }
 
@@ -114,9 +100,8 @@ public class PackedPacksScreen extends FZScreen {
     // so now we preload the components and avoid initializing the API.
     static void preload(Minecraft minecraft) {
         PackedPacksScreen screen = new PackedPacksScreen(minecraft, null, PackSelectionScreenArgs.dummy(minecraft));
-        screen.store.stopWatcher();
+        screen.context.stopWatcher();
         screen.preloading = true;
-        screen.refreshOnInit = false;
         screen.init();
     }
 
@@ -130,18 +115,18 @@ public class PackedPacksScreen extends FZScreen {
     @Override
     public void added() {
         if (this.initialized) {
-            store.initializeState();
-            store.refreshRepository();
-            store.startWatcher(context);
+            context.initializeState();
+            context.reload();
+            context.startWatcher();
         }
     }
 
     @Override
     public void removed() {
         Config.get().setShowActionBar(ribbonOpen.value());
-        store.cancelRefresh();
-        store.stopWatcher();
-        store.saveState();
+        context.cancelReload();
+        context.stopWatcher();
+        context.saveState();
     }
 
     @Override
@@ -151,16 +136,55 @@ public class PackedPacksScreen extends FZScreen {
         List<Consumer<InitializeEvent.Post>> postActions = new ArrayList<>();
         postEvent(new InitializeEvent.Pre(context, postActions::add));
 
-        store.initializeState();
         super.init();
-        if (this.refreshOnInit) store.refreshRepository();
+        context.initializeState();
 
-        this.refreshOnInit = true;
         this.initialized = true;
 
         InitializeEvent.Post postInit = new InitializeEvent.Post(context);
         postActions.forEach(listener -> listener.accept(postInit));
         postEvent(postInit);
+
+        context.startWatcher();
+    }
+
+    private FZRef<PackedPacksState> state() {
+        return context.state();
+    }
+
+    private FZTextField createSearchField(PackListType type) {
+        return FZTextField.bind("SearchField@" + type, state()
+                .map(s -> s.getTailList(type).query().search())
+                .map(value -> FZTextField.builder()
+                        .text(value == null ? "" : value)
+                        .onChange(e -> context.dispatch(new PackListIntent.Search(
+                                state().value().getTailKey(type),
+                                e.value()
+                        )))
+                        .hint(SEARCH_TEXT)
+                        .toProps()
+                )
+        );
+    }
+
+    private FZButton createTransferAllButton(PackListType type) {
+        PackListContainer container = type.available() ? availableList : enabledList;
+        Component message = Component.literal(type.available() ? ">>" : "<<");
+
+        return FZButton.bind("TransferAllButton@" + type, state()
+                .map(s -> s.profiles().isLocked()
+                          || s.getTailList(PackListType.AVAILABLE).module()
+                          || s.getTailList(PackListType.ENABLED).module()
+                )
+                .map(locked -> FZButton.builder()
+                        .message(message)
+                        .tooltip(Component.translatable("packed_packs.transfer_all.info"))
+                        .onPress(() -> container.visitLeafList(PackList::transferAll))
+                        .square()
+                        .active(!locked)
+                        .toProps()
+                )
+        );
     }
 
     @Override
@@ -173,7 +197,7 @@ public class PackedPacksScreen extends FZScreen {
 
             header.child(FZIconButton.builder()
                     .square()
-                    .tooltip(ProfilesViewModel.TITLE_TEXT)
+                    .tooltip(PROFILE_TITLE_TEXT)
                     .focusOnInteraction(false)
                     .icon(new WidgetElements(HAMBURGER_RECT, 16, 16))
                     .onPress(() -> sidebarOpen.set(prev -> !prev))
@@ -186,7 +210,10 @@ public class PackedPacksScreen extends FZScreen {
                     .onPress(() -> ribbonOpen.set(prev -> !prev))
                     .build()).ifPresent(header::child);
 
-            header.child(ProfileTitleLayout.create(store), header.flexChildHorizontalSettings());
+            header.child(
+                    ProfileTitleLayout.create(state().map(PackedPacksState::profiles), context::dispatch),
+                    header.flexChildHorizontalSettings()
+            );
 
             event.getPendingWidgets(InitializeLayoutEvent.Pos.AFTER_TITLE).forEach(header::child);
 
@@ -221,52 +248,39 @@ public class PackedPacksScreen extends FZScreen {
                 {
                     FZFlexLayout leftRibbon = ribbon.child(horizontal(), ribbon.flexChildHorizontalSettings());
 
-                    this.availableSearch = leftRibbon.child(FZTextField.bind("AvailableSearchField", store
-                                    .map(s -> s.available().query().unmodifiedSearch())
-                                    .map(value -> FZTextField.builder()
-                                            .text(value == null ? "" : value)
-                                            .onChange(e -> store.dispatch(new PackListIntent.Search(
-                                                    PackListKey.available(),
-                                                    e.value()
-                                            )))
-                                            .hint(SEARCH_TEXT)
-                                            .toProps())),
+                    this.availableSearch = leftRibbon.child(
+                            createSearchField(PackListType.AVAILABLE),
                             leftRibbon.flexChildHorizontalSettings()
                     );
 
-                    leftRibbon.child(FZDropdown.bind("AvailableSortDropdown", store
-                            .map(s -> s.available().query().sort())
+                    leftRibbon.child(FZDropdown.bind("AvailableSortDropdown", state()
+                            .map(s -> s.getTailList(PackListType.AVAILABLE).query().sort())
                             .map(sort -> {
+                                boolean active = sort != null && !(sort instanceof SortOption.Locked);
+                                Component valueText = sort != null && active ? sort.text() : CommonComponents.EMPTY;
                                 Component sortText = Component.translatable("packed_packs.sort");
-                                Component valueText = sort == null ? CommonComponents.EMPTY : sort.text();
 
-                                FZDropdown.Builder dropdown = FZDropdown.builder(this)
+                                return FZDropdown.builder(this)
                                         .width(40)
                                         .minContainerWidth(175)
                                         .hideMessage(true)
                                         .message(sortText)
-                                        .tooltip(CommonComponents.optionNameValue(sortText, valueText))
+                                        .active(active)
+                                        .tooltip(active ? CommonComponents.optionNameValue(sortText, valueText) : sortText)
+                                        .leftIcon(sort == null ? null : padded16Sprite(sort.icon()))
                                         .entryDivider(null)
-                                        .leftIcon(sort == null ? null : padded16Sprite(sort.icon()));
-
-                                for (Query.SortOption option : Query.SortOption.values()) {
-                                    dropdown.entry(button -> button
-                                            .message(option.text())
-                                            .leftIcon(padded16Sprite(option.icon()))
-                                            .onPress(() -> store.dispatch(new PackListIntent.Sort(
-                                                    PackListKey.available(),
-                                                    option
-                                            ))));
-                                }
-
-                                return dropdown.toProps();
+                                        .entries(SortOptions.menuItems(option -> context.dispatch(new PackListIntent.Sort(
+                                                state().value().getTailKey(PackListType.AVAILABLE),
+                                                option
+                                        ))))
+                                        .toProps();
                             })));
 
                     if (Preferences.INCOMPATIBLE_TOGGLE_WIDGET.get() || Config.get().isDevMode()) {
                         leftRibbon.child(PreferenceHelper.wrapNonNull(
                                 Preferences.INCOMPATIBLE_TOGGLE_WIDGET,
-                                FZIconButton.bind("AvailableIncompatibleButton", store
-                                        .map(s -> s.available().query().hideIncompatible())
+                                FZIconButton.bind("AvailableIncompatibleButton", state()
+                                        .map(s -> s.getTailList(PackListType.AVAILABLE).query().hideIncompatible())
                                         .map(value -> {
                                             ResourceLocation icon = value
                                                     ? PackedPacks.id("icon/incompatible_hidden")
@@ -277,8 +291,8 @@ public class PackedPacksScreen extends FZScreen {
                                                     .message(Component.translatable("packed_packs.hide_incompatible"))
                                                     .tooltip(Component.translatable("packed_packs.hide_incompatible.info"))
                                                     .icon(new WidgetElements(icon, 16, 16))
-                                                    .onPress(() -> store.dispatch(new PackListIntent.HideIncompatible(
-                                                            PackListKey.available(),
+                                                    .onPress(() -> context.dispatch(new PackListIntent.HideIncompatible(
+                                                            state().value().getTailKey(PackListType.AVAILABLE),
                                                             !value
                                                     )))
                                                     .toProps();
@@ -286,41 +300,18 @@ public class PackedPacksScreen extends FZScreen {
                         );
                     }
 
-                    leftRibbon.child(FZButton.bind("EnableAllButton", store
-                            .map(s -> s.profiles().isLocked())
-                            .map(locked -> FZButton.builder()
-                                    .message(Component.literal(">>"))
-                                    .tooltip(Component.translatable("packed_packs.transfer_all.info"))
-                                    .onPress(availableList.model()::transferAll)
-                                    .square()
-                                    .active(!locked)
-                                    .toProps())));
+                    leftRibbon.child(createTransferAllButton(PackListType.AVAILABLE));
                 }
 
                 {
                     FZFlexLayout rightRibbon = ribbon.child(horizontal(), ribbon.flexChildHorizontalSettings());
 
-                    rightRibbon.child(FZButton.bind("DisableAllButton", store
-                            .map(s -> s.profiles().isLocked())
-                            .map(locked -> FZButton.builder()
-                                    .message(Component.literal("<<"))
-                                    .tooltip(Component.translatable("packed_packs.transfer_all.info"))
-                                    .onPress(enabledList.model()::transferAll)
-                                    .square()
-                                    .active(!locked)
-                                    .toProps())));
+                    rightRibbon.child(createTransferAllButton(PackListType.ENABLED));
 
-                    this.enabledSearch = rightRibbon.child(FZTextField.bind("EnabledSearchField", store
-                                    .map(s -> s.enabled().query().unmodifiedSearch())
-                                    .map(value -> FZTextField.builder()
-                                            .text(value == null ? "" : value)
-                                            .onChange(e -> store.dispatch(new PackListIntent.Search(
-                                                    PackListKey.enabled(),
-                                                    e.value()
-                                            )))
-                                            .hint(SEARCH_TEXT)
-                                            .toProps())),
-                            rightRibbon.flexChildHorizontalSettings());
+                    this.enabledSearch = rightRibbon.child(
+                            createSearchField(PackListType.ENABLED),
+                            rightRibbon.flexChildHorizontalSettings()
+                    );
                 }
 
                 ribbon.visitWidgets(widget -> widget.visible = ribbonOpen.value());
@@ -350,10 +341,10 @@ public class PackedPacksScreen extends FZScreen {
                     folders.child(FZButton.builder()
                             .message(Component.translatable("pack.openFolder"))
                             .tooltip(Component.translatable("pack.folderInfo"))
-                            .onPress(store::openBaseDir)
+                            .onPress(() -> PackedPacks.openPath(context.packDir()))
                             .build(), folders.flexChildHorizontalSettings());
 
-                    List<Path> paths = store.getAdditionalFolders();
+                    List<Path> paths = context.otherDirectories();
                     if (!paths.isEmpty()) {
                         FZDropdown.Builder dropdown = FZDropdown.builder(this)
                                 .hideMessage()
@@ -362,7 +353,7 @@ public class PackedPacksScreen extends FZScreen {
                                 .entryDivider(null);
 
                         for (Path path : paths) {
-                            dropdown.entry(Component.literal(path.getFileName().toString()), () -> Util.getPlatform().openPath(path));
+                            dropdown.entry(Component.literal(path.getFileName().toString()), () -> PackedPacks.openPath(path));
                         }
 
                         folders.child(dropdown.build());
@@ -379,7 +370,7 @@ public class PackedPacksScreen extends FZScreen {
                 if (context.isClientResources()) {
                     rightFooter.child(FZButton.builder()
                             .message(Component.translatable("packed_packs.apply"))
-                            .onPress(store::commit)
+                            .onPress(context::commit)
                             .build(), rightFooter.flexChildHorizontalSettings());
                 }
 
@@ -412,7 +403,6 @@ public class PackedPacksScreen extends FZScreen {
             super.repositionElements();
         } else {
             layout.fidgetz$setSize(width, height);
-            layout.arrangeElements();
         }
 
         dialogManager.remove(GLOBAL_CONTEXT_MENU_ID);
@@ -446,15 +436,18 @@ public class PackedPacksScreen extends FZScreen {
     }
 
     private void initRenameModal() {
-        dialogManager.put(FZModal.bind("RenameModal", store.map(PackedPacksState::renamingPack).map(rename -> {
-            PackRenameLayout layout = PackRenameLayout.create(store);
+        FZRef<ActiveAction.@Nullable RenamingPack> ref = state().map(PackedPacksState::renamingPack);
+
+        dialogManager.put(FZModal.bind("RenameModal", ref.map(rename -> {
+            PackRenameLayout layout = PackRenameLayout.create(ref, context::dispatch, context.iconCache());
             return FZModal.builder(this, layout)
                     .id("RenameModal")
                     .popoverOrder(2)
-                    .backdrop(null)
                     .padding(SPACING)
                     .centered()
-                    .captureClick(false)
+                    .captureClick()
+                    .captureFocus()
+                    .closeAfterClickOutOfBounds()
                     .open(rename != null)
                     .onClose(layout::onClose)
                     .toProps();
@@ -462,9 +455,9 @@ public class PackedPacksScreen extends FZScreen {
     }
 
     private void initAliasModal() {
-        List<TextStyleMatcher> matchers = PackAliasLayout.styleMatchers();
-        dialogManager.put(FZModal.bind("AliasModal", store.map(PackedPacksState::editingAliases).map(editingAliases -> {
-            PackAliasLayout layout = PackAliasLayout.create(store, matchers);
+        FZRef<ActiveAction.@Nullable EditingAliases> ref = state().map(PackedPacksState::editingAliases);
+        dialogManager.put(FZModal.bind("AliasModal", ref.map(editingAliases -> {
+            PackAliasLayout layout = PackAliasLayout.create(ref, context::dispatch, context.iconCache());
             return FZModal.builder(this, layout)
                     .id("AliasModal")
                     .popoverOrder(2)
@@ -479,8 +472,8 @@ public class PackedPacksScreen extends FZScreen {
     }
 
     private void initSidebar() {
-        SidebarLayout sidebarLayout = SidebarLayout.create(context, store, () -> sidebarOpen.set(false));
-        dialogManager.put(FZModal.bind("ProfilesSidebar", sidebarOpen.map(open -> FZModal.builder(this, sidebarLayout)
+        SidebarLayout sidebar = SidebarLayout.create(state(), context::dispatch, context.packType(), () -> sidebarOpen.set(false));
+        dialogManager.put(FZModal.bind("ProfilesSidebar", sidebarOpen.map(open -> FZModal.builder(this, sidebar)
                 .id("ProfilesSidebar")
                 .popoverOrder(5)
                 .alignTopLeft()
@@ -496,18 +489,13 @@ public class PackedPacksScreen extends FZScreen {
     @Override
     public void rebuildWidgets() {
         if (!this.initialized) return;
-        store.cancelRefresh();
+        context.cancelReload();
         clearWidgets();
-        store.saveSelectedProfile();
-        Profile profile = store.getSelectedProfile();
-        InitMode initMode = profile == null
-                ? new InitMode.WithPacks(new PackGroup(store.getEnabledPacks(), store.getAvailablePacks()))
-                : new InitMode.WithProfile(profile);
-        store.saveState();
-        store.prepareInitialState(initMode);
-        this.refreshOnInit = false;
+        context.saveState();
         this.initialized = false;
         init();
+        availableList.rebuildEntries();
+        enabledList.rebuildEntries();
         dialogManager.refreshDialogs();
     }
 
@@ -526,8 +514,8 @@ public class PackedPacksScreen extends FZScreen {
                         return;
                     }
                     if (!results.valid().isEmpty()) {
-                        PackSelectionScreenAccessor.packed_packs$copyPacks(minecraft, results.valid(), store.getBaseDir());
-                        store.refreshRepository();
+                        PackSelectionScreenAccessor.packed_packs$copyPacks(minecraft, results.valid(), context.packDir());
+                        context.rebuild(); // fix reload
                     }
                     if (!results.rejected().isEmpty()) {
                         String rejectedNames = PackUtil.joinPackNames(results.rejected());
@@ -548,8 +536,8 @@ public class PackedPacksScreen extends FZScreen {
     @Override
     public void onClose() {
         ClosingEvent closingEvent = postEvent(new ClosingEvent(context));
-        if (closingEvent.isCommitted() || store.shouldCommitOnClose()) {
-            store.commit();
+        if (closingEvent.isCommitted() || !(context.configs().user() instanceof Config.ResourcePacks config) || config.isApplyOnClose()) {
+            context.commit();
         }
         if (context.isServerData() && !(parent instanceof PackSelectionScreen)) {
             return;
@@ -565,7 +553,7 @@ public class PackedPacksScreen extends FZScreen {
 
     @Override
     public void tick() {
-        store.pollWatcher();
+        context.pollWatcher();
     }
 
     private PackListContainer getPackList(PackListType type) {
@@ -576,7 +564,7 @@ public class PackedPacksScreen extends FZScreen {
     }
 
     private void visitDeepestList(PackListType type, Consumer<PackList> visitor) {
-        this.getPackList(type).visitDeepestList(visitor);
+        this.getPackList(type).visitLeafList(visitor);
     }
 
     private void applyFocusTarget(PackListType type, FocusTarget target) {
@@ -640,7 +628,7 @@ public class PackedPacksScreen extends FZScreen {
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
-        if (store.value().dragging() != null) {
+        if (state().value().dragging() != null) {
             return true;
         }
         if (super.charTyped(codePoint, modifiers)) {
@@ -662,31 +650,40 @@ public class PackedPacksScreen extends FZScreen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (store.value().dragging() != null) {
+        if (state().value().dragging() != null) {
             return true;
         }
         dialogManager.remove(GLOBAL_CONTEXT_MENU_ID);
-        if (keyCode == KEY_ESCAPE) {
+        if (keyCode == KEY_ESCAPE && dialogManager.dialogs().stream().noneMatch(FZDialog::isOpen)) {
             PackListType type = getClosestListType();
-            if (store.closeFolder(type) ||
-                store.closeFolder(type.other()) ||
-                store.closeFolder()) {
+            PackListKey key = null;
+
+            for (int i = 0; i < 2; i++) {
+                key = state().value().getTailKey(type);
+                if (key.depth() > 0) break;
+                type = type.other();
+            }
+
+            if (key.depth() > 0) {
+                context.dispatch(new PackListIntent.CloseFolder(key.unnest()));
                 return true;
             }
         }
         if (isDeveloperMode(keyCode, modifiers)) {
-            Config.get().setDevMode(!Config.get().isDevMode());
-            ToastUtil.onDevModeToggleToast(Config.get().isDevMode());
+            context.dispatch(new Intent.ToggleDevMode());
             rebuildWidgets();
             return true;
         }
         if (isSwitchDefaultProfile(keyCode, modifiers)) {
-            store.switchDefaultProfile();
+            context.dispatch(new ProfileIntent.Select(state().value().profiles().isSelectedDefault()
+                    ? null
+                    : state().value().profiles().defaultProfile())
+            );
             return true;
         }
         if (isRefresh(keyCode, modifiers)) {
-            if (store.canRefresh()) {
-                store.refreshRepository();
+            if (context.canReload()) {
+                context.reload();
             }
             return true;
         }
@@ -698,11 +695,11 @@ public class PackedPacksScreen extends FZScreen {
             return true;
         }
         if (isRedo(keyCode, modifiers)) {
-            store.redo();
+            context.redo();
             return true;
         }
         if (isUndo(keyCode, modifiers)) {
-            store.undo();
+            context.undo();
             return true;
         }
         if (keyCode == InputConstants.KEY_BACKSPACE) {
@@ -736,14 +733,16 @@ public class PackedPacksScreen extends FZScreen {
         if (context.devMode()) {
             collector.nextSection();
 
-            if (store.getSelectedProfile() != null) {
+            if (state().value().profiles().selectedProfile() != null) {
                 collector.addEntry(builder -> buildDevEntry(builder)
                         .message(Component.translatable("packed_packs.profile.save"))
-                        .onPress(store::saveSelectedProfile));
+                        .onPress(context::saveSelectedProfile));
                 collector.nextSection();
             }
 
-            FZPopoverMenuItem.Builder preferences = buildDevEntry(FZPopoverMenuItem.builder()).message(Component.translatable("packed_packs.preferences"));
+            FZPopoverMenuItem.Builder preferences = buildDevEntry(FZPopoverMenuItem.builder())
+                    .message(Component.translatable("packed_packs.preferences"));
+
             ContextMenuEventImpl<ContextMenuEvent.Preferences.Pos> prefExtensions = ContextMenuEventImpl.postPreferences(context);
 
             prefExtensions.entries(ContextMenuEvent.Preferences.Pos.TOP).forEach(preferences::child);
@@ -768,28 +767,30 @@ public class PackedPacksScreen extends FZScreen {
 
         collector.addEntry(builder -> builder
                 .message(Component.translatable("packed_packs.reset_enabled"))
-                .active(store::isUnlocked)
-                .onPress(store::resetChanges));
+                .active(() -> !state().value().profiles().isLocked())
+                .onPress(() -> context.dispatch(new Intent.Reset())));
 
         collector.addEntry(builder -> builder
                 .message(Component.translatable("packed_packs.refresh"))
-                .active(store::canRefresh)
-                .onPress(store::refreshRepository));
+                .active(context::canReload)
+                .onPress(context::reload));
 
-        List<Path> folders = store.getAdditionalFolders();
+        List<Path> folders = context.otherDirectories();
         if (folders.isEmpty()) {
-            collector.addEntry(builder -> builder.message(Component.translatable("pack.openFolder")).onPress(store::openBaseDir));
+            collector.addEntry(builder -> builder
+                    .message(Component.translatable("pack.openFolder"))
+                    .onPress(() -> PackedPacks.openPath(context.packDir())));
         } else {
             FZPopoverMenuItem.Builder parent = FZPopoverMenuItem.builder().message(Component.translatable("pack.openFolder"));
             parent.child(builder -> builder
-                    .message(Component.literal(store.getBaseDir().getFileName().toString()))
-                    .onPress(store::openBaseDir));
+                    .message(Component.literal(context.packDir().getFileName().toString()))
+                    .onPress(() -> PackedPacks.openPath(context.packDir())));
             parent.nextSection();
 
             for (Path folder : folders) {
                 parent.child(FZPopoverMenuItem.builder()
                         .message(Component.literal(folder.getFileName().toString()))
-                        .onPress(() -> Util.getPlatform().openPath(folder))
+                        .onPress(() -> PackedPacks.openPath(folder))
                         .build());
             }
 
@@ -801,15 +802,15 @@ public class PackedPacksScreen extends FZScreen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (store.value().dragging() != null) {
+        if (state().value().dragging() != null) {
             return true;
         }
         if (isClickForward(button)) {
-            store.redo();
+            context.redo();
             return true;
         }
         if (isClickBack(button)) {
-            store.undo();
+            context.undo();
             return true;
         }
 
@@ -824,19 +825,19 @@ public class PackedPacksScreen extends FZScreen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        return store.value().dragging() != null || super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+        return state().value().dragging() != null || super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        ActiveAction.Dragging dragged = store.value().dragging();
+        ActiveAction.Dragging dragged = state().value().dragging();
         if (isLeftClick(button) && dragged != null) {
             if (availableList.isHovered()) {
                 availableList.onDrop(dragged, (int) mouseX, (int) mouseY);
             } else if (enabledList.isHovered()) {
                 enabledList.onDrop(dragged, (int) mouseX, (int) mouseY);
             } else {
-                store.dispatch(new PackListIntent.Drop(dragged.target(), dragged.ctx(), dragged.payload(), null, 0));
+                context.dispatch(new PackListIntent.Drop(dragged.src(), null, 0));
             }
             return true;
         }
@@ -847,9 +848,9 @@ public class PackedPacksScreen extends FZScreen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
 
-        ActiveAction.Dragging dragging = store.value().dragging();
+        ActiveAction.Dragging dragging = state().value().dragging();
         if (dragging != null) {
-            if (store.isUnlocked()) {
+            if (!state().value().profiles().isLocked()) {
                 dragActionRenderer.render(dragging, graphics, mouseX, mouseY, partialTick);
             } else {
                 MinecraftCursor.get().setNotAllowed();
@@ -860,29 +861,9 @@ public class PackedPacksScreen extends FZScreen {
             float scale = 0.5f;
             int y = (int) ((height - this.font.lineHeight * scale) / scale);
             graphics.pose().pushPose();
-            graphics.pose().scale(scale, scale, 0);
+            graphics.pose().scale(scale, scale, 300f);
             graphics.drawString(font, DEV_MODE_TEXT, 0, y, Colors.WHITE);
             graphics.pose().popPose();
         }
-    }
-
-    @Override
-    public <T extends GuiEventListener & NarratableEntry> T addWidget(T widget) {
-        return super.addWidget(widget);
-    }
-
-    @Override
-    public <T extends Renderable> T addRenderableOnly(T renderable) {
-        return super.addRenderableOnly(renderable);
-    }
-
-    @Override
-    public <T extends GuiEventListener & Renderable & NarratableEntry> T addRenderableWidget(T widget) {
-        return super.addRenderableWidget(widget);
-    }
-
-    @Override
-    public void removeWidget(GuiEventListener widget) {
-        super.removeWidget(widget);
     }
 }

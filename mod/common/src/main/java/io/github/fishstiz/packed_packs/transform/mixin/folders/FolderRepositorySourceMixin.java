@@ -6,19 +6,18 @@ import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalBooleanRef;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.pack.folder.FolderResources;
+import io.github.fishstiz.packed_packs.config.FolderPackMeta;
+import io.github.fishstiz.packed_packs.pack.FolderLocationInfo;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.util.PackUtil;
-import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.repository.FolderRepositorySource;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackDetector;
 import net.minecraft.world.level.validation.DirectoryValidator;
 import net.minecraft.world.level.validation.ForbiddenSymlinkInfo;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Coerce;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -33,12 +32,16 @@ import java.util.function.Consumer;
 
 @Mixin(FolderRepositorySource.class)
 public abstract class FolderRepositorySourceMixin {
+    @Shadow
+    @Final
+    static Logger LOGGER;
+
     @Unique
-    private static final ThreadLocal<Boolean> IS_SUBDIRECTORY = ThreadLocal.withInitial(() -> false);
+    private static final ThreadLocal<@Nullable FolderLocationInfo> PARENT_CONTEXT = new ThreadLocal<>();
 
     @Inject(method = "loadPacks", at = @At("RETURN"))
-    private void ensureRemoveThreadLocals(Consumer<Pack> consumer, CallbackInfo ci) {
-        IS_SUBDIRECTORY.remove();
+    private void ensureRemoveThreadLocals(Consumer<Pack> result, CallbackInfo ci) {
+        PARENT_CONTEXT.remove();
     }
 
     @WrapOperation(method = "discoverPacks", at = @At(
@@ -49,29 +52,39 @@ public abstract class FolderRepositorySourceMixin {
             @Coerce PackDetector<Pack.ResourcesSupplier> instance,
             Path path,
             List<ForbiddenSymlinkInfo> list,
-            Operation<Object> original,
+            Operation<Pack.ResourcesSupplier> original,
             @Local(argsOnly = true) DirectoryValidator validator,
             @Local(argsOnly = true) BiConsumer<Path, Pack.ResourcesSupplier> output,
             @Share("suppressLog") LocalBooleanRef suppressLogRef
     ) {
-        if (PackUtil.isNonPackDirectory(path)) {
+        Pack.ResourcesSupplier resourcesSupplier = null;
+        try {
+            resourcesSupplier = original.call(instance, path, list);
+        } catch (Exception e) {
+            LOGGER.warn("Failed to read properties of '{}', ignoring", path, e);
+        }
+
+        if (resourcesSupplier == null && PackUtil.isNonPackDirectory(path)) {
             suppressLogRef.set(true);
-            boolean isRoot = !IS_SUBDIRECTORY.get();
+
+            FolderLocationInfo parent = PARENT_CONTEXT.get();
+
             try {
-                if (isRoot) {
-                    IS_SUBDIRECTORY.set(true);
-                    discoverPacks(path, validator, output);
-                }
+                FolderLocationInfo parentInfo = FolderLocationInfo.fromPath(path.toAbsolutePath().normalize(), parent);
+                PARENT_CONTEXT.set(parentInfo);
+                discoverPacks(path, validator, output);
             } catch (IOException e) {
                 PackedPacks.LOGGER.warn("[packed_packs] Failed to list packs in {}", path, e);
             } finally {
-                if (isRoot) {
-                    IS_SUBDIRECTORY.remove();
+                if (parent == null) {
+                    PARENT_CONTEXT.remove();
+                } else {
+                    PARENT_CONTEXT.set(parent);
                 }
             }
         }
 
-        return original.call(instance, path, list);
+        return resourcesSupplier;
     }
 
     @WrapOperation(method = "discoverPacks", at = @At(
@@ -79,28 +92,34 @@ public abstract class FolderRepositorySourceMixin {
             target = "Lorg/slf4j/Logger;info(Ljava/lang/String;Ljava/lang/Object;)V",
             remap = false
     ))
-    private static void suppressLogOnFolderDiscovery(Logger instance, String s, Object o, Operation<Void> original, @Share("suppressLog") LocalBooleanRef suppressLogRef) {
-        if (!suppressLogRef.get() && !(o instanceof Path p && (p.endsWith(FolderResources.FOLDER_CONFIG_FILENAME) || p.endsWith(PackUtil.ICON_FILENAME)))) {
+    private static void suppressLogOnFolderDiscovery(
+            Logger instance,
+            String s,
+            Object o,
+            Operation<Void> original,
+            @Share("suppressLog") LocalBooleanRef suppressLogRef
+    ) {
+        if (!suppressLogRef.get() &&
+            !(o instanceof Path p && (p.endsWith(FolderPackMeta.FILENAME) || p.endsWith(PackUtil.ICON_FILENAME)))) {
             original.call(instance, s, o);
         }
         suppressLogRef.set(false);
     }
 
+    // todo migrate folder pack ids using VersionState
+
     @SuppressWarnings("UnresolvedMixinReference")
     @ModifyArg(method = {"method_45272", "lambda$loadPacks$0"}, at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/server/packs/repository/Pack;readMetaAndCreate(Lnet/minecraft/server/packs/PackLocationInfo;Lnet/minecraft/server/packs/repository/Pack$ResourcesSupplier;Lnet/minecraft/server/packs/PackType;Lnet/minecraft/server/packs/PackSelectionConfig;)Lnet/minecraft/server/packs/repository/Pack;"
+            target = "Ljava/util/function/Consumer;accept(Ljava/lang/Object;)V"
     ))
-    private PackLocationInfo modifyPackLocation(PackLocationInfo location, @Local(argsOnly = true) Path path) {
-        return IS_SUBDIRECTORY.get() ? PackUtil.replicateLocationInfo(location, PackUtil.generateNestedPackId(path)) : location;
-    }
-
-    @SuppressWarnings("UnresolvedMixinReference")
-    @ModifyArg(method = {"method_45272", "lambda$loadPacks$0"}, at = @At(value = "INVOKE", target = "Ljava/util/function/Consumer;accept(Ljava/lang/Object;)V"))
     private Object bindDirToNestedPack(Object arg, @Local(argsOnly = true) Path path) {
         if (arg instanceof FilePack pack) {
-            pack.packed_packs$setNestedPack(IS_SUBDIRECTORY.get());
             pack.packed_packs$setPath(path);
+            FolderLocationInfo parent = PARENT_CONTEXT.get();
+            if (parent != null) {
+                pack.packed_packs$setParent(parent);
+            }
         }
         return arg;
     }

@@ -2,13 +2,13 @@ package io.github.fishstiz.packed_packs.gui.layouts;
 
 import io.github.fishstiz.fidgetz.v0.gui.components.*;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
+import io.github.fishstiz.fidgetz.v0.gui.state.FZRef;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.config.ProfileManager;
-import io.github.fishstiz.packed_packs.gui.intents.ProfileIntent;
-import io.github.fishstiz.packed_packs.gui.model.PackedPacksStore;
-import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
+import io.github.fishstiz.packed_packs.gui.actions.intents.Intent;
 import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
+import io.github.fishstiz.packed_packs.gui.actions.intents.ProfileIntent;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentUtils;
@@ -17,50 +17,57 @@ import net.minecraft.util.CommonColors;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
-import static io.github.fishstiz.packed_packs.gui.model.ProfilesViewModel.NO_PROFILE_TEXT;
 import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
 
 public class ProfileTitleLayout {
-    public static FZFlexLayout create(PackedPacksStore store) {
-        FZIconButton editButton = FZIconButton.bind("ProfileNameEditButton", store
-                .map(PackedPacksState::profiles)
-                .map(profilesState -> FZIconButton.builder()
+    public static FZFlexLayout create(FZRef<ProfilesState> state, Consumer<? super Intent> dispatcher) {
+        FZIconButton editButton = FZIconButton.bind(
+                "ProfileNameEditButton",
+                state.map(profilesState -> FZIconButton.builder()
                         .square()
                         .tooltip(Component.translatable("packed_packs.profile.edit"))
                         .icon(getEditIcon(profilesState))
                         .visible(profilesState.selectedProfile() != null)
                         .active(profilesState.canRename())
-                        .onPress(() -> store.dispatch(new ProfileIntent.ToggleRenaming()))
-                        .toProps()));
+                        .onPress(() -> dispatcher.accept(new ProfileIntent.ToggleRenaming()))
+                        .toProps()
+                )
+        );
 
-        FZTextField nameField = FZTextField.bind("ProfileNameField", store.map(PackedPacksState::profiles).map(state -> {
-            Profile selected = state.selectedProfile();
-            return FZTextField.builder()
-                    .height(20)
-                    .visible(selected != null)
-                    .active(selected != null)
-                    .hint(selected == null ? NO_PROFILE_TEXT : ProfileManager.getDefaultNameComponent())
-                    .maxLength(ProfileManager.getNameMaxLength())
-                    .text(selected == null ? "" : selected.getName())
-                    .onChange(e -> {
-                        if (selected == null) return;
-                        store.dispatch(new ProfileIntent.Rename(selected, e.value()));
-                    })
-                    .toProps();
-        }));
+        FZTextField nameField = FZTextField.bind(
+                "ProfileNameField",
+                state.map(ProfilesState::selectedProfile).map(profile -> FZTextField.builder()
+                        .height(20)
+                        .visible(profile != null)
+                        .active(profile != null)
+                        .hint(profile == null ? NO_PROFILE_TEXT : ProfileManager.getDefaultNameComponent())
+                        .maxLength(ProfileManager.getNameMaxLength())
+                        .text(profile == null ? "" : profile.getName())
+                        .onChange(e -> {
+                            if (profile == null) return;
+                            dispatcher.accept(new ProfileIntent.Rename(profile, e.value()));
+                        })
+                        .toProps()
+                )
+        );
 
         FZFlexLayout title = FZFlexLayout.horizontal().spacing(SPACING);
         {
             title.defaultChildSettings().visible();
 
             title.child(editButton);
-            title.child(WrappedComponent.bind("ProfileNameContainer", store
-                            .map(PackedPacksState::profiles)
-                            .map(profilesState -> profilesState.canRename() && profilesState.renaming()
+            title.child(
+                    WrappedComponent.bind(
+                            "ProfileNameContainer",
+                            state.map(profilesState -> profilesState.canRename() && profilesState.renaming()
                                     ? nameField
-                                    : buildNameReadonly(profilesState))),
-                    title.flexChildHorizontalSettings());
+                                    : buildNameReadonly(profilesState)
+                            )
+                    ),
+                    title.flexChildHorizontalSettings()
+            );
         }
 
         return title;

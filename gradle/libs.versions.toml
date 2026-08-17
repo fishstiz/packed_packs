@@ -1,5 +1,5 @@
 [versions]
-fidgetz = "0.7.3+1.21.1"
+fidgetz = "0.7.3-patch.1+1.21.1"
 minecraftCursor = "3.11.3+1.21.1"
 
 [libraries]

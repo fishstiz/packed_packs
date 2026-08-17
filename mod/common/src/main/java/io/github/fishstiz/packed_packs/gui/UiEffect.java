@@ -1,6 +1,6 @@
 package io.github.fishstiz.packed_packs.gui;
 
-import io.github.fishstiz.packed_packs.gui.model.PackListType;
+import io.github.fishstiz.packed_packs.gui.states.PackListType;
 import org.jetbrains.annotations.Nullable;
 
 public sealed interface UiEffect {

@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.platform.services;
 
 import io.github.fishstiz.packed_packs.api.PackedPacksInitializer;
-import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.server.packs.repository.PackSource;
 
 import java.nio.file.Path;
 import java.util.Collections;
@@ -20,7 +20,7 @@ public interface PlatformHelper {
         return Collections.emptyList();
     }
 
-    default boolean isBuiltInPack(Pack pack) {
+    default boolean isBuiltInPack(PackSource packSource) {
         return false;
     }
 }
