@@ -37,7 +37,7 @@ public abstract class OptionsMixin {
 
     @Inject(method = "<init>", at = @At("TAIL"))
     private void applyDefaultProfile(Minecraft minecraft, File gameDirectory, CallbackInfo ci) {
-        if (!this.optionsFile.exists() || (packed_packs$shouldCheckVersion() && VersionState.uninitialized())) {
+        if (!this.optionsFile.exists() || (packed_packs$shouldCheckVersion() && VersionState.getPreviousVersion() == 0)) {
             Profile defaultProfile = ProfileManager.clientResources().getDefault();
             if (defaultProfile != null) {
                 PackedPacks.LOGGER.info(
@@ -48,8 +48,6 @@ public abstract class OptionsMixin {
                 this.resourcePacks.addAll(defaultProfile.getPackIds().reversed());
             }
         }
-
-        VersionState.update();
     }
 
     // fixed position packs are not saved to options

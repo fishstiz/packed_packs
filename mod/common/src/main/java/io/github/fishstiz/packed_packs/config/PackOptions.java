@@ -4,13 +4,13 @@ import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.repository.Pack;
 
 public interface PackOptions {
-    boolean isHidden(Pack pack);
+    boolean isHidden(String packId);
 
-    boolean isRequired(Pack pack);
+    boolean isRequired(String packId);
 
-    boolean isFixed(Pack pack);
+    boolean isFixed(String packId);
 
-    Pack.Position getPosition(Pack pack);
+    Pack.Position getPosition(String packId);
 
-    PackSelectionConfig getSelectionConfig(Pack pack);
+    PackSelectionConfig getSelectionConfig(String packId);
 }

@@ -1,18 +1,13 @@
 package io.github.fishstiz.packed_packs.gui.components;
 
-import io.github.fishstiz.packed_packs.gui.model.PackListViewModel;
-import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.util.Util;
 
 import static io.github.fishstiz.packed_packs.util.InputUtil.*;
-import static io.github.fishstiz.packed_packs.util.InputUtil.isRangeModifierActive;
-import static io.github.fishstiz.packed_packs.util.InputUtil.isSelectModifierActive;
 
-public class MouseStateHandler {
+class MouseStateHandler {
     private static final double DRAG_THRESHOLD = 1.0;
-    private final GuiEventListener entry;
-    private final PackListViewModel.Entry model;
+    private final PackList.Entry entry;
     private State state = State.INACTIVE;
     private long lastClickTime = 0;
 
@@ -22,9 +17,8 @@ public class MouseStateHandler {
         SELECTING_MANY
     }
 
-    public MouseStateHandler(GuiEventListener entry, PackListViewModel.Entry model) {
+    MouseStateHandler(PackList.Entry entry) {
         this.entry = entry;
-        this.model = model;
     }
 
     private static boolean exceedsDragThreshold(double dragX, double dragY) {
@@ -44,27 +38,27 @@ public class MouseStateHandler {
             return false;
         }
         if (!isRangeModifierActive() && !isSelectModifierActive() && updateDoubleClick()) {
-            model.transfer();
+            entry.transferPack();
             return false; // do not take focus
         }
         if (isRangeModifierActive()) {
             this.state = State.SELECTING_MANY;
-            model.selectRange();
+            entry.selectTowardsPack();
             return true;
         }
         if (isSelectModifierActive()) {
             this.state = State.SELECTING_MANY;
-            model.selectToggle();
+            entry.selectToggle();
             return true;
         }
-        if (!model.selected()) {
+        if (!entry.state.isSelected()) {
             this.state = State.SELECTING_ONE;
-            model.selectExclusive();
+            entry.selectPackExclusively();
             return true;
         }
-        if (!model.selectedLast()) {
+        if (!entry.state.isSelectedLast()) {
             this.state = State.SELECTING_ONE;
-            model.select();
+            entry.selectPack();
             return true;
         }
 
@@ -75,10 +69,10 @@ public class MouseStateHandler {
     public boolean mouseReleased(MouseButtonEvent mouseButtonEvent) {
         if (entry.isMouseOver(mouseButtonEvent.x(), mouseButtonEvent.y())
             && this.state == State.SELECTING_ONE
-            && model.selectedLast()
-            && !model.selectedExclusive()) {
+            && entry.state.isSelectedLast()
+            && !entry.state.isSelectedExclusively()) {
             this.state = State.INACTIVE;
-            model.selectExclusive();
+            entry.selectPackExclusively();
             return true;
         }
 
@@ -92,8 +86,8 @@ public class MouseStateHandler {
             return false;
         }
 
-        if (exceedsDragThreshold(dragX, dragY) && model.selected() && this.state == State.SELECTING_ONE) {
-            model.drag();
+        if (exceedsDragThreshold(dragX, dragY) && entry.state.isSelected() && this.state == State.SELECTING_ONE) {
+            entry.dragPack();
             return true;
         }
 

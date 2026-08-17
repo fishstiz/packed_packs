@@ -14,6 +14,7 @@ import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
@@ -70,6 +71,7 @@ public interface ScreenContext {
      *
      * @return packs currently listed in the available column.
      */
+    @Contract("-> new")
     List<Pack> getAvailablePacks();
 
     /**
@@ -77,6 +79,7 @@ public interface ScreenContext {
      *
      * @return packs currently listed in the selected column.
      */
+    @Contract("-> new")
     List<Pack> getSelectedPacks();
 
     /**

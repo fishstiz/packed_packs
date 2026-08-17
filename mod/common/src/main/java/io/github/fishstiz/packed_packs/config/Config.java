@@ -1,7 +1,8 @@
 package io.github.fishstiz.packed_packs.config;
 
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.gui.model.Query;
+import io.github.fishstiz.packed_packs.gui.components.SortOption;
+import io.github.fishstiz.packed_packs.gui.components.SortOptions;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.packs.PackType;
 import org.jspecify.annotations.Nullable;
@@ -70,12 +71,18 @@ public final class Config {
         this.hideIncompatible = hideIncompatible;
     }
 
-    public Query.SortOption getSort() {
-        return Query.SortOption.getOrDefault(this.sort);
+    public SortOption getSort() {
+        return SortOptions.getOrDefault(this.sort);
     }
 
-    public void setSort(Query.SortOption sort) {
-        this.sort = sort.name();
+    public void setSort(SortOption sort) {
+        if (sort instanceof SortOption.Locked(SortOption locked)) {
+            if (locked != null) {
+                this.sort = locked.name();
+            }
+        } else {
+            this.sort = sort.name();
+        }
     }
 
     public ResourcePacks getResourcepacks() {
@@ -91,6 +98,7 @@ public final class Config {
         private boolean replaceOriginal = true;
         private boolean hideIncompatibleWarnings = false;
         private final List<String> additionalFolders = new ObjectArrayList<>();
+        private boolean foldersModuleByDefault = false;
         private boolean rememberLastViewedProfile = false;
         private @Nullable String lastViewedProfile = null;
         private List<String> profileOrder = new ObjectArrayList<>();
@@ -139,6 +147,14 @@ public final class Config {
 
         public List<String> getAdditionalFolders() {
             return List.copyOf(this.additionalFolders);
+        }
+
+        public boolean areFoldersModuleByDefault() {
+            return this.foldersModuleByDefault;
+        }
+
+        public void setFoldersModuleByDefault(boolean foldersModuleByDefault) {
+            this.foldersModuleByDefault = foldersModuleByDefault;
         }
     }
 
