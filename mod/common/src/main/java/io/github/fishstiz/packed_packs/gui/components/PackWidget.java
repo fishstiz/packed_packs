@@ -2,7 +2,6 @@ package io.github.fishstiz.packed_packs.gui.components;
 
 import io.github.fishstiz.fidgetz.v0.gui.components.FZText;
 import io.github.fishstiz.fidgetz.v0.utils.GuiGraphicsUtils;
-import io.github.fishstiz.packed_packs.gui.model.PackListViewModel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -13,7 +12,6 @@ import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentUtils;
 import net.minecraft.network.chat.Style;
-import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.util.CommonColors;
 
 import java.util.function.Consumer;
@@ -24,7 +22,7 @@ class PackWidget implements Renderable, LayoutElement {
     private static final int DESCRIPTION_LINES = 2;
     private static final int SPACING = 2;
     private final Font font;
-    private final PackListViewModel.Entry model;
+    private final PackList.Entry entry;
     private final FZText nameWidget;
     private final MultiLineTextWidget descriptionWidget;
     private int cachedBodyWidth;
@@ -34,17 +32,17 @@ class PackWidget implements Renderable, LayoutElement {
     private int width;
     private int height;
 
-    PackWidget(PackListViewModel.Entry model, int height) {
-        this.model = model;
+    PackWidget(PackList.Entry entry, int height) {
+        this.entry = entry;
         this.font = Minecraft.getInstance().font;
-        this.nameWidget = FZText.builder(model.pack().getTitle()).build();
+        this.nameWidget = FZText.builder(entry.pack.title()).build();
         this.height = height;
-        this.descriptionWidget = new MultiLineTextWidget(getExtendedDescription(model.pack()), font);
+        this.descriptionWidget = new MultiLineTextWidget(getExtendedDescription(), font);
         repositionElements();
     }
 
-    private static Component getExtendedDescription(Pack pack) {
-        return ComponentUtils.mergeStyles(pack.getPackSource().decorate(pack.getDescription()), Style.EMPTY.withColor(CommonColors.GRAY));
+    private Component getExtendedDescription() {
+        return ComponentUtils.mergeStyles(entry.pack.decoratedDescription(), Style.EMPTY.withColor(CommonColors.GRAY));
     }
 
     private void repositionHorizontal() {
@@ -123,22 +121,22 @@ class PackWidget implements Renderable, LayoutElement {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        GuiGraphicsUtils.texture(graphics, model.icon(), x + SPACING, y, ICON_SIZE, ICON_SIZE);
+        GuiGraphicsUtils.texture(graphics, entry.getPackIcon(), x + SPACING, y, ICON_SIZE, ICON_SIZE);
         nameWidget.render(graphics, mouseX, mouseY, partialTick);
         this.descriptionWidget.render(graphics, mouseX, mouseY, partialTick);
     }
 
-    public void checkCompatibility(boolean showWarning) {
+    void checkCompatibility(boolean showWarning) {
         if (showWarning) {
-            if (!this.warningShown && !model.pack().getCompatibility().isCompatible() && !model.incompatibleWarningsHidden()) {
+            if (!this.warningShown && !entry.pack.compatibility().isCompatible() && !entry.isIncompatibleWarningsHidden()) {
                 nameWidget.setMessage(INCOMPATIBLE_TITLE);
-                this.descriptionWidget.setMessage(model.pack().getCompatibility().getDescription());
+                this.descriptionWidget.setMessage(entry.pack.compatibility().getDescription());
                 this.warningShown = true;
             }
         } else if (this.warningShown) {
-            nameWidget.setMessage(model.pack().getTitle());
+            nameWidget.setMessage(entry.pack.title());
             nameWidget.setWidth(this.cachedBodyWidth);
-            this.descriptionWidget.setMessage(getExtendedDescription(model.pack()));
+            this.descriptionWidget.setMessage(getExtendedDescription());
             this.warningShown = false;
         }
     }

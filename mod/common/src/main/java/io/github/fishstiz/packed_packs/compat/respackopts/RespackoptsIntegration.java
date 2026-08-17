@@ -21,7 +21,7 @@ public class RespackoptsIntegration extends ModIntegration {
         api.eventBus().register(InitializePackEntryEvent.class, this.id(), event -> {
             if (!event.screenContext().isClientResources()) return;
             if (event.screenContext().devMode() || respackoptsButton.get()) {
-                event.addDetachedWidget(container -> RespackoptsWidget.create(respackoptsButton, container, event.packContext().pack()));
+                event.addDetachedWidget(container -> RespackoptsWidget.create(respackoptsButton, container, event.packContext()));
             }
         });
 

@@ -1,17 +1,16 @@
 package io.github.fishstiz.packed_packs.transform.interfaces;
 
-import io.github.fishstiz.packed_packs.pack.folder.FolderLocationInfo;
+import io.github.fishstiz.packed_packs.pack.FolderLocationInfo;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
-import java.util.Objects;
 
 public interface FilePack {
-    default boolean packed_packs$nestedPack() {
-        return false;
+    default @Nullable FolderLocationInfo packed_packs$getParent() {
+        return null;
     }
 
-    default void packed_packs$setNestedPack(boolean nested) {
+    default void packed_packs$setParent(FolderLocationInfo parent) {
     }
 
     default void packed_packs$setPath(Path path) {
@@ -19,11 +18,5 @@ public interface FilePack {
 
     default @Nullable Path packed_packs$getPath() {
         return null;
-    }
-
-    default @Nullable FolderLocationInfo packed_packs$getFolderLocationInfo() {
-        return this.packed_packs$nestedPack()
-                ? FolderLocationInfo.fromPath(Objects.requireNonNull(this.packed_packs$getPath()).getParent())
-                : null;
     }
 }
