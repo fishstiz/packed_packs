@@ -7,6 +7,7 @@ import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.PackedPacksApi;
 import io.github.fishstiz.packed_packs.api.Preference;
+import io.github.fishstiz.packed_packs.api.context.PackContext;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
 import io.github.fishstiz.packed_packs.api.events.InitializeLayoutEvent;
@@ -18,7 +19,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
@@ -50,7 +50,7 @@ public class VTDIntegration extends ModIntegration {
                 var button = VTDEditButtonWidget.create(
                         vtdEditButton,
                         ctx.screen(),
-                        event.packContext().pack(),
+                        event.packContext(),
                         event.packContext()::fileModifiable
                 );
                 if (button != null) event.addBottomRight(PENCIL_MARGIN_RIGHT, button);
@@ -75,7 +75,7 @@ public class VTDIntegration extends ModIntegration {
                 .build();
     }
 
-    static Runnable createVTDScreenSetter(Screen parent, @Nullable Pack pack) {
+    static Runnable createVTDScreenSetter(Screen parent, @Nullable PackContext pack) {
         String screenName = "me.bymartrixx.vtd.gui.VTDownloadScreen";
         ScreenArg<Screen> parentArg = ScreenArg.parent(parent);
         ScreenArg<Component> subtitleArg = new ScreenArg<>(Component.class, Component.translatable("vtd.resourcePack.subtitle"));
@@ -86,7 +86,7 @@ public class VTDIntegration extends ModIntegration {
 
         return createScreenSetter(screenName, parentArg, subtitleArg, new ScreenArg<>(
                 PackSelectionModel.Entry.class,
-                new PackWrapperDelegatorAbstractionEpicModelEntry(pack)
+                pack
         ));
     }
 }

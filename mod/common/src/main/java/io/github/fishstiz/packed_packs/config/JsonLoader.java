@@ -13,10 +13,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.function.Supplier;
 
 public final class JsonLoader {
-    private static final Gson GSON = new GsonBuilder()
-            .setPrettyPrinting()
-            .registerTypeAdapter(PackOverride.class, new PackOverride.Adapter())
-            .create();
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private JsonLoader() {
     }
@@ -57,15 +54,21 @@ public final class JsonLoader {
         }
     }
 
-    public static <T> boolean saveJson(T serializable, Path path) {
+    public static boolean saveJson(Object serializable, Path path, boolean createDirs) {
         try {
             String json = GSON.toJson(serializable);
-            Files.createDirectories(path.getParent());
+            if (createDirs) {
+                Files.createDirectories(path.getParent());
+            }
             Files.writeString(path, json, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             return true;
         } catch (Exception e) {
             PackedPacks.LOGGER.info("[packed_packs] Failed to save file at '{}'.", path, e);
             return false;
         }
+    }
+
+    public static <T> boolean saveJson(T serializable, Path path) {
+        return saveJson(serializable, path, true);
     }
 }

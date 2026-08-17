@@ -4,12 +4,8 @@ import com.mojang.blaze3d.Blaze3D;
 import com.sun.jna.platform.FileUtils;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.config.PackOptions;
-import io.github.fishstiz.packed_packs.pack.PackGroup;
-import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
-import io.github.fishstiz.packed_packs.pack.folder.FolderResources;
+import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.platform.Services;
-import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.transform.mixin.UtilAccess;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -17,13 +13,12 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.util.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackResources;
-import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackDetector;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.world.level.validation.ForbiddenSymlinkInfo;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,38 +58,8 @@ public class PackUtil {
         return FILE_PREFIX + name;
     }
 
-    public static String generateNestedPackId(Path path, String name) {
-        return FILE_PREFIX + generatePackName(path.getParent()) + DELIMITER + name;
-    }
-
     public static String generatePackId(Path path) {
         return generatePackId(generatePackName(path));
-    }
-
-    public static String generateNestedPackId(Path path) {
-        return generateNestedPackId(path, generatePackName(path));
-    }
-
-    public static PackLocationInfo replicateLocationInfo(PackLocationInfo info, String id) {
-        return new PackLocationInfo(id, info.title(), info.source(), info.knownPackInfo());
-    }
-
-    public static long getLastUpdatedEpochMs(Pack pack) {
-        Path path = ((FilePack) pack).packed_packs$getPath();
-        if (path == null) {
-            return -1;
-        }
-
-        try {
-            return Files.getLastModifiedTime(path).toInstant().toEpochMilli();
-        } catch (IOException e) {
-            PackedPacks.LOGGER.error("Failed to get age of pack '{}'", pack.getId());
-            return -1;
-        }
-    }
-
-    public static List<String> extractPackIds(Collection<Pack> packs) {
-        return CollectionUtils.map(packs, Pack::getId);
     }
 
     public static String joinPackNames(Collection<Path> paths) {
@@ -106,71 +71,27 @@ public class PackUtil {
     }
 
     public static boolean hasFolderConfig(Path path) {
-        return Files.isRegularFile(path.resolve(FolderResources.FOLDER_CONFIG_FILENAME), LinkOption.NOFOLLOW_LINKS);
+        return Files.isRegularFile(path.resolve(FolderPackMeta.FILENAME), LinkOption.NOFOLLOW_LINKS);
     }
 
-    public static boolean isBuiltIn(Pack pack) {
-        PackSource packSource = pack.getPackSource();
-        return packSource == PackSource.BUILT_IN || Services.PLATFORM.isBuiltInPack(pack);
+    public static boolean isBuiltIn(PackSource packSource) {
+        return packSource == PackSource.BUILT_IN || Services.PLATFORM.isBuiltInPack(packSource);
     }
 
-    public static boolean isEssential(Pack pack) {
-        String packId = pack.getId();
+    public static boolean isEssential(String packId) {
         return packId.equals(VANILLA_ID) || packId.equals(FABRIC_ID) || packId.equals(NEOFORGE_ID);
     }
 
-    public static boolean isFeature(Pack pack) {
-        return pack.getPackSource() == PackSource.FEATURE;
+    public static boolean isFeature(PackSource packSource) {
+        return packSource == PackSource.FEATURE;
     }
 
     public static boolean isNonPackDirectory(Path path) {
         return Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS) && !hasMcmeta(path);
     }
 
-    public static boolean isZipPack(Pack pack) {
-        Path path = validatePackPath(pack);
+    public static boolean isZipPath(@Nullable Path path) {
         return path != null && Files.isRegularFile(path) && PackUtil.fileName(path).endsWith(ZIP_PACK_EXTENSION);
-    }
-
-    public static List<Pack> flattenPacks(Collection<Pack> packs) {
-        List<Pack> flattened = new ObjectArrayList<>(packs.size());
-        for (Pack pack : packs) {
-            if (pack instanceof FolderPack folderPack) {
-                flattened.addAll(folderPack.flatten());
-            } else {
-                flattened.add(pack);
-            }
-        }
-        return flattened;
-    }
-
-    public static List<String> flattenPackIds(Collection<Pack> packs) {
-        List<String> flattened = new ObjectArrayList<>(packs.size());
-        for (Pack pack : packs) {
-            if (pack instanceof FolderPack folderPack) {
-                flattened.addAll(extractPackIds(folderPack.flatten()));
-            } else {
-                flattened.add(pack.getId());
-            }
-        }
-        return flattened;
-    }
-
-    public static Path validatePackPath(Pack pack) {
-        if (pack == null) {
-            return null;
-        }
-        Path path = ((FilePack) pack).packed_packs$getPath();
-        if (path == null) {
-            return null;
-        }
-
-        try {
-            return Files.exists(path) ? path : null;
-        } catch (Exception e) {
-            PackedPacks.LOGGER.error("[packed_packs] Could not read file: '{}'", path);
-            return null;
-        }
     }
 
     public static List<Path> mapValidDirectories(Collection<String> paths) {
@@ -195,21 +116,15 @@ public class PackUtil {
         return validPaths;
     }
 
-    public static void openPack(Pack pack) {
-        var path = ((FilePack) pack).packed_packs$getPath();
+    public static void openPack(@Nullable Path path) {
         if (path != null) {
             Blaze3D.openPath(path);
         }
     }
 
-    public static void openParent(Pack pack) {
-        var path = ((FilePack) pack).packed_packs$getPath();
-        if (path != null) {
-            PackUtil.openParent(path);
-        }
-    }
+    public static void openParent(@Nullable Path path) {
+        if (path == null) return;
 
-    public static void openParent(Path path) {
         File file = path.toFile();
         if (!file.exists()) return;
 
@@ -261,12 +176,8 @@ public class PackUtil {
         return UtilAccess.packed_packs$createRenamer(path, newName).getAsBoolean();
     }
 
-    public static String getNewIdOnRename(Pack pack, String newName) {
-        FilePack filePack = (FilePack) pack;
-        Path path = filePack.packed_packs$getPath();
-        if (path == null) return pack.getId();
-
-        return filePack.packed_packs$nestedPack() ? generateNestedPackId(path, newName) : generatePackId(newName);
+    public static String getNewIdOnRename(String newName) {
+        return generatePackId(newName);
     }
 
     public static PathValidationResults validatePaths(List<Path> packs) {
@@ -330,42 +241,5 @@ public class PackUtil {
             this.valid.add(path);
             this.rejected.remove(path);
         }
-    }
-
-    public static PackGroup syncPackSelection(ObjectOpenHashSet<Pack> allPacks, List<Pack> unselectedPacks, List<Pack> selectedPacks, PackOptions options) {
-        Set<Pack> seen = new ObjectOpenHashSet<>(allPacks.size());
-
-        List<Pack> newSelectedPacks = new ObjectArrayList<>(selectedPacks.size());
-        for (Pack pack : selectedPacks) {
-            Pack validPack = allPacks.get(pack);
-            if (validPack != null && seen.add(validPack)) {
-                newSelectedPacks.add(validPack);
-            }
-        }
-
-        List<Pack> newUnselectedPacks = new ObjectArrayList<>(unselectedPacks.size());
-        for (Pack unselectedPack : unselectedPacks) {
-            // use pack from the master list as the metadata may have updated
-            Pack pack = allPacks.get(unselectedPack);
-            if (pack != null && seen.add(pack)) {
-                if (options.isRequired(pack)) {
-                    options.getPosition(pack).insert(newSelectedPacks, pack, options::getSelectionConfig, true);
-                } else {
-                    newUnselectedPacks.add(pack);
-                }
-            }
-        }
-
-        for (Pack pack : allPacks) {
-            if (seen.add(pack)) {
-                if (options.isRequired(pack)) {
-                    options.getPosition(pack).insert(newSelectedPacks, pack, options::getSelectionConfig, true);
-                } else {
-                    newUnselectedPacks.add(pack);
-                }
-            }
-        }
-
-        return new PackGroup(newSelectedPacks, newUnselectedPacks);
     }
 }

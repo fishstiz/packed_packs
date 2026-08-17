@@ -1,36 +1,23 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
-import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.config.Profile;
-import io.github.fishstiz.packed_packs.pack.PackOptionsContext;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
-public record ProfilesState(
-        List<Profile> profiles,
-        @Nullable Profile selectedProfile,
-        @Nullable Profile defaultProfile,
-        PackOptions options,
-        boolean renaming
-) {
+public final class ProfilesState implements ProfileSelection {
     private static final ProfilesState EMPTY = new ProfilesState(Collections.emptyList(), null, null);
+    private final List<Profile> profiles;
+    private final @Nullable Profile selectedProfile;
+    private final @Nullable Profile defaultProfile;
+    private final boolean renaming;
 
-    public ProfilesState {
-        if (options == null) {
-            options = new PackOptionsContext(this::selectedProfile, this::defaultProfile);
-        }
-    }
-
-    public ProfilesState(
-            List<Profile> profiles,
-            @Nullable Profile selectedProfile,
-            @Nullable Profile defaultProfile,
-            @Nullable PackOptions options
-    ) {
-        this(profiles, selectedProfile, defaultProfile, options, false);
-    }
+    // hack to trigger state changes
+    private final String initialName;
+    private final boolean initialLocked;
+    private final int initialOverrideGen;
 
     public ProfilesState(
             List<Profile> profiles,
@@ -38,11 +25,17 @@ public record ProfilesState(
             @Nullable Profile defaultProfile,
             boolean renaming
     ) {
-        this(profiles, selectedProfile, defaultProfile, null, renaming);
+        this.profiles = profiles;
+        this.selectedProfile = selectedProfile;
+        this.defaultProfile = defaultProfile;
+        this.renaming = renaming;
+        this.initialName = selectedProfile != null ? selectedProfile.getName() : null;
+        this.initialLocked = selectedProfile != null && selectedProfile.isLocked();
+        this.initialOverrideGen = selectedProfile != null ? selectedProfile.overridesGen() : -1;
     }
 
     public ProfilesState(List<Profile> profiles, @Nullable Profile selectedProfile, @Nullable Profile defaultProfile) {
-        this(profiles, selectedProfile, defaultProfile, null);
+        this(profiles, selectedProfile, defaultProfile, false);
     }
 
     public static ProfilesState empty() {
@@ -64,16 +57,65 @@ public record ProfilesState(
     }
 
     public ProfilesState withRenaming(boolean renaming) {
-        return new ProfilesState(profiles, selectedProfile, defaultProfile, options, renaming && canRename());
-    }
-
-    // make profile immutable at some point
-
-    public boolean isLocked() {
-        return selectedProfile != null && selectedProfile.isLocked();
+        return new ProfilesState(profiles, selectedProfile, defaultProfile, renaming && canRename());
     }
 
     public boolean canRename() {
         return selectedProfile != null && !selectedProfile.isLocked();
     }
+
+    public List<Profile> profiles() {
+        return profiles;
+    }
+
+    @Override
+    public @Nullable Profile selectedProfile() {
+        return selectedProfile;
+    }
+
+    @Override
+    public @Nullable Profile defaultProfile() {
+        return defaultProfile;
+    }
+
+    public boolean renaming() {
+        return renaming;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) return true;
+        if (obj == null || obj.getClass() != this.getClass()) return false;
+        var that = (ProfilesState) obj;
+        return Objects.equals(this.profiles, that.profiles) &&
+               Objects.equals(this.selectedProfile, that.selectedProfile) &&
+               Objects.equals(this.defaultProfile, that.defaultProfile) &&
+               Objects.equals(this.initialName, that.initialName) &&
+               this.initialLocked == that.initialLocked &&
+               this.initialOverrideGen == that.initialOverrideGen &&
+               this.renaming == that.renaming;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                profiles,
+                selectedProfile,
+                defaultProfile,
+                renaming,
+                initialName,
+                initialLocked,
+                initialOverrideGen
+        );
+    }
+
+    @Override
+    public String toString() {
+        return "ProfilesState[" +
+               "profiles=" + profiles + ", " +
+               "selectedProfile=" + selectedProfile + ", " +
+               "defaultProfile=" + defaultProfile + ", " +
+               "renaming=" + renaming + ']';
+    }
+
 }

@@ -3,9 +3,9 @@ package io.github.fishstiz.packed_packs.compat.respackopts;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import io.github.fishstiz.fidgetz.v0.gui.components.FZContextMenu;
 import io.github.fishstiz.packed_packs.api.Preference;
+import io.github.fishstiz.packed_packs.api.context.PackContext;
 import io.github.fishstiz.packed_packs.compat.Mod;
 import io.github.fishstiz.packed_packs.compat.ModIntegration;
-import io.github.fishstiz.packed_packs.compat.PackWrapperDelegatorAbstractionEpicModelEntry;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.gui.components.PreferenceHelper;
 import dev.jfronny.libjf.entrywidgets.api.v0.ResourcePackEntryWidget;
@@ -34,13 +34,12 @@ public class RespackoptsWidget extends AbstractButton implements FZContextMenu.S
         this.model = model;
     }
 
-    public static @Nullable RespackoptsWidget create(Preference<Boolean> preference, LayoutElement container, Pack pack) {
+    public static @Nullable RespackoptsWidget create(Preference<Boolean> preference, LayoutElement container, PackContext pack) {
         var widgets = ResourcePackEntryWidget.WIDGETS;
         if (!widgets.isEmpty()) {
-            PackSelectionModel.Entry model = new PackWrapperDelegatorAbstractionEpicModelEntry(pack);
             for (ResourcePackEntryWidget widget : widgets) {
-                if (widget.isVisible(model, isSelectable(pack))) {
-                    return new RespackoptsWidget(preference, container, widget, model);
+                if (widget.isVisible(pack, isSelectable(pack.pack()))) {
+                    return new RespackoptsWidget(preference, container, widget, pack);
                 }
             }
         }

@@ -1,35 +1,48 @@
 package io.github.fishstiz.packed_packs.config;
 
-import io.github.fishstiz.packed_packs.util.PackUtil;
-import io.github.fishstiz.packed_packs.util.Utils;
-import net.minecraft.server.packs.repository.Pack;
+import com.google.gson.*;
+import com.google.gson.annotations.JsonAdapter;
+import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
+import java.lang.reflect.Type;
+import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
-public final class FolderPackMeta {
-    private List<String> packIds = new ArrayList<>();
+@JsonAdapter(FolderPackMeta.Deserializer.class)
+public record FolderPackMeta(boolean module, List<String> packIds) {
+    public static final String FILENAME = "packed_packs.folderpack.json";
 
-    public boolean trySetPacks(List<Pack> packs) {
-        return this.trySetPackIds(PackUtil.extractPackIds(packs));
+    public FolderPackMeta {
+        packIds = List.copyOf(packIds);
     }
 
-    public boolean trySetPackIds(List<String> newPackIds) {
-        if (!Utils.orderEquals(packIds, newPackIds)) {
-            this.packIds = newPackIds;
-            return true;
+    public FolderPackMeta withModule(boolean module) {
+        return new FolderPackMeta(module, packIds);
+    }
+
+    public FolderPackMeta(boolean module) {
+        this(module, Collections.emptyList());
+    }
+
+    static class Deserializer implements JsonDeserializer<FolderPackMeta> {
+        @Override
+        public FolderPackMeta deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            if (!json.isJsonObject()) {
+                return new FolderPackMeta(false, Collections.emptyList());
+            }
+
+            JsonObject jsonObject = json.getAsJsonObject();
+
+            // folders were all modules before the property was added
+            boolean module = !jsonObject.has("module")
+                             || !jsonObject.get("module").isJsonPrimitive()
+                             || jsonObject.get("module").getAsBoolean();
+
+            List<String> packIds = jsonObject.has("packIds") && jsonObject.get("packIds").isJsonArray()
+                    ? CollectionUtils.map(jsonObject.getAsJsonArray("packIds").asList(), JsonElement::getAsString)
+                    : Collections.emptyList();
+
+            return new FolderPackMeta(module, packIds);
         }
-        return false;
-    }
-
-    public List<String> getPackIds() {
-        // filter non-null for corrupted/incorrectly formatted metadata
-        return this.packIds.stream().filter(Objects::nonNull).toList();
-    }
-
-    public void save(Path path) {
-        JsonLoader.saveJson(this, path);
     }
 }
