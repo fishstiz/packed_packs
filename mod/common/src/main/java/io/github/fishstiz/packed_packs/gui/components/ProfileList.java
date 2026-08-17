@@ -197,7 +197,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         }
 
         private static WidgetElements createIcon(Supplier<Identifier> sprite) {
-            return padded16Rect(GuiUtils.createRect(sprite));
+            return padded16Rect(GuiUtils.lazySprite(sprite));
         }
 
         @Override

@@ -56,8 +56,14 @@ public final class GuiUtils {
         return builder.background(DEV_MODE_ENTRY_BACKGROUND);
     }
 
-    public static RenderableRectangle createRect(Supplier<Identifier> spriteGetter) {
-        return new Icon(spriteGetter);
+    public static RenderableRectangle lazySprite(Supplier<Identifier> spriteGetter) {
+        return (graphics, left, top, width, height, _, _, _) ->
+                GuiGraphicsUtils.sprite(graphics, spriteGetter.get(), left, top, width, height);
+    }
+
+    public static RenderableRectangle lazyTexture(Supplier<Identifier> textureGetter, int textureWidth, int textureHeight) {
+        return (graphics, left, top, width, height, _, _, _) ->
+                GuiGraphicsUtils.texture(graphics, textureGetter.get(), left, top, width, height, textureWidth, textureHeight);
     }
 
     public static WidgetElements padded16Rect(RenderableRectangle rect) {
@@ -69,14 +75,7 @@ public final class GuiUtils {
     }
 
     public static WidgetElements toggleRect(BooleanSupplier toggled) {
-        return new WidgetElements(createRect(() -> toggleIcon(toggled.getAsBoolean())), 8, 8);
-    }
-
-    private record Icon(Supplier<Identifier> spriteGetter) implements RenderableRectangle {
-        @Override
-        public void extractRenderState(GuiGraphicsExtractor graphics, int left, int top, int width, int height, int mouseX, int mouseY, float partialTick) {
-            GuiGraphicsUtils.sprite(graphics, spriteGetter.get(), left, top, width, height);
-        }
+        return new WidgetElements(lazySprite(() -> toggleIcon(toggled.getAsBoolean())), 8, 8);
     }
 
     private GuiUtils() {

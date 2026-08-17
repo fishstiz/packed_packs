@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+// todo remove references to packs, use pack ids only, or not?! move pack options to entry context but not implement pack options mk
 public final class Profile implements PackOptions {
     private boolean locked = false;
     private String name;
@@ -73,8 +74,8 @@ public final class Profile implements PackOptions {
         this.name = name;
     }
 
-    public boolean includes(Pack pack) {
-        return this.packIds.contains(pack.getId());
+    public boolean includes(String packId) {
+        return this.packIds.contains(packId);
     }
 
     public List<String> getPackIds() {
@@ -102,12 +103,12 @@ public final class Profile implements PackOptions {
 
     public void setHidden(boolean hidden, Collection<Pack> packs) {
         for (Pack pack : PackUtil.flattenPacks(packs)) {
-            this.setHidden(hidden, pack);
+            this.setHidden(hidden, pack.getId());
         }
     }
 
-    public void setHidden(boolean hidden, Pack pack) {
-        this.applyOrRemoveOverride(pack.getId(), hidden ? true : null, PackOverride::setHidden);
+    public void setHidden(boolean hidden, String pack) {
+        this.applyOrRemoveOverride(pack, hidden ? true : null, PackOverride::setHidden);
     }
 
     public void setRequired(@Nullable Boolean required, Collection<Pack> packs) {
@@ -140,58 +141,73 @@ public final class Profile implements PackOptions {
         return this.locked;
     }
 
-    @Override
-    public boolean isHidden(Pack pack) {
-        return Boolean.TRUE.equals(Utils.mapOrElse(this.overrides.get(pack.getId()), false, PackOverride::hidden));
+    public @Nullable PackOverride getOverrides(String packId) {
+        return this.overrides.get(packId);
     }
 
     @Override
-    public boolean isRequired(Pack pack) {
-        return Boolean.TRUE.equals(Utils.mapOrElse(this.overrides.get(pack.getId()), false, PackOverride::required));
+    public boolean isHidden(String packId) {
+        return Boolean.TRUE.equals(Utils.mapOrElse(this.overrides.get(packId), false, PackOverride::hidden));
     }
 
     @Override
-    public boolean isFixed(Pack pack) {
-        if (this.overridesPosition(pack)) {
-            return Objects.requireNonNull(this.overrides.get(pack.getId()).position()).fixed();
+    public boolean isRequired(String packId) {
+        return Boolean.TRUE.equals(Utils.mapOrElse(this.overrides.get(packId), false, PackOverride::required));
+    }
+
+    @Override
+    public boolean isFixed(String packId) {
+        if (this.overridesPosition(packId)) {
+            return Objects.requireNonNull(this.overrides.get(packId).position()).fixed();
         }
         return false;
     }
 
     @Override
-    public Pack.@Nullable Position getPosition(Pack pack) {
-        if (this.overridesPosition(pack)) {
-            return Objects.requireNonNull(this.overrides.get(pack.getId()).position()).get(pack);
+    public Pack.@Nullable Position getPosition(String packId) {
+        PackOverride override = this.overrides.get(packId);
+        if (override != null) {
+            PackOverride.Position position = override.position();
+            if (position != null) {
+                return position.override();
+            }
         }
         return null;
     }
 
-    public PackOverride.@Nullable Position getPositionOverride(Pack pack) {
-        if (this.overridesPosition(pack)) {
-            return this.overrides.get(pack.getId()).position();
+    public PackOverride.@Nullable Position getPositionOverride(String packId) {
+        if (this.overridesPosition(packId)) {
+            return this.overrides.get(packId).position();
         }
         return null;
     }
 
     @Override
-    public @Nullable PackSelectionConfig getSelectionConfig(Pack pack) {
-        PackOverride packEntry = this.overrides.get(pack.getId());
-        if (packEntry != null && (packEntry.required() != null || packEntry.position() != null)) {
-            return new PackSelectionConfig(this.isRequired(pack), this.getPosition(pack), this.isFixed(pack));
+    public @Nullable PackSelectionConfig getSelectionConfig(String packId) {
+        PackOverride override = this.overrides.get(packId);
+        if (override != null) {
+            Boolean required = override.required();
+            PackOverride.Position position = override.position();
+            if (required != null || position != null) {
+                // todo this probably shouldnt be in profile
+            }
+
+
+            return new PackSelectionConfig(this.isRequired(packId), this.getPosition(packId), this.isFixed(packId));
         }
         return null;
     }
 
-    public boolean overridesRequired(Pack pack) {
-        return this.overridesProperty(pack, PackOverride::required);
+    public boolean overridesRequired(String packId) {
+        return this.overridesProperty(packId, PackOverride::required);
     }
 
-    public boolean overridesPosition(Pack pack) {
-        return this.overridesProperty(pack, PackOverride::position);
+    public boolean overridesPosition(String packId) {
+        return this.overridesProperty(packId, PackOverride::position);
     }
 
-    private boolean overridesProperty(Pack pack, Function<PackOverride, @Nullable Object> property) {
-        PackOverride entry = this.overrides.get(pack.getId());
+    private boolean overridesProperty(String packId, Function<PackOverride, @Nullable Object> property) {
+        PackOverride entry = this.overrides.get(packId);
         return entry != null && property.apply(entry) != null;
     }
 

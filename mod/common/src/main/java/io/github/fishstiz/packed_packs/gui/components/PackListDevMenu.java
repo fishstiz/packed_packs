@@ -134,7 +134,7 @@ public class PackListDevMenu {
     }
 
     private static WidgetElements createIcon(Supplier<Identifier> iconSupplier) {
-        return new WidgetElements(GuiUtils.createRect(iconSupplier), 8, 8);
+        return new WidgetElements(GuiUtils.lazySprite(iconSupplier), 8, 8);
     }
 
     private void updateNonOverrideEntries(FZContextMenu.Collector collector) {

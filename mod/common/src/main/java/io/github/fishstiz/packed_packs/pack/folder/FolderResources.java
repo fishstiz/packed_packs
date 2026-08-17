@@ -1,5 +1,6 @@
 package io.github.fishstiz.packed_packs.pack.folder;
 
+import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackLocationInfo;
@@ -19,15 +20,13 @@ import java.util.Set;
 
 @NullMarked
 public record FolderResources(PackLocationInfo location, Path path) implements PackResources {
-    public static final String FOLDER_CONFIG_FILENAME = "packed_packs.folderpack.json";
-
     @Override
     public @Nullable IoSupplier<InputStream> getRootResource(String... elements) {
         if (elements.length > 0) {
             if (Objects.equals(elements[0], PackUtil.ICON_FILENAME)) {
                 return () -> Files.newInputStream(this.path.resolve(PackUtil.ICON_FILENAME));
-            } else if (Objects.equals(elements[0], FOLDER_CONFIG_FILENAME)) {
-                return () -> Files.newInputStream(this.path.resolve(FOLDER_CONFIG_FILENAME));
+            } else if (Objects.equals(elements[0], FolderPackMeta.FILENAME)) {
+                return () -> Files.newInputStream(this.path.resolve(FolderPackMeta.FILENAME));
             }
         }
         return null;

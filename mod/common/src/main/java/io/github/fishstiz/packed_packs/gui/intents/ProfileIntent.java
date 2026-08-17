@@ -4,7 +4,7 @@ import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.gui.Intent;
 import io.github.fishstiz.packed_packs.pack.PackGroup;
 import org.jspecify.annotations.Nullable;
-
+// everything should be id-based
 public sealed interface ProfileIntent extends Intent {
     @Override
     default boolean pushState() {
@@ -16,12 +16,15 @@ public sealed interface ProfileIntent extends Intent {
         return true;
     }
 
+    // intent/requires services to fetch selected packs -> add action
     record SelectNone(PackGroup packs) implements ProfileIntent {
     }
 
+    // intent/requires services to fetch selected packs -> add action + expose pack entries instead
     record Select(Profile profile) implements ProfileIntent {
     }
 
+    // convert to action
     record ToggleRenaming() implements ProfileIntent {
         @Override
         public boolean resetHistory() {
@@ -29,6 +32,7 @@ public sealed interface ProfileIntent extends Intent {
         }
     }
 
+    // action with effect
     record Rename(Profile profile, String name) implements ProfileIntent {
         @Override
         public boolean resetHistory() {
@@ -36,6 +40,7 @@ public sealed interface ProfileIntent extends Intent {
         }
     }
 
+    //
     record Delete(Profile profile, @Nullable PackGroup fallback, Status status) implements ProfileIntent, Operation {
         public Delete(Profile profile) {
             this(profile, null, Status.LOADING);
@@ -55,6 +60,7 @@ public sealed interface ProfileIntent extends Intent {
         }
     }
 
+    // convert to copy
     record Add(Profile profile) implements ProfileIntent {
     }
 

@@ -5,6 +5,7 @@ import io.github.fishstiz.packed_packs.api.PackedPacksInitializer;
 import net.fabricmc.fabric.impl.resource.pack.ModResourcePackCreator;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.server.packs.repository.PackSource;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -36,7 +37,7 @@ public class FabricPlatformHelper implements PlatformHelper {
     }
 
     @Override
-    public boolean isBuiltInPack(Pack pack) {
-        return pack.getPackSource() == ModResourcePackCreator.RESOURCE_PACK_SOURCE;
+    public boolean isBuiltInPack(PackSource packSource) {
+        return packSource == ModResourcePackCreator.RESOURCE_PACK_SOURCE;
     }
 }

@@ -1,93 +1,113 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
 import io.github.fishstiz.packed_packs.config.Config;
-import io.github.fishstiz.packed_packs.config.PackOptions;
+import io.github.fishstiz.packed_packs.gui2.models.ProfileSelection;
 import io.github.fishstiz.packed_packs.gui.model.Query;
-import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
+import io.github.fishstiz.packed_packs.gui2.models.PackEntry;
 import io.github.fishstiz.packed_packs.util.Utils;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
-import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 
 public record PackListState(
-        List<Pack> packs,
-        List<Pack> visiblePacks,
-        SequencedCollection<Pack> selectedPacks,
+        List<PackEntry> packs,
+        List<PackEntry> visiblePacks,
+        SequencedCollection<PackEntry> selectedPacks,
+        // todo track loading entries
         Query query,
         @Nullable Folder folder
 ) {
-    public record Folder(FolderPack pack, PackListState contents) {
+    public record Folder(PackEntry.Parent pack, boolean locked, PackListState contents) {
         public Folder withContents(PackListState contents) {
-            return new Folder(this.pack, contents);
+            return new Folder(pack, locked, contents);
         }
     }
 
-    private static final PackListState EMPTY = new PackListState(Collections.emptyList(), Collections.emptyList(), Collections.emptySortedSet(), Query.empty(), null);
+    private static final PackListState EMPTY = new PackListState(
+            Collections.emptyList(),
+            Collections.emptyList(),
+            Collections.emptySortedSet(),
+            Query.empty(),
+            null
+    );
 
     public static PackListState empty() {
         return EMPTY;
     }
 
-    public PackListState(List<Pack> packs) {
+    public PackListState(List<PackEntry> packs) {
         this(packs, List.copyOf(packs), Collections.emptyList(), Query.empty(), null);
     }
 
-    public PackListState with(List<Pack> newPacks, SequencedCollection<Pack> newSelection, Query query, PackOptions options) {
-        List<Pack> newVisiblePacks = processQuery(newPacks, query, options);
+    public PackListState with( // todo this should be done in reducer
+            List<PackEntry> newPacks,
+            SequencedCollection<PackEntry> newSelection,
+            Query query,
+            ProfileSelection profiles
+    ) {
+        List<PackEntry> newVisiblePacks = processQuery(newPacks, query, profiles);
         // use a SequencedSet for faster lookups as this is queried every frame for each visible item within view
         // to avoid refreshing the pack list entries on each selection change
         // ... which I realize may not actually be worth it now that I'm writing this out,
         // but it has always worked that way since the creation of this project
-        SequencedSet<Pack> newSelectedPacks = new ObjectLinkedOpenHashSet<>(newSelection.size());
-        for (Pack pack : newSelection) {
+        SequencedSet<PackEntry> newSelectedPacks = new ObjectLinkedOpenHashSet<>(newSelection.size());
+        for (PackEntry pack : newSelection) {
             if (newVisiblePacks.contains(pack)) newSelectedPacks.add(pack);
         }
         return new PackListState(newPacks, newVisiblePacks, Collections.unmodifiableSequencedSet(newSelectedPacks), query, null);
     }
 
-    public PackListState with(List<Pack> newPacks, SequencedCollection<Pack> newSelection, PackOptions options) {
-        return this.with(newPacks, newSelection, this.query, options);
+    public PackListState with(
+            List<PackEntry> newPacks,
+            SequencedCollection<PackEntry> newSelection,
+            ProfileSelection profiles
+    ) {
+        return this.with(newPacks, newSelection, this.query, profiles);
     }
 
-    public PackListState withPacks(List<Pack> newPacks, PackOptions options) {
-        return this.with(newPacks, this.selectedPacks, options);
+    public PackListState withPacks(List<PackEntry> newPacks, ProfileSelection profiles) {
+        return this.with(newPacks, this.selectedPacks, profiles);
     }
 
-    public PackListState withQuery(Query query, PackOptions options) {
-        return this.with(this.packs, this.selectedPacks, query, options);
+    public PackListState withQuery(Query query, ProfileSelection profiles) {
+        return this.with(this.packs, this.selectedPacks, query, profiles);
     }
 
-    public PackListState withSelection(SequencedCollection<Pack> newSelection) {
-        SequencedSet<Pack> newSelectedPacks = new ObjectLinkedOpenHashSet<>(newSelection);
+    public PackListState withSelection(SequencedCollection<PackEntry> newSelection) {
+        SequencedSet<PackEntry> newSelectedPacks = new ObjectLinkedOpenHashSet<>(newSelection);
         newSelectedPacks.retainAll(this.visiblePacks);
         return new PackListState(this.packs, this.visiblePacks, Collections.unmodifiableSequencedSet(newSelectedPacks), this.query, this.folder);
     }
 
-    public PackListState withPacksAndSelectedLast(List<Pack> newPacks, Pack selectedLast, PackOptions options) {
+    public PackListState withPacksAndSelectedLast(List<PackEntry> newPacks, PackEntry selectedLast, ProfileSelection profiles) {
         if (this.packs() == newPacks) return this;
 
         if (!this.selectedPacks().contains(selectedLast)) {
-            return this.with(newPacks, List.of(selectedLast), options);
+            return this.with(newPacks, List.of(selectedLast), profiles);
         } else if (this.selectedPacks().getLast() != selectedLast) {
-            ObjectLinkedOpenHashSet<Pack> newSelection = new ObjectLinkedOpenHashSet<>(this.selectedPacks());
+            ObjectLinkedOpenHashSet<PackEntry> newSelection = new ObjectLinkedOpenHashSet<>(this.selectedPacks());
             newSelection.addAndMoveToLast(selectedLast);
-            return this.with(newPacks, newSelection, options);
+            return this.with(newPacks, newSelection, profiles);
         }
 
-        return this.withPacks(newPacks, options);
+        return this.withPacks(newPacks, profiles);
     }
 
     public PackListState withFolder(PackListState.@Nullable Folder newFolder) {
         return new PackListState(this.packs, this.visiblePacks, this.selectedPacks, this.query, newFolder);
     }
 
-    private static List<Pack> processQuery(List<Pack> sourcePacks, Query query, PackOptions options) {
-        List<Pack> filtered = new ObjectArrayList<>(sourcePacks.size());
-        for (Pack pack : sourcePacks) {
-            if ((Config.get().isDevMode() || !options.isHidden(pack)) && query.test(pack)) {
+    public boolean isFolderOpened() {
+        return this.folder != null;
+    }
+
+    // todo this should be done in reducer
+    private static List<PackEntry> processQuery(List<PackEntry> sourcePacks, Query query, ProfileSelection profiles) {
+        List<PackEntry> filtered = new ObjectArrayList<>(sourcePacks.size());
+        for (PackEntry pack : sourcePacks) {
+            if ((Config.get().isDevMode() || !profiles.isPackHidden(pack)) && query.test(pack)) {
                 filtered.add(pack);
             }
         }

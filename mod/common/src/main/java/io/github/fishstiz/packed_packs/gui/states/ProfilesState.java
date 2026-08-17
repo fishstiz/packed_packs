@@ -1,8 +1,7 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
-import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.config.Profile;
-import io.github.fishstiz.packed_packs.pack.PackOptionsContext;
+import io.github.fishstiz.packed_packs.gui2.models.ProfileSelection;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;
@@ -12,37 +11,12 @@ public record ProfilesState(
         List<Profile> profiles,
         @Nullable Profile selectedProfile,
         @Nullable Profile defaultProfile,
-        PackOptions options,
         boolean renaming
-) {
+) implements ProfileSelection {
     private static final ProfilesState EMPTY = new ProfilesState(Collections.emptyList(), null, null);
 
-    public ProfilesState {
-        if (options == null) {
-            options = new PackOptionsContext(this::selectedProfile, this::defaultProfile);
-        }
-    }
-
-    public ProfilesState(
-            List<Profile> profiles,
-            @Nullable Profile selectedProfile,
-            @Nullable Profile defaultProfile,
-            @Nullable PackOptions options
-    ) {
-        this(profiles, selectedProfile, defaultProfile, options, false);
-    }
-
-    public ProfilesState(
-            List<Profile> profiles,
-            @Nullable Profile selectedProfile,
-            @Nullable Profile defaultProfile,
-            boolean renaming
-    ) {
-        this(profiles, selectedProfile, defaultProfile, null, renaming);
-    }
-
     public ProfilesState(List<Profile> profiles, @Nullable Profile selectedProfile, @Nullable Profile defaultProfile) {
-        this(profiles, selectedProfile, defaultProfile, null);
+        this(profiles, selectedProfile, defaultProfile, false);
     }
 
     public static ProfilesState empty() {
@@ -64,14 +38,10 @@ public record ProfilesState(
     }
 
     public ProfilesState withRenaming(boolean renaming) {
-        return new ProfilesState(profiles, selectedProfile, defaultProfile, options, renaming && canRename());
+        return new ProfilesState(profiles, selectedProfile, defaultProfile, renaming && canRename());
     }
 
     // make profile immutable at some point
-
-    public boolean isLocked() {
-        return selectedProfile != null && selectedProfile.isLocked();
-    }
 
     public boolean canRename() {
         return selectedProfile != null && !selectedProfile.isLocked();

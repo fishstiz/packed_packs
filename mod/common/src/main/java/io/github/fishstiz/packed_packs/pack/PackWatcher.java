@@ -25,7 +25,7 @@ import static io.github.fishstiz.packed_packs.util.PackUtil.hasFolderConfig;
 import static io.github.fishstiz.packed_packs.util.PackUtil.hasMcmeta;
 import static java.nio.file.Files.isDirectory;
 import static net.minecraft.util.Util.backgroundExecutor;
-
+// todo ignore folder metadata changes
 /**
  * Migrated from {@link java.nio.file.WatchService} due to registered subdirectories locking parent directory on Windows.
  *

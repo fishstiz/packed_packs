@@ -2,16 +2,14 @@ package io.github.fishstiz.packed_packs.transform.mixin.overrides;
 
 import com.google.common.collect.ImmutableMap;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
-import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import io.github.fishstiz.packed_packs.config.DevConfig;
 import io.github.fishstiz.packed_packs.pack.PackAliasMap;
-import io.github.fishstiz.packed_packs.pack.PackOptionsResolver;
 import io.github.fishstiz.packed_packs.transform.interfaces.ConfiguredPack;
 import io.github.fishstiz.packed_packs.transform.interfaces.MappedPackRepository;
 import net.minecraft.client.resources.ClientPackSource;
+import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.server.packs.repository.RepositorySource;
@@ -29,10 +27,7 @@ import java.util.function.Consumer;
 @Mixin(value = PackRepository.class, priority = 5000)
 public abstract class PackRepositoryMixin implements MappedPackRepository {
     @Unique
-    private PackOptionsResolver packed_packs$resolver;
-
-    @Unique
-    private DevConfig.Packs packed_packs$config;
+    private PackType packed_packs$packType;
 
     @Unique
     private boolean packed_packs$hasAlias = false;
@@ -41,11 +36,9 @@ public abstract class PackRepositoryMixin implements MappedPackRepository {
     private void setConfigOnInit(RepositorySource[] sources, CallbackInfo ci) {
         if (sources.length > 0) {
             if (sources[0] instanceof ServerPacksSource) {
-                this.packed_packs$resolver = PackOptionsResolver.DATA_PACKS;
-                this.packed_packs$config = DevConfig.get().getDatapacks();
+                this.packed_packs$packType = PackType.SERVER_DATA;
             } else if (sources[0] instanceof ClientPackSource) {
-                this.packed_packs$resolver = PackOptionsResolver.RESOURCE_PACKS;
-                this.packed_packs$config = DevConfig.get().getResourcepacks();
+                this.packed_packs$packType = PackType.CLIENT_RESOURCES;
             }
         }
     }
@@ -55,12 +48,12 @@ public abstract class PackRepositoryMixin implements MappedPackRepository {
             target = "Lnet/minecraft/server/packs/repository/RepositorySource;loadPacks(Ljava/util/function/Consumer;)V"
     ))
     private Consumer<Pack> applyResolverOnLoad(Consumer<Pack> onLoad) {
-        if (this.packed_packs$resolver == null) {
+        if (this.packed_packs$packType == null) {
             return onLoad;
         }
 
         return pack -> {
-            ((ConfiguredPack) pack).packed_packs$setConfigurationResolver(this.packed_packs$resolver);
+            ((ConfiguredPack) pack).packed_packs$setPackType(this.packed_packs$packType);
             onLoad.accept(pack);
         };
     }
@@ -84,13 +77,20 @@ public abstract class PackRepositoryMixin implements MappedPackRepository {
     private Map<String, Pack> createAliasMap(Map<String, Pack> original, @Share("mutableMap") LocalRef<Map<String, Pack>> mutableMapRef) {
         Map<String, Pack> mutableMap = mutableMapRef.get();
 
-        if (this.packed_packs$config == null || !this.packed_packs$config.hasAliases() || mutableMap == null) {
+        if (mutableMap == null || this.packed_packs$packType == null) {
+            this.packed_packs$hasAlias = false;
+            return original;
+        }
+
+        DevConfig.Packs config = DevConfig.get().get(this.packed_packs$packType);
+
+        if (!config.hasAliases()) {
             this.packed_packs$hasAlias = false;
             return original;
         }
 
         this.packed_packs$hasAlias = true;
-        return new PackAliasMap(this.packed_packs$config, mutableMap);
+        return new PackAliasMap(config, mutableMap);
     }
 
     @Override

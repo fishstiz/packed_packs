@@ -25,7 +25,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
 import java.util.*;
-
+// need to assume everything is flat,
 public class PackRepositoryManager {
     private final PackRepository repository;
     private final Path packDir;

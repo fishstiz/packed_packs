@@ -1,5 +1,6 @@
 package io.github.fishstiz.packed_packs.gui.model;
 
+import com.google.common.base.Suppliers;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.config.PackOverride;
@@ -105,7 +106,7 @@ public class PackListViewModel {
     }
 
     public void forEachEntry(ObjectIntBiConsumer<Entry> consumer) {
-        List<Pack> visiblePacks = state.get().visiblePacks();
+        List<PackEntry> visiblePacks = state.get().visiblePacks();
         for (int i = 0; i < visiblePacks.size(); i++) {
             consumer.accept(new Entry(visiblePacks.get(i)), i);
         }
@@ -162,6 +163,7 @@ public class PackListViewModel {
         return !locked() && PackListUtils.canDrag(target, pack, ctx.options());
     }
 
+    // todo computed state should use a selector
     public boolean canMoveUp(Pack pack) {
         if (locked() || target.depth() == 0 && target.type().available()) {
             return false;
@@ -264,24 +266,21 @@ public class PackListViewModel {
         return module;
     }
 
-    public class Entry implements PackContext {
-        private final Pack pack;
+    public class Entry {
+        private final PackEntry pack;
 
-        protected Entry(Pack pack) {
+        protected Entry(PackEntry pack) {
             this.pack = pack;
         }
 
-        @Override
-        public Pack pack() {
+        public PackEntry pack() {
             return pack;
         }
 
-        @Override
         public Identifier icon() {
             return ctx.iconFactory().apply(pack);
         }
 
-        @Override
         public boolean fileModifiable() {
             return !locked() && ctx.fileModifiable().test(pack);
         }

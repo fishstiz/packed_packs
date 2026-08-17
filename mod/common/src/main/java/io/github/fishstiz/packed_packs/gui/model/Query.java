@@ -1,15 +1,17 @@
 package io.github.fishstiz.packed_packs.gui.model;
 
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.server.packs.repository.PackSource;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Predicate;
 
@@ -18,7 +20,7 @@ public record Query(
         @Nullable SortOption sort,
         @Nullable String search,
         @Nullable String unmodifiedSearch
-) implements Predicate<Pack> {
+) implements Predicate<PackEntry> {
     private static final Query EMPTY = new Query(false, null, null, null);
 
     public Query {
@@ -46,14 +48,14 @@ public record Query(
     }
 
     @Override
-    public boolean test(Pack pack) {
+    public boolean test(PackEntry pack) {
         if (pack == null) {
             return false;
         }
-        if (this.hideIncompatible && !pack.getCompatibility().isCompatible()) {
+        if (this.hideIncompatible && !pack.compatibility().isCompatible()) {
             return false;
         }
-        return this.search == null || normalizeTitle(pack.getTitle().getString()).toLowerCase(Locale.ROOT).contains(this.search);
+        return this.search == null || normalizeTitle(pack.title().getString()).toLowerCase(Locale.ROOT).contains(this.search);
     }
 
     public boolean hasQuery() {
@@ -67,47 +69,50 @@ public record Query(
     public enum SortOption {
         VANILLA("packed_packs.sort.vanilla", "icon/sort_vanilla") {
             @Override
-            public Comparator<Pack> comparator(SequencedCollection<Pack> packs) {
+            public Comparator<PackEntry> comparator(SequencedCollection<PackEntry> packs) {
                 return folderFirst((first, second) -> {
-                    boolean builtInFirst = PackUtil.isBuiltIn(first);
-                    boolean builtInSecond = PackUtil.isBuiltIn(second);
+                    PackSource firstPackSource = first.packSource();
+                    PackSource secondPackSource = second.packSource();
+
+                    boolean builtInFirst = PackUtil.isBuiltIn(firstPackSource);
+                    boolean builtInSecond = PackUtil.isBuiltIn(secondPackSource);
 
                     if (builtInFirst != builtInSecond) return builtInFirst ? 1 : -1;
 
-                    boolean featureFirst = PackUtil.isFeature(first);
-                    boolean featureSecond = PackUtil.isFeature(second);
+                    boolean featureFirst = PackUtil.isFeature(firstPackSource);
+                    boolean featureSecond = PackUtil.isFeature(secondPackSource);
 
                     if (featureFirst != featureSecond) return featureFirst ? 1 : -1;
 
-                    return first.getTitle().getString().compareTo(second.getTitle().getString());
+                    return first.title().getString().compareTo(second.title().getString());
                 });
             }
         },
         A_Z("packed_packs.sort.a_z", "icon/sort_a_z") {
             @Override
-            public Comparator<Pack> comparator(SequencedCollection<Pack> packs) {
+            public Comparator<PackEntry> comparator(SequencedCollection<PackEntry> packs) {
                 return folderFirst(Comparator.comparing(
-                        pack -> normalizeTitle(pack.getTitle().getString()),
+                        pack -> normalizeTitle(pack.title().getString()),
                         String.CASE_INSENSITIVE_ORDER
                 ));
             }
         },
         Z_A("packed_packs.sort.z_a", "icon/sort_z_a") {
             @Override
-            public Comparator<Pack> comparator(SequencedCollection<Pack> packs) {
+            public Comparator<PackEntry> comparator(SequencedCollection<PackEntry> packs) {
                 return A_Z.comparator(packs).reversed();
             }
         },
         RECENT("packed_packs.sort.recent", "icon/sort_recent") {
             @Override
-            public Comparator<Pack> comparator(SequencedCollection<Pack> packs) {
-                Map<Pack, Long> cache = buildTimestampCache(packs);
-                return folderFirst(Comparator.<Pack, Long>comparing(cache::get).reversed());
+            public Comparator<PackEntry> comparator(SequencedCollection<PackEntry> packs) {
+                Map<PackEntry, Long> cache = buildTimestampCache(packs);
+                return folderFirst(Comparator.<PackEntry, Long>comparing(cache::get).reversed());
             }
         },
         OLDEST("packed_packs.sort.oldest", "icon/sort_oldest") {
             @Override
-            public Comparator<Pack> comparator(SequencedCollection<Pack> packs) {
+            public Comparator<PackEntry> comparator(SequencedCollection<PackEntry> packs) {
                 return RECENT.comparator(packs).reversed();
             }
         };
@@ -120,7 +125,7 @@ public record Query(
             this.spritePath = icon;
         }
 
-        public abstract Comparator<Pack> comparator(SequencedCollection<Pack> packs);
+        public abstract Comparator<PackEntry> comparator(SequencedCollection<PackEntry> packs);
 
         public Identifier icon() {
             return PackedPacks.id(spritePath);
@@ -130,8 +135,8 @@ public record Query(
             return Component.translatable(translationKey);
         }
 
-        static Comparator<Pack> folderFirst(Comparator<Pack> base) {
-            return Comparator.comparing((Pack pack) -> !(pack instanceof FolderPack)).thenComparing(base);
+        static Comparator<PackEntry> folderFirst(Comparator<PackEntry> base) {
+            return Comparator.comparing((PackEntry pack) -> !(pack instanceof PackEntry.Parent)).thenComparing(base);
         }
 
         public static SortOption getOrDefault(String name) {
@@ -146,10 +151,23 @@ public record Query(
             }
         }
 
-        private static Map<Pack, Long> buildTimestampCache(SequencedCollection<Pack> packs) {
-            Map<Pack, Long> cache = new Object2LongLinkedOpenHashMap<>(packs.size());
-            for (Pack pack : packs) cache.put(pack, PackUtil.getLastUpdatedEpochMs(pack));
+        private static Map<PackEntry, Long> buildTimestampCache(SequencedCollection<PackEntry> packs) {
+            Map<PackEntry, Long> cache = new Object2LongLinkedOpenHashMap<>(packs.size());
+            for (PackEntry pack : packs) cache.put(pack, getLastUpdatedEpochMs(pack));
             return cache;
+        }
+
+        private static long getLastUpdatedEpochMs(PackEntry pack) {
+            Path path = pack.path();
+            if (path == null) {
+                return -1;
+            }
+            try {
+                return Files.getLastModifiedTime(path).toInstant().toEpochMilli();
+            } catch (IOException e) {
+                PackedPacks.LOGGER.error("[packed_packs] Failed to get age of pack '{}'", pack.id());
+                return -1;
+            }
         }
     }
 }

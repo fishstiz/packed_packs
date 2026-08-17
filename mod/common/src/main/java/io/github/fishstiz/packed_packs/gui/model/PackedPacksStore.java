@@ -633,6 +633,7 @@ public class PackedPacksStore implements FZRef<PackedPacksState> {
 
         syncSelectedProfile();
         configs.profiles().setLastViewed(this.state.profiles().selectedProfile());
+        configs.profiles().setDefault(this.state.profiles().defaultProfile());
         configs.profiles().setOrder(this.state.profiles().profiles());
 
         Profile selectedProfile = this.state.profiles().selectedProfile();
