@@ -9,6 +9,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 // TreeMap in vanilla and fabric, LinkedHashMap in NeoForge
 public class PackAliasMap implements Map<String, Pack> {
@@ -86,6 +89,73 @@ public class PackAliasMap implements Map<String, Pack> {
     @Override
     public @NotNull Set<Entry<String, Pack>> entrySet() {
         return this.map.entrySet();
+    }
+
+    @Override
+    @SuppressWarnings("SuspiciousMethodCalls")
+    public Pack getOrDefault(Object key, Pack defaultValue) {
+        return this.map.getOrDefault(key, defaultValue);
+    }
+
+    @Override
+    public void forEach(BiConsumer<? super String, ? super Pack> action) {
+        this.map.forEach(action);
+    }
+
+    @Override
+    public void replaceAll(BiFunction<? super String, ? super Pack, ? extends Pack> function) {
+        this.map.replaceAll(function);
+    }
+
+    @Override
+    public @Nullable Pack putIfAbsent(String key, Pack value) {
+        return this.map.putIfAbsent(key, value);
+    }
+
+    @Override
+    public boolean remove(Object key, Object value) {
+        return this.map.remove(key, value);
+    }
+
+    @Override
+    public boolean replace(String key, Pack oldValue, Pack newValue) {
+        return this.map.replace(key, oldValue, newValue);
+    }
+
+    @Override
+    public @Nullable Pack replace(String key, Pack value) {
+        return this.map.replace(key, value);
+    }
+
+    @Override
+    public Pack computeIfAbsent(String key, @NotNull Function<? super String, ? extends Pack> mappingFunction) {
+        return this.map.computeIfAbsent(key, mappingFunction);
+    }
+
+    @Override
+    public Pack computeIfPresent(String key, @NotNull BiFunction<? super String, ? super Pack, ? extends Pack> remappingFunction) {
+        return this.map.computeIfPresent(key, remappingFunction);
+    }
+
+    @Override
+    public Pack compute(String key, @NotNull BiFunction<? super String, ? super Pack, ? extends Pack> remappingFunction) {
+        return this.map.compute(key, remappingFunction);
+    }
+
+    @Override
+    public Pack merge(String key, @NotNull Pack value, @NotNull BiFunction<? super Pack, ? super Pack, ? extends Pack> remappingFunction) {
+        return this.map.merge(key, value, remappingFunction);
+    }
+
+    @Override
+    @SuppressWarnings("EqualsDoesntCheckParameterClass")
+    public boolean equals(Object obj) {
+        return this.map.equals(obj);
+    }
+
+    @Override
+    public int hashCode() {
+        return this.map.hashCode();
     }
 
     private @Nullable Pack resolvePackId(Object key) {
