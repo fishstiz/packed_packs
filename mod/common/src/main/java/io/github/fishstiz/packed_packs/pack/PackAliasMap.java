@@ -12,6 +12,8 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 // TreeMap in vanilla and fabric, LinkedHashMap in NeoForge
 public class PackAliasMap implements Map<String, Pack> {
@@ -162,32 +164,59 @@ public class PackAliasMap implements Map<String, Pack> {
         if (!(key instanceof String packId)) {
             return null;
         }
+
         if (this.unresolvedIds != null && this.unresolvedIds.contains(key)) {
             return null;
         }
 
         String resolvedPackId = this.config.resolveCanonicalId(packId);
-        if (resolvedPackId != null) {
-            if (!this.config.isAlias(packId)) {
-                PackedPacks.LOGGER.info("[packed_packs] Unknown pack '{}' matched via regex to '{}', caching result.", packId, resolvedPackId);
-                this.config.putAlias(packId, resolvedPackId);
-                ProfileManager.get(this.config.packType()).remapAndSavePackIds(packId, resolvedPackId);
-                DevConfig.get().save();
-            }
-
-            Pack resolvedPack = this.map.get(resolvedPackId);
-            if (resolvedPack != null) {
-                PackedPacks.LOGGER.info("[packed_packs] Resolved unknown pack '{}' to '{}'.", packId, resolvedPackId);
-                this.put(resolvedPackId, resolvedPack);
-            } else {
-                PackedPacks.LOGGER.warn("[packed_packs] Unknown pack '{}' resolved to '{}', but no such pack is available.", packId, resolvedPackId);
-                this.setUnresolved(packId);
-            }
-            return resolvedPack;
+        if (resolvedPackId == null) {
+            this.setUnresolved(packId);
+            return null;
         }
 
-        this.setUnresolved(packId);
-        return null;
+        Pack resolvedPack = null;
+
+        if (DevConfig.Packs.isRegexPrefixed(resolvedPackId)) {
+            try {
+                Pattern pattern = Pattern.compile(resolvedPackId);
+                for (Pack availablePack : values()) {
+                    if (pattern.matcher(availablePack.getId()).matches()) {
+                        resolvedPack = availablePack;
+                        break;
+                    }
+                }
+            } catch (PatternSyntaxException e) {
+                PackedPacks.LOGGER.error("[packed_packs] Invalid regex syntax '{}' for key '{}'. ", resolvedPackId, key, e);
+            }
+        } else {
+            resolvedPack = this.get(resolvedPackId);
+
+            if (!this.config.isAlias(packId)) {
+                PackedPacks.LOGGER.info(
+                        "[packed_packs] Unknown pack '{}' matched via regex to '{}', caching result.",
+                        packId,
+                        resolvedPackId
+                );
+                this.config.putAlias(packId, resolvedPackId);
+                DevConfig.get().save();
+            }
+        }
+
+        if (resolvedPack != null) {
+            PackedPacks.LOGGER.info("[packed_packs] Resolved unknown pack '{}' to '{}', remapping profiles.", packId, resolvedPackId);
+            ProfileManager.get(this.config.packType()).remapAndSavePackIds(packId, resolvedPackId);
+            this.put(resolvedPackId, resolvedPack);
+        } else {
+            PackedPacks.LOGGER.warn(
+                    "[packed_packs] Unknown pack '{}' mapped to '{}', but no such pack is available.",
+                    packId,
+                    resolvedPackId
+            );
+            this.setUnresolved(packId);
+        }
+
+        return resolvedPack;
     }
 
     private void setUnresolved(String packId) {
