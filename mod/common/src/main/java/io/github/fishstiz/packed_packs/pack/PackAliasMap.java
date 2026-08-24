@@ -169,49 +169,56 @@ public class PackAliasMap implements Map<String, Pack> {
             return null;
         }
 
-        String resolvedPackId = this.config.resolveCanonicalId(packId);
-        if (resolvedPackId == null) {
+        String mappedPackId = this.config.resolveCanonicalId(packId);
+        if (mappedPackId == null) {
             this.setUnresolved(packId);
             return null;
         }
 
         Pack resolvedPack = null;
 
-        if (DevConfig.Packs.isRegexPrefixed(resolvedPackId)) {
+        if (DevConfig.Packs.isRegexPrefixed(mappedPackId)) {
             try {
-                Pattern pattern = Pattern.compile(resolvedPackId);
-                for (Pack availablePack : values()) {
+                Pattern pattern = Pattern.compile(mappedPackId.replaceFirst(DevConfig.Packs.getRegexPrefixPattern().pattern(), ""));
+                for (Pack availablePack : this.map.values()) {
                     if (pattern.matcher(availablePack.getId()).matches()) {
                         resolvedPack = availablePack;
+
+                        if (!this.config.isExactAlias(packId)) {
+                            // cache result of regex matched id
+                            this.config.putAlias(packId, resolvedPack.getId());
+                            DevConfig.get().save();
+                        }
                         break;
                     }
                 }
             } catch (PatternSyntaxException e) {
-                PackedPacks.LOGGER.error("[packed_packs] Invalid regex syntax '{}' for key '{}'. ", resolvedPackId, key, e);
+                PackedPacks.LOGGER.error("[packed_packs] Invalid regex syntax '{}' for key '{}'. ", mappedPackId, key, e);
             }
         } else {
-            resolvedPack = this.get(resolvedPackId);
+            resolvedPack = this.get(mappedPackId);
 
-            if (!this.config.isAlias(packId)) {
-                PackedPacks.LOGGER.info(
-                        "[packed_packs] Unknown pack '{}' matched via regex to '{}', caching result.",
-                        packId,
-                        resolvedPackId
-                );
-                this.config.putAlias(packId, resolvedPackId);
+            if (!this.config.isExactAlias(packId)) {
+                // cache anyway even if unresolved for faster subsequent launches.
+                this.config.putAlias(packId, mappedPackId);
                 DevConfig.get().save();
             }
         }
 
         if (resolvedPack != null) {
-            PackedPacks.LOGGER.info("[packed_packs] Resolved unknown pack '{}' to '{}', remapping profiles.", packId, resolvedPackId);
-            ProfileManager.get(this.config.packType()).remapAndSavePackIds(packId, resolvedPackId);
-            this.put(resolvedPackId, resolvedPack);
+            PackedPacks.LOGGER.info("[packed_packs] Resolved unknown pack '{}' to '{}', remapping profiles.",
+                    packId,
+                    resolvedPack.getId()
+            );
+
+            ProfileManager.get(this.config.packType()).remapAndSavePackIds(packId, resolvedPack.getId());
+
+            this.put(packId, resolvedPack);
         } else {
             PackedPacks.LOGGER.warn(
                     "[packed_packs] Unknown pack '{}' mapped to '{}', but no such pack is available.",
                     packId,
-                    resolvedPackId
+                    mappedPackId
             );
             this.setUnresolved(packId);
         }
