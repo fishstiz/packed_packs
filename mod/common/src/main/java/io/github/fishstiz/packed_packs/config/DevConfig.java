@@ -86,7 +86,7 @@ public final class DevConfig {
             return this.aliases.containsValue(packId);
         }
 
-        public boolean isAlias(String packId) {
+        public boolean isExactAlias(String packId) {
             return this.aliases.containsKey(packId);
         }
 
