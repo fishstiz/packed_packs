@@ -128,6 +128,8 @@ controls.
       and resolves to the first match, see the `config.meta.json` file.
     - Supports regex (must be prefixed with `regex:`), the text color will change in the _Edit Aliases_ dialog if done
       correctly.
+    - Aliases can also map to a regex value (must be prefixed with `regex:`), which will attempt to match with any available pack. 
+      This can only be done from the `config.meta.json` file.     
     - Exact matches always take priority over regex matches, regardless of their position in the alias map (e.g., a pack
       ID of `file/test-v1.2` will always match `"file/test-v1.2": "file/test-v1.4"` over
       `"regex:file\\/test-v\\d*": "file/test-v2"`).
