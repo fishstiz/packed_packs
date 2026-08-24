@@ -1,15 +1,22 @@
-- Added configurable load conditions in the context menu options for the default resource pack profile:
-    - `NO_OPTIONS_OR_VERSION_FILE`: Triggers when the `options.txt` or `config/packed_packs/__version.json` is missing.
-        - Fixes default profile not applying with Default Options
-          ([#67](https://github.com/fishstiz/packed_packs/issues/67))
-        - Used as the default condition when the `config.meta.json` is newly created.
-        - **Note**: You should not ship the `__version.json` file in modpacks, and since it's new to this update,
-          switching to this option will reset the resource pack configuration for existing users.
-    - `NO_OPTIONS_FILE`: Triggers only when the `options.txt` is missing.
-        - Only exists to preserve the resource pack configuration for existing users when updating to this or newer
-          versions of the mod, otherwise use the above option.
-        - Used as the default load condition when the `config.meta.json` file already exists.
-- Updated Russian Translation ([#70](https://github.com/fishstiz/packed_packs/pull/70) by iceban)
-- Improved compatibility with smooth scrolling ([#71](https://github.com/fishstiz/packed_packs/issues/71))
-- Fixed translation keys for toggling the default and lock setting of profiles being inverted in the context menu.
-- Arrow key navigation in pack lists is no longer constrained.
+- Fixed exact aliases not updating the pack id in profiles ([#72](https://github.com/fishstiz/packed_packs/issues/72)).
+- Aliases can now resolve to a regex pack id when prefixed with `regex:`. The regex pack id will attempt to find the
+  first pack with the matching id. This can only be done manually in the `config.meta.json` file for now.
+    - Example using an exact alias.
+        ```json
+        {
+          "aliases": {
+            "file/test-pack v1.2.zip": "regex:file/test-pack v.*\\.zip"          
+          }
+        }
+        ``` 
+    - Example using a regex alias:
+      ```json
+      {
+        "aliases": {
+          "regex:file/test-pack v.*\\.zip": "regex:file/test-pack v.*\\.zip"          
+        }
+      }
+      ```
+    - Note that `aliases` in the `config.meta.json` maps alias to canonical. Pack ids saved in configs but do not exist
+      will attempt to find a matching key in the alias map. The value is the id of the would-be existing pack. If the mapped
+      value is a regex id, then it will attempt to find an existing pack that matches the regex.  
