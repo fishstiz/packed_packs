@@ -2,12 +2,8 @@ package io.github.fishstiz.packed_packs.gui2;
 
 import com.google.common.primitives.Ints;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
-import io.github.fishstiz.packed_packs.api.context.PackContext;
-import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.config.Profile;
-import io.github.fishstiz.packed_packs.gui2.mutations.Mutation;
-import io.github.fishstiz.packed_packs.gui.intents.PackListIntent;
-import io.github.fishstiz.packed_packs.gui.intents.ProfileIntent;
+import io.github.fishstiz.packed_packs.gui2.actions.mutations.Mutation;
 import io.github.fishstiz.packed_packs.gui.model.PackListKey;
 import io.github.fishstiz.packed_packs.gui.model.PackListUtils;
 import io.github.fishstiz.packed_packs.gui.model.Query;
@@ -15,206 +11,130 @@ import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.states.PackListState;
 import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
 import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
-import io.github.fishstiz.packed_packs.pack.PackGroup;
-import io.github.fishstiz.packed_packs.util.PackUtil;
+import io.github.fishstiz.packed_packs.gui2.actions.mutations.PackListMutation;
+import io.github.fishstiz.packed_packs.gui2.actions.mutations.ProfileMutation;
+import io.github.fishstiz.packed_packs.models.PackEntry;
+import io.github.fishstiz.packed_packs.models.PackEntryLists;
+import io.github.fishstiz.packed_packs.models.ProfileSelection;
 import io.github.fishstiz.packed_packs.util.ToIntTriFunction;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 
 import static io.github.fishstiz.packed_packs.gui.model.PackListUtils.*;
-// todo
-public final class Reducer {
-    public static PackedPacksState reduce(PackedPacksState state, Mutation action) {
-        return switch (action) {
-            case ProfileIntent profileIntent -> this.reduceProfile(state, profileIntent);
-            case PackListIntent packListIntent -> switch (packListIntent) {
-                case PackListIntent.ScreenScoped screen -> this.reduce(state, screen);
-                case PackListIntent.ListScoped list -> switch (list.target().type()) {
-                    case AVAILABLE -> {
-                        PackListState newAvailable = this.reduceList(state.available(), 0, list, state.profiles().options());
-                        yield newAvailable != state.available() ? state.withAvailable(newAvailable, packListIntent.target()) : state;
-                    }
-                    case ENABLED -> {
-                        PackListState newEnabled = this.reduceList(state.enabled(), 0, list, state.profiles().options());
-                        yield newEnabled != state.enabled() ? state.withEnabled(newEnabled, packListIntent.target()) : state;
-                    }
-                };
-            };
-            default -> state;
-        };
-    }
 
-    private PackedPacksState reduce(PackedPacksState state, PackListIntent.ScreenScoped intent) {
-        return switch (intent) {
-            case PackListIntent.Reset reset -> {
+public final class Reducer {
+    public static PackedPacksState reduce(PackedPacksState state, Mutation mutation) {
+        return switch (mutation) {
+            case Mutation.Reset reset -> {
                 PackListState available = state.available();
                 PackListState enabled = state.enabled();
-                PackOptions options = state.profiles().options();
                 yield new PackedPacksState(
-                        available.with(reset.packs().unselected(), Collections.emptyList(), available.query().withSearch(""), options),
-                        enabled.with(reset.packs().selected(), Collections.emptyList(), enabled.query().withSearch(""), options),
+                        available.with(
+                                reset.packs().disabled(),
+                                Collections.emptyList(),
+                                available.query().withSearch(""),
+                                state.profiles(),
+                                state.devMode()
+                        ),
+                        enabled.with(
+                                reset.packs().enabled(),
+                                Collections.emptyList(),
+                                enabled.query().withSearch(""),
+                                state.profiles(),
+                                state.devMode()
+                        ),
                         state.profiles(),
-                        reset.target().root(),
-                        null
+                        state.lastTarget().root(),
+                        null,
+                        state.devMode()
                 );
             }
-            case PackListIntent.Enable enable -> {
-                List<Pack> newAvailable = new ObjectArrayList<>(state.available().packs());
-                List<Pack> newEnabled = new ObjectArrayList<>(state.enabled().packs());
-                List<Pack> newEnabledSelection = new ObjectArrayList<>(enable.payload().size());
-
-                for (Pack pack : enable.payload()) {
-                    if (newAvailable.remove(pack)) {
-                        newEnabled.add(enable.index(), pack);
-                        if (!pack.equals(enable.ctx().pack())) {
-                            newEnabledSelection.add(pack);
-                        }
+            case Mutation.PackRenaming renaming -> {
+                ActiveAction.RenamingPack renamingState = state.renamingPack();
+                if (renamingState != null) {
+                    yield state.withAction(renamingState.withLoading(renaming.loading()));
+                }
+                yield state;
+            }
+            case PackListMutation packListMutation -> switch (packListMutation) {
+                case PackListMutation.Local local -> switch (local.srcList().type()) {
+                    case AVAILABLE -> {
+                        PackListState newAvailable = reduceList(state.available(), 0, local, state.profiles(), state.devMode());
+                        yield newAvailable == state.available() ? state : state.withAvailable(newAvailable, local.srcList());
                     }
-                }
-                newEnabledSelection.add(enable.ctx().pack());
-                SequencedCollection<Pack> newAvailableSelection = state.available().selectedPacks().contains(enable.ctx().pack())
-                        ? state.available().selectedPacks()
-                        : Collections.emptyList();
-                yield state.withPackLists(
-                        state.available().with(newAvailable, newAvailableSelection, state.profiles().options()),
-                        state.enabled().with(newEnabled, newEnabledSelection, state.profiles().options()),
-                        PackListKey.enabled()
-                );
-            }
-            case PackListIntent.Disable disable -> {
-                List<Pack> newAvailable = new ObjectArrayList<>(state.available().packs());
-                List<Pack> newEnabled = new ObjectArrayList<>(state.enabled().packs());
-                List<Pack> newAvailableSelection = new ObjectArrayList<>(disable.payload().size());
-                for (Pack pack : disable.payload()) {
-                    if (newEnabled.remove(pack)) {
-                        newAvailable.add(pack);
-                        if (!disable.ctx().pack().equals(pack)) newAvailableSelection.add(pack);
+                    case ENABLED -> {
+                        PackListState newEnabled = reduceList(state.enabled(), 0, local, state.profiles(), state.devMode());
+                        yield newEnabled == state.available() ? state : state.withEnabled(newEnabled, local.srcList());
                     }
-                }
-                newAvailableSelection.add(disable.ctx().pack());
-                SequencedCollection<Pack> newEnabledSelection = state.enabled().selectedPacks().contains(disable.ctx().pack())
-                        ? state.enabled().selectedPacks()
-                        : Collections.emptyList();
-                yield state.withPackLists(
-                        state.available().with(newAvailable, newAvailableSelection, state.profiles().options()),
-                        state.enabled().with(newEnabled, newEnabledSelection, state.profiles().options()),
-                        PackListKey.available()
-                );
-            }
-            case PackListIntent.Require require ->
-                    Boolean.TRUE.equals(require.required()) && require.target().type().available()
-                            ? this.reduce(state, new PackListIntent.Enable(require.target(), require.ctx(), require.payload()))
-                            : state;
-            case PackListIntent.Rename rename -> rename.status().success() ? state.withAction(null) : state;
-            case PackListIntent.Drag drag -> {
-                ActiveAction.Dragging draggingAction = new ActiveAction.Dragging(drag.target(), drag.ctx(), drag.payload());
-                if (drag.target().type().available() || drag.target().depth() > 0) {
-                    yield state.withAction(draggingAction);
-                }
-
-                PackListState targetList = state.targetList(drag.target());
-                if (targetList == null || !targetList.query().hasQuery()) {
-                    yield state.withAction(draggingAction);
-                }
-
-                yield state.withEnabled(targetList.withQuery(Query.empty(), state.profiles().options()), draggingAction.target())
-                        .withAction(draggingAction);
-            }
-            case PackListIntent.OpenRename openRename ->
-                    state.withAction(new ActiveAction.RenamingPack(openRename.target(), openRename.ctx()));
-            case PackListIntent.CloseRename ignored -> state.withAction(null);
-            case PackListIntent.EditAliases openAliases ->
-                    state.withAction(new ActiveAction.EditingAliases(openAliases.target(), openAliases.ctx(), openAliases.aliases()));
-            case PackListIntent.CloseAliases ignored -> state.withAction(null);
-            case PackListIntent.Drop(
-                    PackListKey target,
-                    PackContext ctx,
-                    SequencedCollection<Pack> payload,
-                    @Nullable PackListKey destination,
-                    int index
-            ) -> {
-                PackedPacksState newState = state.withAction(null);
-                if (destination == null) yield newState;
-
-                PackListState targetList = newState.targetList(destination);
-                if (targetList == null) yield newState;
-
-                PackOptions options = newState.profiles().options();
-                if (!canDrop(target, ctx.pack(), payload, destination, targetList, index, options)) {
-                    yield newState;
-                }
-
-                int position = clampIndex(targetList, getAbsoluteIndex(targetList, index), options);
-                if (target.equals(destination)) {
-                    List<Pack> packs = new ObjectArrayList<>(payload.size());
-                    CollectionUtils.addIf(packs, payload, p -> canDrag(target, p, options));
-                    if (!packs.isEmpty())
-                        yield this.reduce(newState, new PackListIntent.Move(destination, ctx, packs, position));
-                } else if (canTransfer(target, ctx.pack(), options)) {
-                    List<Pack> packs = new ObjectArrayList<>(payload.size());
-                    CollectionUtils.addIf(packs, payload, p -> canTransfer(target, p, options));
-                    if (!packs.isEmpty()) {
-                        yield this.reduce(newState, switch (destination.type()) {
-                            case AVAILABLE -> new PackListIntent.Disable(destination, ctx, packs.reversed());
-                            case ENABLED -> new PackListIntent.Enable(destination, ctx, packs.reversed(), position);
-                        });
-                    }
-                }
-                yield newState;
-            }
+                };
+                case PackListMutation.Cross cross -> reduceList(state, cross);
+            };
+            case ProfileMutation profileMutation -> reduceProfile(state, profileMutation);
         };
     }
 
-    private PackListState reduceList(PackListState state, int depth, PackListIntent.ListScoped intent, PackOptions options) {
-        if (depth == intent.target().depth()) {
-            return this.reduceList(state, intent, options);
+    private static PackListState reduceList(
+            PackListState state,
+            int depth,
+            PackListMutation.Local mutation,
+            ProfileSelection profiles,
+            boolean devMode
+    ) {
+        if (depth == mutation.srcList().depth()) {
+            return reduceList(state, mutation, profiles, devMode);
         }
-        if (state.folder() == null || intent.target().depth() < 0) {
+        if (state.folder() == null || mutation.srcList().depth() < 0) {
             return state;
         }
-        PackListState newContents = this.reduceList(state.folder().contents(), depth + 1, intent, options);
+        PackListState newContents = reduceList(state.folder().contents(), depth + 1, mutation, profiles, devMode);
         return newContents == state.folder().contents() ? state : state.withFolder(state.folder().withContents(newContents));
     }
 
-    private PackListState reduceList(PackListState state, PackListIntent.ListScoped intent, PackOptions options) {
-        return switch (intent) {
-            case PackListIntent.Search search -> state.withQuery(state.query().withSearch(search.query()), options);
-            case PackListIntent.Sort sort -> state.withQuery(state.query().withSort(sort.sort()), options);
-            case PackListIntent.HideIncompatible hideIncompatible ->
-                    state.withQuery(state.query().withHideIncompatible(hideIncompatible.hide()), options);
-            case PackListIntent.Select select -> {
-                Pack pack = select.ctx().pack();
+    private static PackListState reduceList(
+            PackListState state,
+            PackListMutation.Local mutation,
+            ProfileSelection profiles,
+            boolean devMode
+    ) {
+        return switch (mutation) {
+            case PackListMutation.Searched searched ->
+                    state.withQuery(state.query().withSearch(searched.search()), profiles, devMode);
+            case PackListMutation.Sorted sorted ->
+                    state.withQuery(state.query().withSort(sorted.sort()), profiles, devMode);
+            case PackListMutation.IncompatibleHidden incompatibleHidden ->
+                    state.withQuery(state.query().withHideIncompatible(incompatibleHidden.hidden()), profiles, devMode);
+            case PackListMutation.Selected selected -> {
+                PackEntry pack = selected.pack();
                 if (!state.visiblePacks().contains(pack)) yield state;
-                List<Pack> newSelection = new ObjectArrayList<>(state.selectedPacks());
+                List<PackEntry> newSelection = new ObjectArrayList<>(state.selectedPacks());
                 newSelection.remove(pack);
                 newSelection.add(pack);
                 yield state.withSelection(newSelection);
             }
-            case PackListIntent.SelectExclusive selectExclusive -> {
-                Pack pack = selectExclusive.ctx().pack();
+            case PackListMutation.SelectedExclusively selected -> {
+                PackEntry pack = selected.pack();
                 if (!state.visiblePacks().contains(pack)) yield state;
                 yield state.withSelection(List.of(pack));
             }
-            case PackListIntent.SelectToggle selectToggle -> {
-                Pack pack = selectToggle.ctx().pack();
+            case PackListMutation.SelectionToggled selected -> {
+                PackEntry pack = selected.pack();
                 if (!state.visiblePacks().contains(pack)) yield state;
-                List<Pack> newSelection = new ObjectArrayList<>(state.selectedPacks());
+                List<PackEntry> newSelection = new ObjectArrayList<>(state.selectedPacks());
                 if (!newSelection.remove(pack)) newSelection.add(pack);
                 yield state.withSelection(newSelection);
             }
-            case PackListIntent.SelectRange selectRange -> {
+            case PackListMutation.SelectedRange selected -> {
                 if (state.selectedPacks().isEmpty()) {
-                    yield state.withSelection(List.of(selectRange.ctx().pack()));
+                    yield state.withSelection(List.of(selected.pack()));
                 }
 
-                Pack anchor = state.selectedPacks().getLast();
+                PackEntry anchor = state.selectedPacks().getLast();
                 int anchorIndex = state.visiblePacks().indexOf(anchor);
-                int targetIndex = state.visiblePacks().indexOf(selectRange.ctx().pack());
+                int targetIndex = state.visiblePacks().indexOf(selected.pack());
                 int[] indices = indicesOf(state.visiblePacks(), state.selectedPacks());
                 Arrays.sort(indices);
 
@@ -225,33 +145,33 @@ public final class Reducer {
                         anchor = state.visiblePacks().get(indices[0]);
                     }
                 }
-                List<Pack> newSelection = new ObjectArrayList<>(state.selectedPacks());
+                List<PackEntry> newSelection = new ObjectArrayList<>(state.selectedPacks());
                 int start = state.visiblePacks().indexOf(anchor);
                 if (targetIndex != -1 && start != -1) {
                     newSelection.clear();
                     for (int i = Math.min(targetIndex, start); i <= Math.max(targetIndex, start); i++) {
-                        Pack selected = state.visiblePacks().get(i);
-                        if (selected != null && selected != selectRange.ctx().pack() && state.visiblePacks().contains(selected)) {
-                            newSelection.remove(selected);
-                            newSelection.addLast(selected);
+                        PackEntry entry = state.visiblePacks().get(i);
+                        if (entry != null && entry != selected.pack() && state.visiblePacks().contains(entry)) {
+                            newSelection.remove(entry);
+                            newSelection.addLast(entry);
                         }
                     }
                 }
 
-                newSelection.add(selectRange.ctx().pack());
+                newSelection.add(selected.pack());
                 yield state.withSelection(newSelection);
             }
-            case PackListIntent.SelectAll selectAll -> {
-                ObjectLinkedOpenHashSet<Pack> newSelection = new ObjectLinkedOpenHashSet<>(state.visiblePacks());
-                if (selectAll.ctx() != null) newSelection.addAndMoveToLast(selectAll.ctx().pack());
+            case PackListMutation.SelectedAll selected -> {
+                ObjectLinkedOpenHashSet<PackEntry> newSelection = new ObjectLinkedOpenHashSet<>(state.visiblePacks());
+                if (selected.pack() != null) newSelection.addAndMoveToLast(selected.pack());
                 yield state.withSelection(newSelection);
             }
-            case PackListIntent.Move move -> {
-                List<Pack> ordered = sortByOrderOf(state.visiblePacks(), move.payload());
-                List<Pack> newPacks = new ObjectArrayList<>(state.packs());
-                int to = move.index();
+            case PackListMutation.Moved moved -> {
+                List<PackEntry> ordered = sortByOrderOf(state.visiblePacks(), moved.packs());
+                List<PackEntry> newPacks = new ObjectArrayList<>(state.packs());
+                int to = moved.index();
                 int insertOffset = 0;
-                for (Pack pack : ordered) {
+                for (PackEntry pack : ordered) {
                     int previous = newPacks.indexOf(pack);
                     boolean isBeforeTo = previous != -1 && previous < to;
                     int target = isBeforeTo ? to - 1 : to + insertOffset;
@@ -259,35 +179,39 @@ public final class Reducer {
                     newPacks.add(Math.clamp(target, 0, newPacks.size()), pack);
                     if (!isBeforeTo) insertOffset++;
                 }
-                yield newPacks.equals(state.packs()) ? state : state.withPacks(newPacks, options);
+                yield newPacks.equals(state.packs()) ? state : state.withPacks(newPacks, profiles, devMode);
             }
-            case PackListIntent.MoveUp moveUp -> {
-                List<Pack> newPacks = moveUp.payload().isEmpty() ? state.packs() : this.movePacks(state, moveUp.payload(), true, options);
-                yield state.withPacksAndSelectedLast(newPacks, moveUp.ctx().pack(), options);
+            case PackListMutation.MovedOnce moved -> {
+                List<PackEntry> newPacks = moved.packs().isEmpty()
+                        ? state.packs()
+                        : movePacks(state, moved.packs(), moved.upwards(), profiles);
+
+                yield state.withPacksAndSelectedLast(newPacks, moved.srcPack(), profiles, devMode);
             }
-            case PackListIntent.MoveDown moveDown -> {
-                List<Pack> newPacks = moveDown.payload().isEmpty() ? state.packs() : this.movePacks(state, moveDown.payload(), false, options);
-                yield state.withPacksAndSelectedLast(newPacks, moveDown.ctx().pack(), options);
-            }
-            case PackListIntent.OpenFolder open ->
-                    state.withFolder(new PackListState.Folder(open.folderPack(), new PackListState(open.contents())));
-            case PackListIntent.CloseFolder ignored -> state.withFolder(null);
-            case PackListIntent.Delete delete -> {
-                if (!delete.status().success()) yield state;
-                List<Pack> newPacks = new ObjectArrayList<>(state.packs());
-                yield newPacks.remove(delete.ctx().pack()) ? state.withPacks(newPacks, options) : state;
-            }
-            case PackListIntent.Hide ignored -> state;
-            case PackListIntent.FixPosition ignored -> state;
-            case PackListIntent.RemoveOverrides ignored -> state;
+            case PackListMutation.FolderOpened opened -> state.withFolder(new PackListState.Folder(
+                    opened.pack(),
+                    opened.locked(),
+                    new PackListState(opened.children()).withQuery(
+                            state.query().withSort(opened.locked() ? null : state.query().sort()),
+                            profiles,
+                            devMode
+                    )
+            ));
+            case PackListMutation.FolderClosed ignored -> state.withFolder(null);
         };
     }
 
-    private List<Pack> movePacks(PackListState state, SequencedCollection<Pack> payload, boolean up, PackOptions options) {
-        Set<Pack> validPacks = new ObjectOpenHashSet<>(state.packs());
-        List<Pack> newPacks = new ObjectArrayList<>(state.packs());
-        List<Pack> sorted;
-        ToIntTriFunction<List<Pack>, Pack, PackOptions> indexFn;
+
+    private static List<PackEntry> movePacks(
+            PackListState state,
+            SequencedCollection<PackEntry> payload,
+            boolean up,
+            ProfileSelection profiles
+    ) {
+        Set<PackEntry> validPacks = new ObjectOpenHashSet<>(state.packs());
+        List<PackEntry> newPacks = new ObjectArrayList<>(state.packs());
+        List<PackEntry> sorted;
+        ToIntTriFunction<List<PackEntry>, PackEntry, ProfileSelection> indexFn;
 
         if (up) {
             sorted = sortByOrderOf(state.visiblePacks(), payload);
@@ -298,10 +222,10 @@ public final class Reducer {
         }
 
         for (int i = 0; i < sorted.size(); i++) {
-            Pack pack = sorted.get(i);
+            PackEntry pack = sorted.get(i);
             if (!validPacks.contains(pack)) continue;
-            int targetIndex = indexFn.applyAsInt(newPacks, pack, options);
-            if (targetIndex > -1 && targetIndex < newPacks.size() && !options.isFixed(pack)) {
+            int targetIndex = indexFn.applyAsInt(newPacks, pack, profiles);
+            if (targetIndex > -1 && targetIndex < newPacks.size() && !profiles.isPackFixed(pack)) {
                 newPacks.remove(pack);
                 newPacks.add(targetIndex, pack);
             } else if (i == 0) {
@@ -312,82 +236,272 @@ public final class Reducer {
         return newPacks;
     }
 
-    private PackedPacksState reduceProfile(PackedPacksState state, ProfileIntent intent) {
-        return switch (intent) {
-            case ProfileIntent.Select select ->
-                    this.computeProfilePacks(state.withProfiles(state.profiles().withSelected(select.profile())));
-            case ProfileIntent.SelectNone(PackGroup packs) -> {
-                ProfilesState newProfiles = state.profiles().withSelected(null);
-                PackListState newAvailable = state.available();
-                PackListState newEnabled = state.enabled();
-                PackOptions options = newProfiles.options();
-                yield state.with(
-                        newAvailable.with(packs.unselected(), Collections.emptyList(), newAvailable.query().withSearch(""), options),
-                        newEnabled.with(packs.selected(), Collections.emptyList(), newEnabled.query().withSearch(""), options),
-                        newProfiles
+    private static PackedPacksState reduceList(PackedPacksState state, PackListMutation.Cross mutation) {
+        return switch (mutation) {
+            // todo handle unlocked folders
+            case PackListMutation.Enabled enabled -> {
+                List<PackEntry> newAvailable = new ObjectArrayList<>(state.available().packs());
+                List<PackEntry> newEnabled = new ObjectArrayList<>(state.enabled().packs());
+                List<PackEntry> newEnabledSelection = new ObjectArrayList<>(enabled.packs().size());
+
+                for (PackEntry pack : enabled.packs()) {
+                    if (newAvailable.remove(pack)) {
+                        newEnabled.add(enabled.index(), pack);
+                        if (!pack.equals(enabled.srcPack())) {
+                            newEnabledSelection.add(pack);
+                        }
+                    }
+                }
+
+                newEnabledSelection.add(enabled.srcPack());
+
+                SequencedCollection<PackEntry> newAvailableSelection =
+                        state.available().selectedPacks().contains(enabled.srcPack())
+                                ? state.available().selectedPacks()
+                                : Collections.emptyList();
+
+                yield state.withPackLists(
+                        state.available().with(newAvailable, newAvailableSelection, state.profiles(), state.devMode()),
+                        state.enabled().with(newEnabled, newEnabledSelection, state.profiles(), state.devMode()),
+                        PackListKey.enabled()
                 );
             }
-            case ProfileIntent.Delete delete -> {
-                if (!delete.status().success()) yield state;
+            // todo handle unlocked folders
+            case PackListMutation.Disabled disabled -> {
+                List<PackEntry> newAvailable = new ObjectArrayList<>(state.available().packs());
+                List<PackEntry> newEnabled = new ObjectArrayList<>(state.enabled().packs());
+                List<PackEntry> newAvailableSelection = new ObjectArrayList<>(disabled.packs().size());
+                for (PackEntry pack : disabled.packs()) {
+                    if (newEnabled.remove(pack)) {
+                        newAvailable.add(pack);
+                        if (!disabled.srcPack().equals(pack)) {
+                            newAvailableSelection.add(pack);
+                        }
+                    }
+                }
+
+                newAvailableSelection.add(disabled.srcPack());
+
+                SequencedCollection<PackEntry> newEnabledSelection =
+                        state.enabled().selectedPacks().contains(disabled.srcPack())
+                                ? state.enabled().selectedPacks()
+                                : Collections.emptyList();
+
+                yield state.withPackLists(
+                        state.available().with(newAvailable, newAvailableSelection, state.profiles(), state.devMode()),
+                        state.enabled().with(newEnabled, newEnabledSelection, state.profiles(), state.devMode()),
+                        PackListKey.available()
+                );
+            }
+            case PackListMutation.Dragged dragged -> {
+                ActiveAction.Dragging draggingAction = new ActiveAction.Dragging(
+                        dragged.srcList(),
+                        dragged.srcPack(), dragged.packs()
+                );
+
+                // todo need to do more than check depth
+                if (dragged.srcList().type().available() || dragged.srcList().depth() > 0) {
+                    yield state.withAction(draggingAction);
+                }
+
+                PackListState targetList = state.targetList(dragged.srcList());
+                if (targetList == null || !targetList.query().hasQuery()) {
+                    yield state.withAction(draggingAction);
+                }
+
+                yield state.withEnabled(
+                        targetList.withQuery(Query.empty(), state.profiles(), state.devMode()),
+                        draggingAction.target()
+                ).withAction(draggingAction);
+            }
+            case PackListMutation.Dropped(PackListKey srcList, PackListKey destination, int index) -> {
+                ActiveAction.Dragging dragging = state.dragging();
+                if (dragging == null) yield state;
+
+                PackedPacksState newState = state.withAction(null);
+                if (destination == null) yield newState;
+
+                PackListState targetList = newState.targetList(destination);
+                if (targetList == null) yield newState;
+
+                if (!canDrop(srcList, dragging.srcPack(), dragging.packs(), destination, targetList, index, state.profiles())) {
+                    yield newState;
+                }
+
+                int position = clampIndex(targetList, getAbsoluteIndex(targetList, index), state.profiles());
+                if (srcList.equals(destination)) {
+                    List<PackEntry> packs = new ObjectArrayList<>(dragging.packs().size());
+                    CollectionUtils.addIf(packs, dragging.packs(), p -> canDrag(srcList, p, state.profiles()));
+
+                    if (!packs.isEmpty()) {
+                        yield reduce(newState, new PackListMutation.Moved(destination, dragging.srcPack(), packs, position));
+                    }
+                } else if (canTransfer(srcList, dragging.srcPack(), state.profiles())) {
+                    List<PackEntry> packs = new ObjectArrayList<>(dragging.packs().size());
+                    CollectionUtils.addIf(packs, dragging.packs(), p -> canTransfer(srcList, p, state.profiles()));
+
+                    if (!packs.isEmpty()) {
+                        yield reduceList(newState, switch (destination.type()) {
+                            case AVAILABLE ->
+                                    new PackListMutation.Disabled(destination, dragging.srcPack(), packs.reversed());
+                            case ENABLED ->
+                                    new PackListMutation.Enabled(destination, dragging.srcPack(), packs.reversed(), position);
+                        });
+                    }
+                }
+                yield newState;
+            }
+            case PackListMutation.RenameModalOpened opened ->
+                    state.withAction(new ActiveAction.RenamingPack(opened.srcList(), opened.pack(), false));
+            case PackListMutation.RenameModalClosed ignored -> state.withAction(null);
+            case PackListMutation.AliasesModalOpened opened ->
+                    state.withAction(new ActiveAction.EditingAliases(opened.srcList(), opened.srcPack(), opened.aliases()));
+            case PackListMutation.AliasesModalClosed ignored -> state.withAction(null);
+            case PackListMutation.RequirementOverridden overridden -> {
+                Profile selectedProfile = state.profiles().selectedProfile();
+                if (selectedProfile == null) yield state;
+
+                for (PackEntry entry : overridden.packs()) {
+                    // just pretend its immutable
+                    //noinspection DataFlowIssue
+                    selectedProfile = selectedProfile.withRequiredOverride(overridden.required(), entry.id());
+                }
+
+                PackedPacksState newState = state.withProfiles(state.profiles().withSelected(selectedProfile));
+
+                if (Boolean.TRUE.equals(overridden.required()) && overridden.srcList().type().available()) {
+                    yield reduceList(newState, new PackListMutation.Enabled(
+                            overridden.srcList(),
+                            overridden.srcPack(),
+                            overridden.packs(),
+                            0
+                    ));
+                }
+
+                yield newState;
+            }
+            case PackListMutation.PositionOverridden overridden -> {
+                Profile selectedProfile = state.profiles().selectedProfile();
+                if (selectedProfile == null) yield state;
+
+                for (PackEntry entry : overridden.packs()) {
+                    // just pretend its immutable
+                    //noinspection DataFlowIssue
+                    selectedProfile = selectedProfile.withPositionOverride(overridden.position(), entry.id());
+                }
+
+                yield state.withProfiles(state.profiles().withSelected(selectedProfile));
+            }
+            case PackListMutation.VisibilityOverridden overridden -> {
+                Profile selectedProfile = state.profiles().selectedProfile();
+                if (selectedProfile == null) yield state;
+
+                for (PackEntry entry : overridden.packs()) {
+                    // just pretend its immutable
+                    //noinspection DataFlowIssue
+                    selectedProfile = selectedProfile.withHiddenOverride(overridden.hidden(), entry.id());
+                }
+
+                yield state.withProfiles(state.profiles().withSelected(selectedProfile));
+            }
+            case PackListMutation.OverridesRemoved overridesRemoved -> {
+                Profile selectedProfile = state.profiles().selectedProfile();
+                if (selectedProfile == null) yield state;
+
+                for (PackEntry entry : overridesRemoved.packs()) {
+                    // just pretend its immutable
+                    //noinspection DataFlowIssue
+                    selectedProfile = selectedProfile
+                            .withRequiredOverride(null, entry.id())
+                            .withPositionOverride(null, entry.id())
+                            .withHiddenOverride(false, entry.id());
+                }
+
+                yield state.withProfiles(state.profiles().withSelected(selectedProfile));
+            }
+        };
+    }
+
+    private static PackedPacksState reduceProfile(PackedPacksState state, ProfileMutation mutation) {
+        return switch (mutation) {
+            case ProfileMutation.Selected selected -> {
+                ProfilesState profiles = state.profiles();
+                PackEntryLists entries = selected.packEntries();
+                yield state.withProfiles(profiles.withSelected(selected.profile()))
+                        .withPackLists(
+                                state.available().withPacks(entries.disabled(), profiles, state.devMode()),
+                                state.enabled().withPacks(entries.enabled(), profiles, state.devMode())
+                        );
+            }
+            case ProfileMutation.Deleted delete -> {
+                List<Profile> newProfileList = new ObjectArrayList<>(state.profiles().profiles());
+                newProfileList.remove(delete.profile());
+                yield state.withProfiles(state.profiles().withProfiles(newProfileList));
+            }
+            case ProfileMutation.DeletedAndReset delete -> {
                 List<Profile> newProfileList = new ObjectArrayList<>(state.profiles().profiles());
                 newProfileList.remove(delete.profile());
 
-                ProfilesState newProfiles = state.profiles().withProfiles(newProfileList);
-                if (!Objects.equals(state.profiles().selectedProfile(), delete.profile())) {
-                    yield state.withProfiles(newProfiles);
-                }
-
-                PackedPacksState newState = state.withProfiles(newProfiles.withSelected(null));
-                yield delete.fallback() == null ? newState : this.reduceProfile(newState, new ProfileIntent.SelectNone(delete.fallback()));
+                ProfilesState newProfiles = state.profiles().withProfiles(newProfileList).withSelected(null);
+                yield state.withProfiles(newProfiles).withPackLists(
+                        state.available().withPacks(delete.packEntries().disabled(), newProfiles, state.devMode()),
+                        state.enabled().withPacks(delete.packEntries().enabled(), newProfiles, state.devMode())
+                );
             }
-            case ProfileIntent.Add add -> {
-                List<Profile> newList = new ObjectArrayList<>(state.profiles().profiles());
-                newList.add(add.profile());
-                yield this.reduceProfile(state.withProfiles(state.profiles().withProfiles(newList)), new ProfileIntent.Select(add.profile()));
+            case ProfileMutation.Added added -> {
+                List<Profile> newProfileList = new ObjectArrayList<>(state.profiles().profiles());
+                Profile newProfile = added.profile();
+                newProfileList.add(newProfile);
+                yield reduceProfile(
+                        state.withProfiles(state.profiles().withProfiles(newProfileList)),
+                        new ProfileMutation.Selected(
+                                newProfile,
+                                new PackEntryLists(state.available().packs(), state.enabled().packs())
+                        )
+                );
             }
-            case ProfileIntent.SetDefault(Profile profile) -> profile == null
-                    ? state.withProfiles(state.profiles().withDefault(null))
-                    : this.reduceProfile(state.withProfiles(state.profiles().withDefault(profile)), new ProfileIntent.Select(profile));
-            case ProfileIntent.ToggleLock ignored -> state.withProfiles(new ProfilesState(
-                    state.profiles().profiles(),
-                    state.profiles().selectedProfile(),
-                    state.profiles().defaultProfile()
-            )); // this is to notify listeners when profile is mutated, since it's still mutable (for now)
-            case ProfileIntent.Rename ignored -> state.withProfiles(new ProfilesState(
-                    state.profiles().profiles(),
-                    state.profiles().selectedProfile(),
-                    state.profiles().defaultProfile(),
-                    state.profiles().renaming()
-            ));
-            case ProfileIntent.ToggleRenaming ignored ->
+            case ProfileMutation.DefaultRemoved() -> state.withProfiles(state.profiles().withDefault(null));
+            case ProfileMutation.DefaultChanged(Profile profile, @Nullable PackEntryLists packEntries) ->
+                    Objects.equals(profile, state.profiles().selectedProfile()) || packEntries == null
+                            ? state.withProfiles(state.profiles().withDefault(profile))
+                            : reduceProfile(
+                            state.withProfiles(state.profiles().withDefault(profile)),
+                            new ProfileMutation.Selected(profile, packEntries)
+                    );
+            case ProfileMutation.LockToggled(Profile profile) ->
+                    state.withProfiles(updateProfileState(state.profiles(), profile.withLocked(!profile.isLocked())));
+            case ProfileMutation.Renamed(Profile profile, String name) ->
+                    state.withProfiles(updateProfileState(state.profiles(), profile.withName(name)));
+            case ProfileMutation.RenamingToggled() ->
                     state.withProfiles(state.profiles().withRenaming(!state.profiles().renaming()));
         };
     }
 
-    private PackedPacksState computeProfilePacks(PackedPacksState state) {
-        Profile profile = state.profiles().selectedProfile();
-        PackOptions options = state.profiles().options();
-
-        ObjectOpenHashSet<Pack> allPacks = new ObjectOpenHashSet<>(state.available().packs().size() + state.enabled().packs().size());
-        allPacks.addAll(state.available().packs());
-        allPacks.addAll(state.enabled().packs());
-
-        List<Pack> selectedPacks;
-        if (profile == null) {
-            selectedPacks = state.enabled().packs();
-        } else {
-            List<String> profilePackIds = profile.getPackIds();
-            selectedPacks = profilePackIds.isEmpty()
-                    ? Collections.emptyList()
-                    : CollectionUtils.lookup(profilePackIds, CollectionUtils.toMap(allPacks, Pack::getId));
+    // just pretend profile is immutable, at some point it will be (maybe)
+    private static ProfilesState updateProfileState(ProfilesState state, Profile newProfile) {
+        Profile selectedProfile = state.selectedProfile();
+        if (selectedProfile != null && newProfile.getId().equals(selectedProfile.getId())) {
+            selectedProfile = newProfile;
         }
 
-        PackGroup packLists = PackUtil.syncPackSelection(allPacks, state.available().packs(), selectedPacks, options);
+        Profile defaultProfile = state.selectedProfile();
+        if (defaultProfile != null && newProfile.getId().equals(defaultProfile.getId())) {
+            defaultProfile = newProfile;
+        }
 
-        return state.withPackLists(
-                state.available().with(packLists.unselected(), Collections.emptyList(), state.available().query().withSearch(""), options),
-                state.enabled().with(packLists.selected(), Collections.emptyList(), state.enabled().query().withSearch(""), options)
-        );
+        List<Profile> newProfileList = new ObjectArrayList<>(state.profiles().size());
+        for (Profile profile : state.profiles()) {
+            if (newProfile.getId().equals(profile.getId())) {
+                newProfileList.add(newProfile);
+            } else {
+                newProfileList.add(profile);
+            }
+        }
+
+        return state
+                .withProfiles(newProfileList)
+                .withSelected(selectedProfile)
+                .withDefault(defaultProfile);
     }
 
     private Reducer() {

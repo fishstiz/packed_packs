@@ -3,13 +3,11 @@ package io.github.fishstiz.packed_packs.gui2.services;
 import com.google.common.collect.ImmutableList;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
+import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.config.JsonLoader;
-import io.github.fishstiz.packed_packs.gui2.models.PackEntry;
+import io.github.fishstiz.packed_packs.models.PackEntry;
 import io.github.fishstiz.packed_packs.pack.PackIconManager;
-import io.github.fishstiz.packed_packs.pack.folder.FolderLocationInfo;
-import io.github.fishstiz.packed_packs.pack.folder.FolderResourcesSupplier;
-import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionModelAccessor;
 import io.github.fishstiz.packed_packs.transform.mixin.folders.additional.FolderRepositorySourceAccessor;
 import io.github.fishstiz.packed_packs.transform.mixin.folders.additional.PackRepositoryAccessor;
@@ -20,12 +18,14 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
-import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.repository.PackRepository;
+import net.minecraft.server.packs.resources.IoSupplier;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -61,79 +61,65 @@ public class PackRepositoryService {
         ((PackSelectionModelAccessor) this.selectionModel).packed_packs$filterHidden(false);
     }
 
-    private static void populatePacks(
-            Collection<Pack> rawPacks,
-            Map<String, PackEntry> packs,
-            Map<FolderLocationInfo, List<PackEntry>> folders
-    ) {
-        for (Pack pack : rawPacks) {
-            PackEntry entry;
-            FilePack filePack = (FilePack) pack;
-            FolderLocationInfo folderLocationInfo = filePack.packed_packs$getFolderLocationInfo();
+    private void loadFolderMetadata(PackEntry entry) {
+        // load metadata on first discover only to prevent overwriting unsaved state
+        if (!(entry instanceof PackEntry.Parent parent) || folderMeta.containsKey(entry.id())) {
+            return;
+        }
 
-            if (folderLocationInfo != null) {
-                entry = new PackEntry.Leaf(pack, filePack.packed_packs$getPath(), folderLocationInfo.id());
-                folders.computeIfAbsent(folderLocationInfo, _ -> new ObjectArrayList<>()).add(entry);
-            } else {
-                entry = new PackEntry.Leaf(pack, filePack.packed_packs$getPath(), null);
+        // todo sort children on open in GUI only
+        try (PackResources resources = parent.open()) {
+            IoSupplier<InputStream> streamSupplier = resources.getRootResource(FolderPackMeta.FILENAME);
+            if (streamSupplier != null) {
+                try (InputStream stream = streamSupplier.get()) {
+                    folderMeta.put(
+                            entry.id(),
+                            JsonLoader.loadOrDefault(stream, FolderPackMeta.class, FolderPackMeta::new)
+                    );
+                } catch (Exception e) {
+                    PackedPacks.LOGGER.error("[packed_packs] Failed to read folder metadata at {}", entry.path(), e);
+                }
             }
-
-            packs.put(pack.getId(), entry);
         }
     }
 
-    private void refreshPacks() {
-        Map<String, PackEntry> newPacks = new Object2ObjectLinkedOpenHashMap<>();
-        Map<FolderLocationInfo, List<PackEntry>> folders = new Object2ObjectLinkedOpenHashMap<>();
-
-        PackSelectionModelAccessor selectionModel = (PackSelectionModelAccessor) this.selectionModel;
-        populatePacks(selectionModel.getUnselectedPacks(), newPacks, folders);
-        populatePacks(selectionModel.getSelectedPacks(), newPacks, folders);
-
-        // todo: remove, and add callback in repository and folder repository source on folder discovery
-        // load metadata only when syncing the selected pack lists that contain a nested pack or when opening folder
-        for (Map.Entry<FolderLocationInfo, List<PackEntry>> entry : folders.entrySet()) {
-            FolderLocationInfo folderLocationInfo = entry.getKey();
-
-            List<PackEntry> unsortedChildren = entry.getValue();
-            List<PackEntry> sortedChildren = new ObjectArrayList<>(unsortedChildren.size());
-            Set<PackEntry> seen = new ObjectOpenHashSet<>(unsortedChildren.size());
-
-            Path folderPath = folderLocationInfo.path();
-            FolderPackMeta folderMetadata = this.folderMeta.computeIfAbsent(
-                    folderLocationInfo.id(),
-                    _ -> JsonLoader.loadOrDefault(folderPath, FolderPackMeta.class, FolderPackMeta::new)
-            );
-
-            for (String childId : folderMetadata.packIds()) {
-                PackEntry childEntry = newPacks.get(childId);
-                if (childEntry != null && seen.add(childEntry)) {
-                    sortedChildren.add(childEntry);
+    private void addParentsRecursively(String id, Collection<String> collection) {
+        PackEntry entry = this.packs.get(id);
+        if (entry instanceof PackEntry.Parent parent) {
+            FolderPackMeta meta = folderMeta.getOrDefault(parent.id(), new FolderPackMeta());
+            if (meta.module()) {
+                collection.add(parent.id());
+                String parentId = parent.parentId();
+                if (parentId != null) {
+                    addParentsRecursively(parentId, collection);
                 }
             }
+        }
+    }
 
-            for (PackEntry childEntry : unsortedChildren) {
-                if (seen.add(childEntry)) {
-                    sortedChildren.add(childEntry);
-                }
-            }
+    private void refreshSelectedCache() {
+        Collection<String> selectedLeaves = repository.getSelectedIds();
+        Set<String> newSelected = new ObjectOpenHashSet<>(selectedLeaves.size());
 
-            newPacks.put(folderLocationInfo.id(), new PackEntry.Parent(
-                    folderLocationInfo.path(),
-                    folderLocationInfo.packLocationInfo(),
-                    new FolderResourcesSupplier(folderLocationInfo.path()),
-                    sortedChildren
-            ));
+        for (String id : selectedLeaves) {
+            newSelected.add(id);
+            addParentsRecursively(id, newSelected);
         }
 
-        this.packs = newPacks;
-        this.selectedPackIds = Set.copyOf(this.repository.getSelectedIds());
+        this.selectedPackIds = newSelected;
     }
 
     public void refreshSources() {
         refreshSelectionModel();
-        selectionModel.findNewPacks();
-        refreshPacks();
+        Map<String, PackEntry> newPacks = new Object2ObjectLinkedOpenHashMap<>();
+        ScopedValue.where(PackEntry.ENTRY_CALLBACK, entry -> {
+                    // ids are based on file names so its unreliable, preserve only the first ones
+                    newPacks.putIfAbsent(entry.id(), entry);
+                    loadFolderMetadata(entry);
+                })
+                .run(selectionModel::findNewPacks);
+        this.packs = newPacks;
+        refreshSelectedCache();
     }
 
     public void setEnabledPacks(List<PackEntry> packs) {
@@ -157,6 +143,7 @@ public class PackRepositoryService {
         }
 
         refreshSelectionModel();
+        refreshSelectedCache();
     }
 
     public List<PackEntry> getPacks() {
@@ -184,20 +171,19 @@ public class PackRepositoryService {
         return folderMeta.get(folderId);
     }
 
-    public boolean isEnabled(String packId) {
-        PackEntry entry = this.packs.get(packId);
-
-        if (entry instanceof PackEntry.Parent parent) {
-            FolderPackMeta metadata = folderMeta.get(parent.id());
-            if (metadata != null && metadata.module()) {
-                for (PackEntry child : parent.children()) {
-                    if (this.selectedPackIds.contains(child.id())) {
-                        return true;
-                    }
-                }
-            }
+    public void setFolderMetadata(String folderId, FolderPackMeta metadata) {
+        if (folderMeta.containsKey(folderId)) {
+            folderMeta.put(folderId, metadata);
+        } else {
+            PackedPacks.LOGGER.warn("[packed_packs] Tried to update folder metadata from non-existing folder '{}'", folderId);
         }
+    }
 
+    public void removeFolderMetadata(String folderId) {
+        folderMeta.remove(folderId);
+    }
+
+    public boolean isEnabled(String packId) {
         return this.selectedPackIds.contains(packId);
     }
 
@@ -205,13 +191,16 @@ public class PackRepositoryService {
         repository.removePack(packId);
 
         Map<String, PackEntry> newPacks = new Object2ObjectLinkedOpenHashMap<>(this.packs);
-        PackEntry pack = newPacks.get(packId);
-        if (pack != null) {
-            pack.visitPacks(entry -> repository.removePack(entry.getId()));
-        }
-        this.packs = newPacks;
+        PackEntry entry = newPacks.get(packId);
+        if (entry != null) {
+            entry.visitEntries(e -> {
+                newPacks.remove(e.id());
+                repository.removePack(e.id());
+            });
 
-        refreshSelectionModel();
+            this.packs = newPacks;
+            refreshSelectionModel();
+        }
     }
 
     public Path baseDirectorySource() {

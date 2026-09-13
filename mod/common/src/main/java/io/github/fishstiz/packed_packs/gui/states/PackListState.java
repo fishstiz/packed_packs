@@ -1,9 +1,8 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
-import io.github.fishstiz.packed_packs.config.Config;
-import io.github.fishstiz.packed_packs.gui2.models.ProfileSelection;
+import io.github.fishstiz.packed_packs.models.ProfileSelection;
 import io.github.fishstiz.packed_packs.gui.model.Query;
-import io.github.fishstiz.packed_packs.gui2.models.PackEntry;
+import io.github.fishstiz.packed_packs.models.PackEntry;
 import io.github.fishstiz.packed_packs.util.Utils;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
@@ -15,7 +14,6 @@ public record PackListState(
         List<PackEntry> packs,
         List<PackEntry> visiblePacks,
         SequencedCollection<PackEntry> selectedPacks,
-        // todo track loading entries
         Query query,
         @Nullable Folder folder
 ) {
@@ -41,13 +39,14 @@ public record PackListState(
         this(packs, List.copyOf(packs), Collections.emptyList(), Query.empty(), null);
     }
 
-    public PackListState with( // todo this should be done in reducer
+    public PackListState with(
             List<PackEntry> newPacks,
             SequencedCollection<PackEntry> newSelection,
             Query query,
-            ProfileSelection profiles
+            ProfileSelection profiles,
+            boolean devMode
     ) {
-        List<PackEntry> newVisiblePacks = processQuery(newPacks, query, profiles);
+        List<PackEntry> newVisiblePacks = processQuery(newPacks, query, profiles, devMode);
         // use a SequencedSet for faster lookups as this is queried every frame for each visible item within view
         // to avoid refreshing the pack list entries on each selection change
         // ... which I realize may not actually be worth it now that I'm writing this out,
@@ -62,37 +61,49 @@ public record PackListState(
     public PackListState with(
             List<PackEntry> newPacks,
             SequencedCollection<PackEntry> newSelection,
-            ProfileSelection profiles
+            ProfileSelection profiles,
+            boolean devMode
     ) {
-        return this.with(newPacks, newSelection, this.query, profiles);
+        return this.with(newPacks, newSelection, this.query, profiles, devMode);
     }
 
-    public PackListState withPacks(List<PackEntry> newPacks, ProfileSelection profiles) {
-        return this.with(newPacks, this.selectedPacks, profiles);
+    public PackListState withPacks(List<PackEntry> newPacks, ProfileSelection profiles, boolean devMode) {
+        return this.with(newPacks, this.selectedPacks, profiles, devMode);
     }
 
-    public PackListState withQuery(Query query, ProfileSelection profiles) {
-        return this.with(this.packs, this.selectedPacks, query, profiles);
+    public PackListState withQuery(Query query, ProfileSelection profiles, boolean devMode) {
+        return this.with(this.packs, this.selectedPacks, query, profiles, devMode);
     }
 
     public PackListState withSelection(SequencedCollection<PackEntry> newSelection) {
         SequencedSet<PackEntry> newSelectedPacks = new ObjectLinkedOpenHashSet<>(newSelection);
         newSelectedPacks.retainAll(this.visiblePacks);
-        return new PackListState(this.packs, this.visiblePacks, Collections.unmodifiableSequencedSet(newSelectedPacks), this.query, this.folder);
+        return new PackListState(
+                this.packs,
+                this.visiblePacks,
+                Collections.unmodifiableSequencedSet(newSelectedPacks),
+                this.query,
+                this.folder
+        );
     }
 
-    public PackListState withPacksAndSelectedLast(List<PackEntry> newPacks, PackEntry selectedLast, ProfileSelection profiles) {
+    public PackListState withPacksAndSelectedLast(
+            List<PackEntry> newPacks,
+            PackEntry selectedLast,
+            ProfileSelection profiles,
+            boolean devMode
+    ) {
         if (this.packs() == newPacks) return this;
 
         if (!this.selectedPacks().contains(selectedLast)) {
-            return this.with(newPacks, List.of(selectedLast), profiles);
+            return this.with(newPacks, List.of(selectedLast), profiles, devMode);
         } else if (this.selectedPacks().getLast() != selectedLast) {
             ObjectLinkedOpenHashSet<PackEntry> newSelection = new ObjectLinkedOpenHashSet<>(this.selectedPacks());
             newSelection.addAndMoveToLast(selectedLast);
-            return this.with(newPacks, newSelection, profiles);
+            return this.with(newPacks, newSelection, profiles, devMode);
         }
 
-        return this.withPacks(newPacks, profiles);
+        return this.withPacks(newPacks, profiles, devMode);
     }
 
     public PackListState withFolder(PackListState.@Nullable Folder newFolder) {
@@ -103,11 +114,30 @@ public record PackListState(
         return this.folder != null;
     }
 
-    // todo this should be done in reducer
-    private static List<PackEntry> processQuery(List<PackEntry> sourcePacks, Query query, ProfileSelection profiles) {
+    public @Nullable Folder getFolder(int depth) {
+        Folder current = this.folder;
+        for (int i = 0; i < depth; i++) {
+            if (current == null || current.contents == null) {
+                return null;
+            }
+            current = current.contents.folder;
+        }
+        return current;
+    }
+
+    public boolean containsRecursively(PackEntry pack) {
+        return packs.contains(pack) || (folder != null && folder.contents.containsRecursively(pack));
+    }
+
+    private static List<PackEntry> processQuery(
+            List<PackEntry> sourcePacks,
+            Query query,
+            ProfileSelection profiles,
+            boolean devMode
+    ) {
         List<PackEntry> filtered = new ObjectArrayList<>(sourcePacks.size());
         for (PackEntry pack : sourcePacks) {
-            if ((Config.get().isDevMode() || !profiles.isPackHidden(pack)) && query.test(pack)) {
+            if ((devMode || !profiles.isPackHidden(pack)) && query.test(pack)) {
                 filtered.add(pack);
             }
         }

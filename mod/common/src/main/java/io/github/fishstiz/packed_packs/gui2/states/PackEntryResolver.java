@@ -1,9 +1,9 @@
 package io.github.fishstiz.packed_packs.gui2.states;
 
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
-import io.github.fishstiz.packed_packs.gui2.models.PackEntry;
-import io.github.fishstiz.packed_packs.gui2.models.PackEntryLists;
-import io.github.fishstiz.packed_packs.gui2.models.ProfileSelection;
+import io.github.fishstiz.packed_packs.models.PackEntry;
+import io.github.fishstiz.packed_packs.models.PackEntryLists;
+import io.github.fishstiz.packed_packs.models.ProfileSelection;
 import io.github.fishstiz.packed_packs.gui2.services.PackRepositoryService;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;

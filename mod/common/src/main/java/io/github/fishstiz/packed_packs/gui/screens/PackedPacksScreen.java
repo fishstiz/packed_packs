@@ -829,7 +829,7 @@ public class PackedPacksScreen extends FZScreen {
             } else if (enabledList.isHovered()) {
                 enabledList.onDrop(dragged, (int) mouseButtonEvent.x(), (int) mouseButtonEvent.y());
             } else {
-                store.dispatch(new PackListIntent.Drop(dragged.target(), dragged.ctx(), dragged.payload(), null, 0));
+                store.dispatch(new PackListIntent.Drop(dragged.target(), dragged.ctx(), dragged.packs(), null, 0));
             }
             return true;
         }

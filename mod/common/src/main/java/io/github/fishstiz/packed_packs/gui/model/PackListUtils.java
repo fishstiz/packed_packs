@@ -2,8 +2,8 @@ package io.github.fishstiz.packed_packs.gui.model;
 
 import io.github.fishstiz.packed_packs.config.PackOptions;
 import io.github.fishstiz.packed_packs.gui.states.PackListState;
-import io.github.fishstiz.packed_packs.gui2.models.PackEntry;
-import io.github.fishstiz.packed_packs.gui2.models.ProfileSelection;
+import io.github.fishstiz.packed_packs.models.PackEntry;
+import io.github.fishstiz.packed_packs.models.ProfileSelection;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.packs.repository.Pack;
 
@@ -57,8 +57,8 @@ public final class PackListUtils {
 
     // 0 first/top, -1 last/bottom
     public static int getAbsoluteIndex(PackListState state, int visibleIndex) {
-        List<Pack> packs = state.packs();
-        List<Pack> visible = state.visiblePacks();
+        List<PackEntry> packs = state.packs();
+        List<PackEntry> visible = state.visiblePacks();
         if (visibleIndex == -1) {
             return visible.isEmpty() ? -1 : packs.indexOf(visible.getLast()) + 1;
         }
@@ -117,12 +117,26 @@ public final class PackListUtils {
         return -1;
     }
 
-    public static int clampIndex(PackListState state, int index, PackOptions options) {
+//    public static int clampIndex(PackListState state, int index, PackOptions options) {
+//        if (index == -1) {
+//            int minIndex = 0;
+//            for (int i = 0; i < state.packs().size(); i++) {
+//                Pack pack = state.packs().get(i);
+//                if (options.isFixed(pack) && options.getPosition(pack) == Pack.Position.TOP) {
+//                    minIndex = i + 1;
+//                }
+//            }
+//            return minIndex;
+//        }
+//        return index;
+//    }
+
+    public static int clampIndex(PackListState state, int index, ProfileSelection profiles) {
         if (index == -1) {
             int minIndex = 0;
             for (int i = 0; i < state.packs().size(); i++) {
-                Pack pack = state.packs().get(i);
-                if (options.isFixed(pack) && options.getPosition(pack) == Pack.Position.TOP) {
+                PackEntry pack = state.packs().get(i);
+                if (profiles.isPackFixed(pack) && profiles.getPackPosition(pack) == Pack.Position.TOP) {
                     minIndex = i + 1;
                 }
             }
@@ -131,7 +145,28 @@ public final class PackListUtils {
         return index;
     }
 
-    private static boolean isValidInsertPosition(PackListState state, int visibleIndex, SequencedCollection<Pack> payload) {
+//    private static boolean isValidInsertPosition(PackListState state, int visibleIndex, SequencedCollection<Pack> payload) {
+//        int[] indices = indicesOf(state.visiblePacks(), payload);
+//        if (indices.length == 0) return false;
+//        if (hasGap(indices)) return true;
+//        Arrays.sort(indices);
+//
+//        int lastSelectionIndex = indices[indices.length - 1];
+//        if (!state.packs().isEmpty()) {
+//            int lastItemIndex = state.packs().indexOf(state.packs().getLast());
+//            if (visibleIndex == -1 && lastItemIndex == lastSelectionIndex) {
+//                return false;
+//            }
+//        }
+//
+//        return visibleIndex != indices[0] && visibleIndex - 1 != lastSelectionIndex;
+//    }
+
+    private static boolean isValidInsertPosition(
+            PackListState state,
+            int visibleIndex,
+            SequencedCollection<PackEntry> payload
+    ) {
         int[] indices = indicesOf(state.visiblePacks(), payload);
         if (indices.length == 0) return false;
         if (hasGap(indices)) return true;
@@ -148,15 +183,33 @@ public final class PackListUtils {
         return visibleIndex != indices[0] && visibleIndex - 1 != lastSelectionIndex;
     }
 
-    private static boolean isValidDropPosition(PackListState state, int absoluteIndex, PackOptions options) {
+//    private static boolean isValidDropPosition(PackListState state, int absoluteIndex, PackOptions options) {
+//        if (absoluteIndex < 0 || absoluteIndex > state.packs().size()) return false;
+//
+//        int minDropIndex = 0;
+//        int maxDropIndex = state.packs().size();
+//        for (int i = 0; i < state.packs().size(); i++) {
+//            Pack pack = state.packs().get(i);
+//            if (options.isFixed(pack)) {
+//                switch (options.getPosition(pack)) {
+//                    case TOP -> minDropIndex = i + 1;
+//                    case BOTTOM -> maxDropIndex = Math.min(i, maxDropIndex);
+//                }
+//            }
+//        }
+//
+//        return absoluteIndex >= minDropIndex && absoluteIndex <= maxDropIndex;
+//    }
+
+    private static boolean isValidDropPosition(PackListState state, int absoluteIndex, ProfileSelection profiles) {
         if (absoluteIndex < 0 || absoluteIndex > state.packs().size()) return false;
 
         int minDropIndex = 0;
         int maxDropIndex = state.packs().size();
         for (int i = 0; i < state.packs().size(); i++) {
-            Pack pack = state.packs().get(i);
-            if (options.isFixed(pack)) {
-                switch (options.getPosition(pack)) {
+            PackEntry pack = state.packs().get(i);
+            if (profiles.isPackFixed(pack)) {
+                switch (profiles.getPackPosition(pack)) {
                     case TOP -> minDropIndex = i + 1;
                     case BOTTOM -> maxDropIndex = Math.min(i, maxDropIndex);
                 }
@@ -173,8 +226,20 @@ public final class PackListUtils {
         return !options.isFixed(pack);
     }
 
+    public static boolean canDrag(PackListKey target, PackEntry pack, ProfileSelection profiles) {
+        if (target.depth() == 0 && target.type().available()) {
+            return true;
+        }
+        return !profiles.isPackFixed(pack);
+    }
+
     public static boolean canTransfer(PackListKey target, Pack pack, PackOptions options) {
         return target.depth() == 0 && (target.type().available() || !options.isRequired(pack));
+    }
+
+    // todo do more than check depth
+    public static boolean canTransfer(PackListKey target, PackEntry pack, ProfileSelection profiles) {
+        return target.depth() == 0 && (target.type().available() || !profiles.isPackRequired(pack));
     }
 
     public static boolean canInteract(PackListKey target, PackListKey destination) {
@@ -187,17 +252,47 @@ public final class PackListUtils {
         return target.type().enabled();
     }
 
+//    public static boolean canDrop(
+//            PackListKey target,
+//            Pack pack,
+//            SequencedCollection<Pack> payload,
+//            PackListKey destination,
+//            PackListState targetState,
+//            int index,
+//            PackOptions options
+//    ) {
+//        if (destination.type().available() && destination.depth() == 0) {
+//            return !payload.isEmpty() && canInteract(target, destination) && canTransfer(target, pack, options);
+//        }
+//        if (targetState.query().hasQuery() || payload.isEmpty() || !canInteract(target, destination)) {
+//            return false;
+//        }
+//        if (targetState.packs().isEmpty()) {
+//            return true;
+//        }
+//        if (target.equals(destination) && options.isFixed(pack)) {
+//            return false;
+//        }
+//        if (!isValidDropPosition(targetState, getAbsoluteIndex(targetState, index), options)) {
+//            return false;
+//        }
+//        if (!target.equals(destination)) {
+//            return canTransfer(target, pack, options);
+//        }
+//        return isValidInsertPosition(targetState, index, payload);
+//    }
+
     public static boolean canDrop(
             PackListKey target,
-            Pack pack,
-            SequencedCollection<Pack> payload,
+            PackEntry pack,
+            SequencedCollection<PackEntry> payload,
             PackListKey destination,
             PackListState targetState,
             int index,
-            PackOptions options
+            ProfileSelection profiles
     ) {
         if (destination.type().available() && destination.depth() == 0) {
-            return !payload.isEmpty() && canInteract(target, destination) && canTransfer(target, pack, options);
+            return !payload.isEmpty() && canInteract(target, destination) && canTransfer(target, pack, profiles);
         }
         if (targetState.query().hasQuery() || payload.isEmpty() || !canInteract(target, destination)) {
             return false;
@@ -205,14 +300,14 @@ public final class PackListUtils {
         if (targetState.packs().isEmpty()) {
             return true;
         }
-        if (target.equals(destination) && options.isFixed(pack)) {
+        if (target.equals(destination) && profiles.isPackFixed(pack)) {
             return false;
         }
-        if (!isValidDropPosition(targetState, getAbsoluteIndex(targetState, index), options)) {
+        if (!isValidDropPosition(targetState, getAbsoluteIndex(targetState, index), profiles)) {
             return false;
         }
         if (!target.equals(destination)) {
-            return canTransfer(target, pack, options);
+            return canTransfer(target, pack, profiles);
         }
         return isValidInsertPosition(targetState, index, payload);
     }

@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
 import io.github.fishstiz.packed_packs.config.Profile;
-import io.github.fishstiz.packed_packs.gui2.models.ProfileSelection;
+import io.github.fishstiz.packed_packs.models.ProfileSelection;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;

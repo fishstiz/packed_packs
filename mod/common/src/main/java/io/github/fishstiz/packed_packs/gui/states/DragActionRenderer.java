@@ -37,7 +37,7 @@ public final class DragActionRenderer {
     }
 
     private void renderDragging(ActiveAction.Dragging dragging, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-        String sizeString = Integer.toString(dragging.payload().size());
+        String sizeString = Integer.toString(dragging.packs().size());
         int sizeStringWidth = this.font.width(sizeString);
         int iconX = mouseX - ICON_OFFSET_X;
         int iconY = mouseY - ICON_OFFSET_Y;

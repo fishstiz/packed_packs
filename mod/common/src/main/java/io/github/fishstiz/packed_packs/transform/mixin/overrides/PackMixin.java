@@ -2,6 +2,7 @@ package io.github.fishstiz.packed_packs.transform.mixin.overrides;
 
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import io.github.fishstiz.packed_packs.config.PackOverride;
 import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.config.ProfileManager;
 import io.github.fishstiz.packed_packs.transform.interfaces.ConfiguredPack;
@@ -27,6 +28,15 @@ public abstract class PackMixin implements ConfiguredPack {
 
     @Shadow
     public abstract String getId();
+
+    @Shadow
+    public abstract boolean isRequired();
+
+    @Shadow
+    public abstract Pack.Position getDefaultPosition();
+
+    @Shadow
+    public abstract boolean isFixedPosition();
 
     @Unique
     @Nullable
@@ -81,12 +91,18 @@ public abstract class PackMixin implements ConfiguredPack {
     @WrapMethod(method = "selectionConfig")
     private PackSelectionConfig resolveSelectionConfig(Operation<PackSelectionConfig> original) {
         Profile profile = packed_packs$getDefaultProfile();
+
         if (profile != null) {
-            PackSelectionConfig selectionConfig = profile.getSelectionConfig(getId());
-            if (selectionConfig != null) {
-                return selectionConfig;
+            PackOverride override = profile.getOverrides(getId());
+            if (override != null) {
+                Boolean required = override.required();
+                PackOverride.Position position = override.position();
+                if (required != null || position != null) {
+                    return new PackSelectionConfig(isRequired(), getDefaultPosition(), isFixedPosition());
+                }
             }
         }
+
         return original.call();
     }
 

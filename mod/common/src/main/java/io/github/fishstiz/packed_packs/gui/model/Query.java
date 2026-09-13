@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs.gui.model;
 
 import io.github.fishstiz.packed_packs.PackedPacks;
+import io.github.fishstiz.packed_packs.models.PackEntry;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import net.minecraft.network.chat.Component;

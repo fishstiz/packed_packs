@@ -7,7 +7,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
 
@@ -15,8 +14,7 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-// todo remove references to packs, use pack ids only, or not?! move pack options to entry context but not implement pack options mk
-public final class Profile implements PackOptions {
+public final class Profile {
     private boolean locked = false;
     private String name;
     private Map<String, PackOverride> overrides = new Object2ObjectOpenHashMap<>();
@@ -82,9 +80,15 @@ public final class Profile implements PackOptions {
         return List.copyOf(this.packIds);
     }
 
-    public void setPacks(Collection<Pack> selected) {
+//    public void setPacks(Collection<Pack> selected) {
+//        if (!this.locked) {
+//            this.packIds = new ObjectLinkedOpenHashSet<>(PackUtil.flattenPackIds(selected));
+//        }
+//    }
+
+    public void setPacks(Collection<String> selected) {
         if (!this.locked) {
-            this.packIds = new ObjectLinkedOpenHashSet<>(PackUtil.flattenPackIds(selected));
+            this.packIds = new ObjectLinkedOpenHashSet<>(selected);
         }
     }
 
@@ -101,40 +105,31 @@ public final class Profile implements PackOptions {
         }
     }
 
-    public void setHidden(boolean hidden, Collection<Pack> packs) {
-        for (Pack pack : PackUtil.flattenPacks(packs)) {
-            this.setHidden(hidden, pack.getId());
+    public Profile withHiddenOverride(boolean hidden, String packId) {
+        applyOrRemoveOverride(packId, hidden ? true : null, PackOverride::setHidden);
+        return this;
+    }
+
+    public Profile withRequiredOverride(@Nullable Boolean required, String packId) {
+        if (!Boolean.FALSE.equals(required) || !PackUtil.isEssential(packId)) {
+            applyOrRemoveOverride(packId, required, PackOverride::setRequired);
         }
+        return this;
     }
 
-    public void setHidden(boolean hidden, String pack) {
-        this.applyOrRemoveOverride(pack, hidden ? true : null, PackOverride::setHidden);
+    public Profile withPositionOverride(PackOverride.@Nullable Position position, String packId) {
+        applyOrRemoveOverride(packId, position, PackOverride::setPosition);
+        return this;
     }
 
-    public void setRequired(@Nullable Boolean required, Collection<Pack> packs) {
-        for (Pack pack : PackUtil.flattenPacks(packs)) {
-            this.setRequired(required, pack);
-        }
-    }
-
-    public void setRequired(@Nullable Boolean required, Pack pack) {
-        if (!Boolean.FALSE.equals(required) || !PackUtil.isEssential(pack)) {
-            this.applyOrRemoveOverride(pack.getId(), required, PackOverride::setRequired);
-        }
-    }
-
-    public void setPosition(PackOverride.@Nullable Position position, Collection<Pack> packs) {
-        for (Pack pack : PackUtil.flattenPacks(packs)) {
-            this.setPosition(position, pack);
-        }
-    }
-
-    public void setPosition(PackOverride.@Nullable Position position, Pack pack) {
-        this.applyOrRemoveOverride(pack.getId(), position, PackOverride::setPosition);
-    }
-
-    public void setLocked(boolean locked) {
+    public Profile withLocked(boolean locked) {
         this.locked = locked;
+        return this;
+    }
+
+    public Profile withName(String name) {
+        this.name = name;
+        return this;
     }
 
     public boolean isLocked() {
@@ -145,17 +140,14 @@ public final class Profile implements PackOptions {
         return this.overrides.get(packId);
     }
 
-    @Override
     public boolean isHidden(String packId) {
         return Boolean.TRUE.equals(Utils.mapOrElse(this.overrides.get(packId), false, PackOverride::hidden));
     }
 
-    @Override
     public boolean isRequired(String packId) {
         return Boolean.TRUE.equals(Utils.mapOrElse(this.overrides.get(packId), false, PackOverride::required));
     }
 
-    @Override
     public boolean isFixed(String packId) {
         if (this.overridesPosition(packId)) {
             return Objects.requireNonNull(this.overrides.get(packId).position()).fixed();
@@ -163,7 +155,6 @@ public final class Profile implements PackOptions {
         return false;
     }
 
-    @Override
     public Pack.@Nullable Position getPosition(String packId) {
         PackOverride override = this.overrides.get(packId);
         if (override != null) {
@@ -182,22 +173,6 @@ public final class Profile implements PackOptions {
         return null;
     }
 
-    @Override
-    public @Nullable PackSelectionConfig getSelectionConfig(String packId) {
-        PackOverride override = this.overrides.get(packId);
-        if (override != null) {
-            Boolean required = override.required();
-            PackOverride.Position position = override.position();
-            if (required != null || position != null) {
-                // todo this probably shouldnt be in profile
-            }
-
-
-            return new PackSelectionConfig(this.isRequired(packId), this.getPosition(packId), this.isFixed(packId));
-        }
-        return null;
-    }
-
     public boolean overridesRequired(String packId) {
         return this.overridesProperty(packId, PackOverride::required);
     }
@@ -211,8 +186,8 @@ public final class Profile implements PackOptions {
         return entry != null && property.apply(entry) != null;
     }
 
-    public boolean hasOverride(Pack pack) {
-        PackOverride entry = this.overrides.get(pack.getId());
+    public boolean hasOverride(String packId) {
+        PackOverride entry = this.overrides.get(packId);
         return entry != null && entry.hasOverride();
     }
 
@@ -222,22 +197,21 @@ public final class Profile implements PackOptions {
         if (!override.hasOverride()) this.overrides.remove(packId);
     }
 
+    // immutability is too much of a hassle. just override equals and hashcode for state
+    // and never push profile mutations to history
+
     @Override
-    public int hashCode() {
-        return this.id.hashCode();
+    public boolean equals(Object o) {
+        if (!(o instanceof Profile profile)) return false;
+        return locked == profile.locked
+               && Objects.equals(name, profile.name)
+               && Objects.equals(overrides, profile.overrides)
+               && Objects.equals(packIds, profile.packIds)
+               && Objects.equals(id, profile.id);
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (obj == null) {
-            return false;
-        }
-        if (obj == this) {
-            return true;
-        }
-        if (!(obj instanceof Profile other)) {
-            return false;
-        }
-        return Objects.equals(other.getId(), this.getId());
+    public int hashCode() {
+        return Objects.hash(locked, name, overrides, packIds, id);
     }
 }

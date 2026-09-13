@@ -9,7 +9,7 @@ import io.github.fishstiz.packed_packs.gui.components.PreferenceHelper;
 import io.github.fishstiz.packed_packs.gui.screens.PackSelectionScreenArgs;
 import io.github.fishstiz.packed_packs.gui.model.PackedPacksStore;
 import io.github.fishstiz.packed_packs.gui.screens.PackedPacksScreen;
-import io.github.fishstiz.packed_packs.gui2.intents.Intent;
+import io.github.fishstiz.packed_packs.gui2.actions.intents.Intent;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.impl.gui.ContextMenuItemSpecImpl;
 import net.minecraft.client.Minecraft;

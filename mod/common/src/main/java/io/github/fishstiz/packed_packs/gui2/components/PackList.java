@@ -7,7 +7,6 @@ import io.github.fishstiz.fidgetz.v0.gui.renderables.RenderableRectangle;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.packed_packs.api.context.PackContext;
-import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
 import io.github.fishstiz.packed_packs.api.events.InitializePackEntryEvent;
 import io.github.fishstiz.packed_packs.api.gui.ElementSink;
@@ -20,18 +19,16 @@ import io.github.fishstiz.packed_packs.gui.components.PackListDevMenu;
 import io.github.fishstiz.packed_packs.gui.components.PreferenceHelper;
 import io.github.fishstiz.packed_packs.gui.model.PackListKey;
 import io.github.fishstiz.packed_packs.gui.model.PackListUtils;
-import io.github.fishstiz.packed_packs.gui.model.PackListViewModel;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.states.PackListState;
 import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
-import io.github.fishstiz.packed_packs.gui2.intents.PackListIntent;
-import io.github.fishstiz.packed_packs.gui2.models.PackEntry;
+import io.github.fishstiz.packed_packs.gui2.actions.intents.PackListIntent;
+import io.github.fishstiz.packed_packs.models.PackEntry;
 import io.github.fishstiz.packed_packs.gui2.services.PackResourcesService;
 import io.github.fishstiz.packed_packs.gui2.states.PackListEntrySelector;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.impl.context.ScreenContextImpl;
 import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
-import io.github.fishstiz.packed_packs.gui2.services.PackIconCache;
 import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.PackUtil;
@@ -187,10 +184,10 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     }
 
     private boolean canDropAt(ActiveAction.Dragging dragging, int mouseX, int mouseY, int index) {
-        if (this.scrolling || (dragging.target() == key() && isMouseOverSelection(dragging.payload(), mouseX, mouseY, index))) {
+        if (this.scrolling || (dragging.target() == key() && isMouseOverSelection(dragging.packs(), mouseX, mouseY, index))) {
             return false;
         }
-        return listModel.canDrop(dragging.target(), dragging.ctx().pack(), dragging.payload(), index);
+        return listModel.canDrop(dragging.target(), dragging.ctx().pack(), dragging.packs(), index);
     }
 
     private void renderDroppableSlots(GuiGraphicsExtractor graphics, ActiveAction.Dragging dragging, int mouseX, int mouseY, float partialTick) {
@@ -260,9 +257,9 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     public void onDrop(ActiveAction.Dragging dragging, int mouseX, int mouseY) {
         int index = getDropIndex(mouseY);
         if (canDropAt(dragging, mouseX, mouseY, index)) {
-            listModel.applyDrop(dragging.target(), dragging.ctx(), dragging.payload(), index);
+            listModel.applyDrop(dragging.target(), dragging.ctx(), dragging.packs(), index);
         } else {
-            listModel.cancelDrop(dragging.target(), dragging.ctx(), dragging.payload());
+            listModel.cancelDrop(dragging.target(), dragging.ctx(), dragging.packs());
         }
     }
 

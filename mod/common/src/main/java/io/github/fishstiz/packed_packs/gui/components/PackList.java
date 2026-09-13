@@ -157,10 +157,10 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     }
 
     private boolean canDropAt(ActiveAction.Dragging dragging, int mouseX, int mouseY, int index) {
-        if (this.scrolling || (dragging.target() == key() && isMouseOverSelection(dragging.payload(), mouseX, mouseY, index))) {
+        if (this.scrolling || (dragging.target() == key() && isMouseOverSelection(dragging.packs(), mouseX, mouseY, index))) {
             return false;
         }
-        return listModel.canDrop(dragging.target(), dragging.ctx().pack(), dragging.payload(), index);
+        return listModel.canDrop(dragging.target(), dragging.ctx().pack(), dragging.packs(), index);
     }
 
     private void renderDroppableSlots(GuiGraphicsExtractor graphics, ActiveAction.Dragging dragging, int mouseX, int mouseY, float partialTick) {
@@ -230,9 +230,9 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     public void onDrop(ActiveAction.Dragging dragging, int mouseX, int mouseY) {
         int index = getDropIndex(mouseY);
         if (canDropAt(dragging, mouseX, mouseY, index)) {
-            listModel.applyDrop(dragging.target(), dragging.ctx(), dragging.payload(), index);
+            listModel.applyDrop(dragging.target(), dragging.ctx(), dragging.packs(), index);
         } else {
-            listModel.cancelDrop(dragging.target(), dragging.ctx(), dragging.payload());
+            listModel.cancelDrop(dragging.target(), dragging.ctx(), dragging.packs());
         }
     }
 
