@@ -64,6 +64,8 @@ dependencies {
     compileOnly libs.resourcify
     compileOnly libs.polytone
     compileOnly libs.bundles.respackopts
+
+    compileOnly libs.vtdownloader
 }
 
 publishMods {
