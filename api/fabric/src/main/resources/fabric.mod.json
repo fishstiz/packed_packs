@@ -4,6 +4,13 @@
   "version": "${mod_version}",
   "name": "${mod_name}",
   "environment": "client",
+  "authors": [
+    "${mod_author}"
+  ],
+  "contact": {
+    "sources": "${sources}",
+    "issues": "${issues}"
+  },
   "custom": {
     "modmenu": {
       "parent": "${root_mod_id}",
