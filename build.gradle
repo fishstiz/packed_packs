@@ -17,7 +17,7 @@ publishMods {
     github {
         accessToken = findProperty("GITHUB_TOKEN") ?: ""
         repository = "fishstiz/packed_packs"
-        commitish = "mc/$minecraft_version"
+        commitish = "mc/26.3"
         version = mod_version
         tagName = "v${this.version}"
         displayName = "v${this.version}"
