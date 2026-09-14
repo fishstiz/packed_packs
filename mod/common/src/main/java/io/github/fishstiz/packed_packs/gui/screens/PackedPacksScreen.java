@@ -706,6 +706,14 @@ public class PackedPacksScreen extends FZScreen {
                 return searchField.keyPressed(event);
             }
         }
+        if (isSearch(event)) {
+            FZTextField searchField = getClosestSearchField();
+            if (searchField != null && !searchField.isFocused()) {
+                ribbonOpen.set(true);
+                setFocused(searchField);
+                return true;
+            }
+        }
         return false;
     }
 

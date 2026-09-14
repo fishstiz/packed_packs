@@ -147,4 +147,8 @@ public class InputUtil {
                !Minecraft.getInstance().hasControlDown() &&
                !Minecraft.getInstance().hasAltDown();
     }
+
+    public static boolean isSearch(KeyEvent keyEvent) {
+        return (keyEvent.modifiers() & MOD_CONTROL) != 0 && (keyEvent.key() == KEY_K || keyEvent.key() == KEY_F);
+    }
 }
