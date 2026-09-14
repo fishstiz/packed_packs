@@ -713,6 +713,14 @@ public class PackedPacksScreen extends FZScreen {
                 return searchField.keyPressed(keyCode, scanCode, modifiers);
             }
         }
+        if (isSearch(keyCode, modifiers)) {
+            FZTextField searchField = getClosestSearchField();
+            if (searchField != null && !searchField.isFocused()) {
+                ribbonOpen.set(true);
+                setFocused(searchField);
+                return true;
+            }
+        }
         return false;
     }
 

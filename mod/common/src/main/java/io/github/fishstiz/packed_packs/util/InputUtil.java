@@ -141,4 +141,8 @@ public class InputUtil {
     public static boolean isSelectModifierActive() {
         return hasControlDown();
     }
+
+    public static boolean isSearch(int keyCode, int modifiers) {
+        return (modifiers & MOD_CONTROL) != 0 && (keyCode == KEY_K || keyCode == KEY_F);
+    }
 }
