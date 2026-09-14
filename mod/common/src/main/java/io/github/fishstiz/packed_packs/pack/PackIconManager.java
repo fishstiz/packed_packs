@@ -9,7 +9,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.packs.PackResources;
+import net.minecraft.server.packs.PackMetadataResources;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.resources.IoSupplier;
 import net.minecraft.util.Util;
@@ -66,7 +66,7 @@ public class PackIconManager {
      */
     private CompletableFuture<@Nullable Identifier> loadPackIcon(Pack pack) {
         return CompletableFuture.supplyAsync(() -> {
-            try (PackResources packResources = pack.open()) {
+            try (PackMetadataResources packResources = pack.openMetadata()) {
                 IoSupplier<@NonNull InputStream> iconIoSupplier = packResources.getRootResource(PackUtil.ICON_FILENAME);
                 if (iconIoSupplier == null) return null;
 

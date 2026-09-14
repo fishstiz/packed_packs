@@ -1,5 +1,6 @@
 package io.github.fishstiz.packed_packs.util;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -146,5 +147,9 @@ public class InputUtil {
         return characterEvent.codepoint() != KEY_SPACE &&
                !Minecraft.getInstance().hasControlDown() &&
                !Minecraft.getInstance().hasAltDown();
+    }
+
+    public static boolean isSearch(KeyEvent keyEvent) {
+        return (keyEvent.modifiers() & MOD_CONTROL) != 0 && (keyEvent.key() == KEY_K || keyEvent.key() == KEY_F);
     }
 }

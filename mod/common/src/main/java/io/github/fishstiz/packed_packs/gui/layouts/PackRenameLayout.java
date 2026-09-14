@@ -86,9 +86,8 @@ public class PackRenameLayout extends WrappedLayout {
                         String newValue = e.target().getValue();
                         if (canSave(previousName, newValue)) {
                             store.dispatch(new PackListIntent.Rename(target, ctx, sanitizeNameForSave(ctx.pack(), newValue)));
-                            return true;
+                            e.confirm();
                         }
-                        return false;
                     })
                     .toProps())));
 

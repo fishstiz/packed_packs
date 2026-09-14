@@ -1,5 +1,6 @@
 package io.github.fishstiz.packed_packs.util;
 
+import com.mojang.blaze3d.Blaze3D;
 import com.sun.jna.platform.FileUtils;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
@@ -197,7 +198,7 @@ public class PackUtil {
     public static void openPack(Pack pack) {
         var path = ((FilePack) pack).packed_packs$getPath();
         if (path != null) {
-            Util.getPlatform().openPath(path);
+            Blaze3D.openPath(path);
         }
     }
 
@@ -222,12 +223,12 @@ public class PackUtil {
                 }
                 default -> {
                     Path parent = path.getParent();
-                    if (parent != null) Util.getPlatform().openPath(parent);
+                    if (parent != null) Blaze3D.openPath(parent);
                 }
             }
         } catch (IOException e) {
             Path parent = path.getParent();
-            if (parent != null) Util.getPlatform().openPath(parent);
+            if (parent != null) Blaze3D.openPath(parent);
         }
     }
 

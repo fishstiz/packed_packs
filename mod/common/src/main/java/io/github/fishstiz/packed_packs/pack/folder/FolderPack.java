@@ -52,7 +52,7 @@ public class FolderPack extends Pack implements FilePack {
         PackLocationInfo locationInfo = folderLocationInfo.packLocationInfo();
         FolderResourcesSupplier resourcesSupplier = new FolderResourcesSupplier(folderLocationInfo.path());
         CompletableFuture<FolderPackMeta> folderPackMetaFuture = CompletableFuture.supplyAsync(() -> {
-            try (PackResources resources = resourcesSupplier.openFull(locationInfo, FOLDER_METADATA)) {
+            try (PackResources resources = resourcesSupplier.openMetadata(locationInfo)) {
                 var configIoSupplier = resources.getRootResource(FolderResources.FOLDER_CONFIG_FILENAME);
                 if (configIoSupplier == null) {
                     throw new RuntimeException("FolderPack does not supply metadata");

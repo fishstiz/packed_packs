@@ -28,6 +28,7 @@ neoForge {
             ideName = "NeoForge Client ($project.path)"
             sourceSet = sourceSets.main
             loadedMods = [mods."$mod_id"]
+            jvmArgument('-XX:StackShadowPages=32')
         }
     }
 }

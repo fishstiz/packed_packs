@@ -1,5 +1,6 @@
 package io.github.fishstiz.packed_packs.gui.model;
 
+import com.mojang.blaze3d.Blaze3D;
 import io.github.fishstiz.fidgetz.v0.gui.state.FZRef;
 import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
@@ -528,7 +529,7 @@ public class PackedPacksStore implements FZRef<PackedPacksState> {
     }
 
     public void openBaseDir() {
-        Util.getPlatform().openPath(repository.getBaseDir());
+        Blaze3D.openPath(repository.getBaseDir());
     }
 
     public void stopWatcher() {

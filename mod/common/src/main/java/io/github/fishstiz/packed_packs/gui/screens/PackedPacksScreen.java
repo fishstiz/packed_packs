@@ -1,5 +1,6 @@
 package io.github.fishstiz.packed_packs.gui.screens;
 
+import com.mojang.blaze3d.Blaze3D;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import io.github.fishstiz.fidgetz.v0.gui.components.*;
@@ -358,7 +359,7 @@ public class PackedPacksScreen extends FZScreen {
                                 .entryDivider(null);
 
                         for (Path path : paths) {
-                            dropdown.entry(Component.literal(path.getFileName().toString()), () -> Util.getPlatform().openPath(path));
+                            dropdown.entry(Component.literal(path.getFileName().toString()), () -> Blaze3D.openPath(path));
                         }
 
                         folders.child(dropdown.build());
@@ -632,7 +633,7 @@ public class PackedPacksScreen extends FZScreen {
     }
 
     @Override
-    public boolean charTyped(CharacterEvent event) {
+    public boolean charTyped(CharacterEvent event) { // this is p much dead code now after SDL
         if (store.value().dragging() != null) {
             return true;
         }
@@ -706,6 +707,14 @@ public class PackedPacksScreen extends FZScreen {
                 return searchField.keyPressed(event);
             }
         }
+        if (isSearch(event)) {
+            FZTextField searchField = getClosestSearchField();
+            if (searchField != null && !searchField.isFocused()) {
+                ribbonOpen.set(true);
+                setFocused(searchField);
+                return true;
+            }
+        }
         return false;
     }
 
@@ -774,7 +783,7 @@ public class PackedPacksScreen extends FZScreen {
             for (Path folder : folders) {
                 parent.child(FZPopoverMenuItem.builder()
                         .message(Component.literal(folder.getFileName().toString()))
-                        .onPress(() -> Util.getPlatform().openPath(folder))
+                        .onPress(() -> Blaze3D.openPath(folder))
                         .build());
             }
 

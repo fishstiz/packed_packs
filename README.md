@@ -84,7 +84,7 @@ controls.
 - Toggle profiles sidebar — <kbd>Ctrl</kbd> + <kbd>`</kbd>
 - Switch between default and no profile — <kbd>F1</kbd>
 - Refresh packs — <kbd>F5</kbd>
-- Focus search bar — type any character
+- Focus search bar — <kbd>Ctrl</kbd> + <kbd>F</kbd> | <kbd>Ctrl</kbd> + <kbd>K</kbd>
 
 </details>
 
