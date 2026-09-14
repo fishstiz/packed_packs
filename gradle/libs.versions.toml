@@ -16,6 +16,8 @@ polytone = { module = "maven.modrinth:polytone", version = "4TzQaJSC" }
 respackopts = { module = "maven.modrinth:respackopts", version = "rvxfk9Zr" }
 libjf-resourcePackEntryWidgets = { module = "dev.jfronny.libjf:libjf-resource-pack-entry-widgets-v0", version = "26.1.1-SNAPSHOT" }
 
+vtdownloader = { module = "maven.modrinth:1E2sq1cp", version = "gcytCNFG" }
+
 [bundles]
 mixin = ["mixin", "mixin-extras"]
 
