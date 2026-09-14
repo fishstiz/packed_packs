@@ -1,5 +1,6 @@
 [versions]
 fidgetz = "0.7.1+26.2"
+fidgetz-neoforge = "0.7.1-neoforge.1+26.2"
 
 [libraries]
 mixin = { module = "org.spongepowered:mixin", version = "0.8.7" }
@@ -7,7 +8,7 @@ mixin-extras = { module = "io.github.llamalad7:mixinextras-common", version = "0
 
 fidgetz-common = { module = "io.github.fishstiz.fidgetz:fidgetz-common", version.ref = "fidgetz" }
 fidgetz-fabric = { module = "io.github.fishstiz.fidgetz:fidgetz-fabric", version.ref = "fidgetz" }
-fidgetz-neoforge = { module = "io.github.fishstiz.fidgetz:fidgetz-neoforge", version.ref = "fidgetz" }
+fidgetz-neoforge = { module = "io.github.fishstiz.fidgetz:fidgetz-neoforge", version.ref = "fidgetz-neoforge" }
 
 modmenu = { module = "com.terraformersmc:modmenu", version = "20.0.0-alpha.1" }
 
