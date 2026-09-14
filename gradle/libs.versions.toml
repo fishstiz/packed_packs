@@ -1,6 +1,6 @@
 [versions]
-fidgetz = "0.6.2+1.21.1-patch.1"
-minecraftCursor = "3.11.1-dev.1+1.21.1"
+fidgetz = "0.7.3+1.21.1"
+minecraftCursor = "3.11.3+1.21.1"
 
 [libraries]
 mixin = { module = "org.spongepowered:mixin", version = "0.8.7" }
