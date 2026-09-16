@@ -1,5 +1,6 @@
 package io.github.fishstiz.packed_packs.transform.mixin.folders;
 
+import io.github.fishstiz.packed_packs.pack.FolderLocationInfo;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
@@ -11,19 +12,19 @@ import java.nio.file.Path;
 @Mixin(Pack.class)
 public abstract class PackMixin implements FilePack {
     @Unique
-    private boolean packed_packs$nested = false;
-
-    @Unique
     private Path packed_packs$path;
 
+    @Unique
+    private FolderLocationInfo packed_packs$parent;
+
     @Override
-    public boolean packed_packs$nestedPack() {
-        return this.packed_packs$nested;
+    public @Nullable FolderLocationInfo packed_packs$getParent() {
+        return this.packed_packs$parent;
     }
 
     @Override
-    public void packed_packs$setNestedPack(boolean nested) {
-        this.packed_packs$nested = nested;
+    public void packed_packs$setParent(FolderLocationInfo parent) {
+        this.packed_packs$parent = parent;
     }
 
     @Override

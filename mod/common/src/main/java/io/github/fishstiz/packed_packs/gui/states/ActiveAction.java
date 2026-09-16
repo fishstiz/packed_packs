@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
 import io.github.fishstiz.packed_packs.gui.model.PackListKey;
-import io.github.fishstiz.packed_packs.models.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackEntry;
 
 import java.util.List;
 import java.util.SequencedCollection;

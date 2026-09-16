@@ -4,9 +4,8 @@ import io.github.fishstiz.fidgetz.v0.gui.components.*;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
 import io.github.fishstiz.packed_packs.gui.components.ProfileList;
-import io.github.fishstiz.packed_packs.gui.model.ProfilesViewModel;
-import io.github.fishstiz.packed_packs.gui2.Store;
-import io.github.fishstiz.packed_packs.gui2.actions.intents.ProfileIntent;
+import io.github.fishstiz.packed_packs.gui.Store;
+import io.github.fishstiz.packed_packs.gui.actions.intents.ProfileIntent;
 import io.github.fishstiz.packed_packs.impl.context.Context;
 import net.minecraft.network.chat.Component;
 
@@ -14,6 +13,7 @@ import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
 
 public class SidebarLayout extends WrappedLayout {
     private static final int WIDTH = 175;
+
 
     protected SidebarLayout(FZLayout layout) {
         super(layout);
@@ -32,7 +32,7 @@ public class SidebarLayout extends WrappedLayout {
                         .onPress(close)
                         .build());
                 header.child(
-                        FZText.builder(ProfilesViewModel.TITLE_TEXT).build(),
+                        FZText.builder(PROFILE_TITLE_TEXT).build(),
                         header.flexChildHorizontalSettings()
                 );
             });
@@ -43,7 +43,7 @@ public class SidebarLayout extends WrappedLayout {
                 actions.child(FZButton.bind("NoProfileButton", store
                         .map(s -> s.profiles().selectedProfile())
                         .map(profile -> FZButton.builder()
-                                .message(ProfilesViewModel.NO_PROFILE_TEXT)
+                                .message(NO_PROFILE_TEXT)
                                 .onPress(() -> store.dispatch(new ProfileIntent.Select(null)))
                                 .active(profile != null)
                                 .toProps())));

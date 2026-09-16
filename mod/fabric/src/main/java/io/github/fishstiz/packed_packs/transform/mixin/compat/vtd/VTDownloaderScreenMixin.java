@@ -2,7 +2,7 @@ package io.github.fishstiz.packed_packs.transform.mixin.compat.vtd;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import io.github.fishstiz.packed_packs.compat.PackWrapperDelegatorAbstractionEpicModelEntry;
+import io.github.fishstiz.packed_packs.api.context.PackContext;
 import me.bymartrixx.vtd.gui.VTDownloadScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
@@ -25,7 +25,7 @@ public abstract class VTDownloaderScreenMixin extends Screen {
 
     @WrapOperation(method = "readResourcePack", at = @At(value = "INVOKE", target = "Ljava/lang/Class;isNestmateOf(Ljava/lang/Class;)Z"))
     private boolean hasPack(Class<?> instance, Class<?> clazz, Operation<Boolean> original) {
-        return original.call(instance, clazz) || this.packEntry instanceof PackWrapperDelegatorAbstractionEpicModelEntry;
+        return original.call(instance, clazz) || this.packEntry instanceof PackContext;
     }
 
     @WrapOperation(
@@ -40,7 +40,7 @@ public abstract class VTDownloaderScreenMixin extends Screen {
             )
     )
     private PackSelectionModel.Entry getPackEntry(@Coerce Screen instance, Operation<PackSelectionModel.Entry> original) {
-        return this.packEntry instanceof PackWrapperDelegatorAbstractionEpicModelEntry ? null : original.call(instance);
+        return this.packEntry instanceof PackContext ? null : original.call(instance);
     }
 
     @WrapOperation(method = "readResourcePack", at = @At(
@@ -49,6 +49,6 @@ public abstract class VTDownloaderScreenMixin extends Screen {
             remap = true
     ))
     private Pack getPack(@Coerce Object instance, Operation<Pack> original) {
-        return this.packEntry instanceof PackWrapperDelegatorAbstractionEpicModelEntry(Pack pack) ? pack : original.call(instance);
+        return this.packEntry instanceof PackContext ctx ? ctx.pack() : original.call(instance);
     }
 }

@@ -7,8 +7,8 @@ import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.config.ProfileManager;
 import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
 import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
-import io.github.fishstiz.packed_packs.gui2.Store;
-import io.github.fishstiz.packed_packs.gui2.actions.intents.ProfileIntent;
+import io.github.fishstiz.packed_packs.gui.Store;
+import io.github.fishstiz.packed_packs.gui.actions.intents.ProfileIntent;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
@@ -16,7 +16,6 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
-import static io.github.fishstiz.packed_packs.gui.model.ProfilesViewModel.NO_PROFILE_TEXT;
 import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
 
 public class ProfileTitleLayout {

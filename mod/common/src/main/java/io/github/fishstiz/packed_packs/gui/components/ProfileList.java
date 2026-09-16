@@ -9,8 +9,8 @@ import io.github.fishstiz.packed_packs.config.DevConfig.ResourcePacks.LoadDefaul
 import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
 import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
-import io.github.fishstiz.packed_packs.gui2.Store;
-import io.github.fishstiz.packed_packs.gui2.actions.intents.ProfileIntent;
+import io.github.fishstiz.packed_packs.gui.Store;
+import io.github.fishstiz.packed_packs.gui.actions.intents.ProfileIntent;
 import io.github.fishstiz.packed_packs.impl.context.Context;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -23,7 +23,6 @@ import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -167,10 +166,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         private final FZFlexLayout layout;
         private final Profile profile;
         private final int index;
-        private FZIconButton deleteButton;
         private FZButton selectButton;
-        private @Nullable FZIconButton defaultButton;
-        private @Nullable FZIconButton lockButton;
         private boolean prevDefault;
         private boolean prevLocked;
 
@@ -195,7 +191,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         private void buildWidgets(boolean isDefault, boolean isLocked) {
             boolean deleteActive = !isLocked && !isDefault;
 
-            this.deleteButton = addChild(layout.child(FZIconButton.builder()
+            addChild(layout.child(FZIconButton.builder()
                     .square()
                     .id("DeleteButton")
                     .message(Component.translatable("packed_packs.profile.delete"))
@@ -213,7 +209,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
                     .build(), layout.flexChildHorizontalSettings()));
 
             if (devMode) {
-                this.defaultButton = addChild(layout.child(FZIconButton.builder()
+                addChild(layout.child(FZIconButton.builder()
                         .id("DefaultButton")
                         .square()
                         .icon(new WidgetElements(isDefault ? STAR_SPRITE : STAR_OUTLINE_SPRITE, 16, 16))
@@ -223,7 +219,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
                         .onPress(this::toggleDefault)
                         .build()));
 
-                this.lockButton = addChild(layout.child(FZIconButton.builder(isLocked ? LOCK_SPRITES : UNLOCK_SPRITES)
+                addChild(layout.child(FZIconButton.builder(isLocked ? LOCK_SPRITES : UNLOCK_SPRITES)
                         .id("LockButton")
                         .square()
                         .tooltip(isLocked
@@ -238,9 +234,6 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         }
 
         private void rebuildWidgets(boolean isDefault, boolean isLocked) {
-            this.lockButton = null;
-            this.defaultButton = null;
-
             children.clear();
             layout.removeChildren();
 

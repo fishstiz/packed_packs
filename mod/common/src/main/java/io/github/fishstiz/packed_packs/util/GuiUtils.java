@@ -8,7 +8,6 @@ import io.github.fishstiz.fidgetz.v0.gui.renderables.RenderableRectangle;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.fidgetz.v0.utils.GuiGraphicsUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
@@ -39,6 +38,9 @@ public final class GuiUtils {
     public static final Component OPEN_PARENT_TEXT = Component.translatable("packed_packs.file.parent.open");
     public static final Component RENAME_FILE_TEXT = Component.translatable("packed_packs.file.rename");
     public static final Component DELETE_FILE_TEXT = Component.translatable("packed_packs.file.delete");
+    public static final Component FOLDER_OPEN_TEXT = Component.translatable("packed_packs.folder.open");
+    public static final Component PROFILE_TITLE_TEXT = Component.translatable("packed_packs.profile");
+    public static final Component NO_PROFILE_TEXT = Component.translatable("packed_packs.profile.none");
 
     public static FZFlexLayout vertical() {
         return FZFlexLayout.vertical().spacing(SPACING);

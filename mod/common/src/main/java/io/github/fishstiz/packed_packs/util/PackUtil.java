@@ -4,9 +4,6 @@ import com.sun.jna.platform.FileUtils;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
-import io.github.fishstiz.packed_packs.config.PackOptions;
-import io.github.fishstiz.packed_packs.pack.PackGroup;
-import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
 import io.github.fishstiz.packed_packs.platform.Services;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.transform.mixin.UtilAccess;
@@ -117,47 +114,6 @@ public class PackUtil {
 
     public static boolean isZipPath(@Nullable Path path) {
         return path != null && Files.isRegularFile(path) && PackUtil.fileName(path).endsWith(ZIP_PACK_EXTENSION);
-    }
-
-    public static List<Pack> flattenPacks(Collection<Pack> packs) {
-        List<Pack> flattened = new ObjectArrayList<>(packs.size());
-        for (Pack pack : packs) {
-            if (pack instanceof FolderPack folderPack) {
-                flattened.addAll(folderPack.flatten());
-            } else {
-                flattened.add(pack);
-            }
-        }
-        return flattened;
-    }
-
-    public static List<String> flattenPackIds(Collection<Pack> packs) {
-        List<String> flattened = new ObjectArrayList<>(packs.size());
-        for (Pack pack : packs) {
-            if (pack instanceof FolderPack folderPack) {
-                flattened.addAll(extractPackIds(folderPack.flatten()));
-            } else {
-                flattened.add(pack.getId());
-            }
-        }
-        return flattened;
-    }
-
-    public static Path validatePackPath(Pack pack) {
-        if (pack == null) {
-            return null;
-        }
-        Path path = ((FilePack) pack).packed_packs$getPath();
-        if (path == null) {
-            return null;
-        }
-
-        try {
-            return Files.exists(path) ? path : null;
-        } catch (Exception e) {
-            PackedPacks.LOGGER.error("[packed_packs] Could not read file: '{}'", path);
-            return null;
-        }
     }
 
     public static List<Path> mapValidDirectories(Collection<String> paths) {
@@ -317,43 +273,4 @@ public class PackUtil {
             this.rejected.remove(path);
         }
     }
-// todo, instead of computing in reducer, just reset state
-    public static PackGroup syncPackSelection(ObjectOpenHashSet<Pack> allPacks, List<Pack> unselectedPacks, List<Pack> selectedPacks, PackOptions options) {
-        Set<Pack> seen = new ObjectOpenHashSet<>(allPacks.size());
-
-        List<Pack> newSelectedPacks = new ObjectArrayList<>(selectedPacks.size());
-        for (Pack pack : selectedPacks) {
-            Pack validPack = allPacks.get(pack);
-            if (validPack != null && seen.add(validPack)) {
-                newSelectedPacks.add(validPack);
-            }
-        }
-
-        List<Pack> newUnselectedPacks = new ObjectArrayList<>(unselectedPacks.size());
-        for (Pack unselectedPack : unselectedPacks) {
-            // use pack from the master list as the metadata may have updated
-            Pack pack = allPacks.get(unselectedPack);
-            if (pack != null && seen.add(pack)) {
-                if (options.isRequired(pack)) {
-                    options.getPosition(pack).insert(newSelectedPacks, pack, options::getSelectionConfig, true);
-                } else {
-                    newUnselectedPacks.add(pack);
-                }
-            }
-        }
-
-        for (Pack pack : allPacks) {
-            if (seen.add(pack)) {
-                if (options.isRequired(pack)) {
-                    options.getPosition(pack).insert(newSelectedPacks, pack, options::getSelectionConfig, true);
-                } else {
-                    newUnselectedPacks.add(pack);
-                }
-            }
-        }
-
-        return new PackGroup(newSelectedPacks, newUnselectedPacks);
-    }
-
-
 }

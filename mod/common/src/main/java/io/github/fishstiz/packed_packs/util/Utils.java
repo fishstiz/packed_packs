@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs.util;
 
 import net.minecraft.util.Util;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Iterator;
 import java.util.Objects;
@@ -33,5 +34,9 @@ public final class Utils {
             futures[i] = CompletableFuture.runAsync(tasks[i], Util.backgroundExecutor());
         }
         CompletableFuture.allOf(futures).join();
+    }
+
+    public static <T> @Nullable T getScopedValue(ScopedValue<T> scopedValue) {
+        return scopedValue.isBound() ? scopedValue.get() : null;
     }
 }

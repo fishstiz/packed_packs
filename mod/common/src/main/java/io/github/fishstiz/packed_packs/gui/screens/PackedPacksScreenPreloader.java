@@ -2,7 +2,6 @@ package io.github.fishstiz.packed_packs.gui.screens;
 
 import io.github.fishstiz.fidgetz.v0.utils.GuiHooks;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.platform.Services;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -45,16 +44,15 @@ public class PackedPacksScreenPreloader implements Renderable {
 
         CompletableFuture.runAsync(() -> {
             long start = 0;
-            boolean debug = System.getProperty("packed_packs.debug") != null;
 
-            if (debug) {
+            if (PackedPacks.DEBUG) {
                 start = System.nanoTime();
                 PackedPacks.LOGGER.info("[packed_packs] ======== Preloading PackedPacksScreen ========");
             }
 
             PackedPacksScreen.preload(minecraft);
 
-            if (debug) {
+            if (PackedPacks.DEBUG) {
                 long duration = (System.nanoTime() - start) / 1_000_000;
                 PackedPacks.LOGGER.info("[packed_packs] ======== Preloaded PackedPacksScreen in {}ms ========", duration);
             }
