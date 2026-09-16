@@ -7,12 +7,18 @@ import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Objects;
 import java.util.function.BiPredicate;
 
 public interface ProfileSelection {
     @Nullable Profile defaultProfile();
 
     @Nullable Profile selectedProfile();
+
+    default boolean isSelected(Profile profile) {
+        Profile selectedProfile = selectedProfile();
+        return selectedProfile != null && Objects.equals(selectedProfile.getId(), profile.getId());
+    }
 
     default boolean isLocked() {
         Profile selectedProfile = selectedProfile();
@@ -99,7 +105,6 @@ public interface ProfileSelection {
     }
 
 
-
     default boolean isSelectedDefault() {
         Profile selectedProfile = selectedProfile();
         return selectedProfile != null && selectedProfile == defaultProfile();
@@ -126,5 +131,19 @@ public interface ProfileSelection {
         }
 
         return scope;
+    }
+
+    default void validate(PackEntry pack) {
+        Profile selectedProfile = selectedProfile();
+        if (selectedProfile == null) return;
+
+        Profile defaultProfile = defaultProfile();
+
+        // non-default profiles cannot override required to false (why?? i forgor now)
+        if (defaultProfile == null || !defaultProfile.overridesRequired(pack.id())) {
+            if (selectedProfile.overridesRequired(pack.id()) && !selectedProfile.isRequired(pack.id())) {
+                selectedProfile.withRequiredOverride(null, pack.id());
+            }
+        }
     }
 }

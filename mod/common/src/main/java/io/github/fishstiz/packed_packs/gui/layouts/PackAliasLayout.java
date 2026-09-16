@@ -10,11 +10,11 @@ import io.github.fishstiz.fidgetz.v0.gui.text.TextStyleRegexMatcher;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
 import io.github.fishstiz.packed_packs.config.DevConfig;
-import io.github.fishstiz.packed_packs.gui.intents.PackListIntent;
-import io.github.fishstiz.packed_packs.gui.model.PackListKey;
-import io.github.fishstiz.packed_packs.gui.model.PackedPacksStore;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
-import io.github.fishstiz.packed_packs.api.context.PackContext;
+import io.github.fishstiz.packed_packs.gui2.Store;
+import io.github.fishstiz.packed_packs.gui2.actions.intents.PackListIntent;
+import io.github.fishstiz.packed_packs.gui2.services.PackResourcesService;
+import io.github.fishstiz.packed_packs.models.PackEntry;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.gui.text.GroupCloseStyleMatcher;
 import net.minecraft.network.chat.Component;
@@ -49,20 +49,21 @@ public class PackAliasLayout extends WrappedLayout {
         closeHandler.run();
     }
 
-    public static PackAliasLayout create(PackedPacksStore store, List<TextStyleMatcher> styleMatchers) {
+    public static PackAliasLayout create(Store store) {
         ActiveAction.EditingAliases editingAliases = store.value().editingAliases();
         if (editingAliases == null) {
             return new PackAliasLayout(error(Component.literal("editingAliases is null")));
         }
 
-        final PackListKey key = editingAliases.target();
-        final PackContext ctx = editingAliases.ctx();
+        PackResourcesService resources = store.getPackResourcesService();
+        List<TextStyleMatcher> styles = styleMatchers();
+        PackEntry pack = editingAliases.pack();
         final FZMutableRef<List<MutableObject<String>>> aliasesRef = new FZMutableRef<>(editingAliases
                 .aliases()
                 .stream()
                 .map(MutableObject::new)
                 .collect(Collectors.toCollection(ArrayList::new)));
-        final Runnable closeHandler = () -> store.dispatch(new PackListIntent.CloseAliases(key, ctx, aliasesRef
+        final Runnable closeHandler = () -> store.dispatch(new PackListIntent.CloseAliases(aliasesRef
                 .value()
                 .stream()
                 .map(MutableObject::get)
@@ -75,8 +76,8 @@ public class PackAliasLayout extends WrappedLayout {
             root.child(FZFlexLayout.horizontal(), root.flexChildHorizontalSettings()).also(header -> {
                 header.maxWidth(WIDTH).spacing(SPACING).defaultChildSettings().alignVerticallyMiddle();
 
-                header.child(FZIcon.builder(Renderables.texture(ctx.icon(), 32, 32)).build());
-                header.child(FZText.builder(ctx.pack().getTitle())
+                header.child(FZIcon.builder(Renderables.texture(resources.getIcon(pack), 32, 32)).build());
+                header.child(FZText.builder(pack.title())
                         .build(), header.flexChildHorizontalSettings());
                 header.child(FZButton.builder()
                         .square()
@@ -101,7 +102,7 @@ public class PackAliasLayout extends WrappedLayout {
                                     .onChange(e -> alias.setValue(e.value()))
                                     .allowSectionSign()
                                     .maxLength(MAX_LENGTH)
-                                    .styleMatchers(styleMatchers)
+                                    .styleMatchers(styles)
                                     .build(), entry.flexChildHorizontalSettings());
                             entry.child(FZButton.builder()
                                     .square()
@@ -122,7 +123,7 @@ public class PackAliasLayout extends WrappedLayout {
         return new GroupCloseStyleMatcher(open, close, Style.EMPTY.withColor(color), DevConfig.Packs::isRegexPrefixed);
     }
 
-    public static List<TextStyleMatcher> styleMatchers() {
+    private static List<TextStyleMatcher> styleMatchers() {
         return List.of(
                 // unescaped forward slash
                 createRegexMatcher(Pattern.compile("(?<!\\\\)/"), Colors.RED_700),

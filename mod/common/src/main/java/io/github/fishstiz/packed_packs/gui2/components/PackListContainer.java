@@ -7,8 +7,8 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.Justification;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
-import io.github.fishstiz.fidgetz.v0.gui.state.FZRef;
 import io.github.fishstiz.packed_packs.PackedPacks;
+import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.gui.ContainerEventHandlerPatch;
 import io.github.fishstiz.packed_packs.gui.FocusPathProvider;
 import io.github.fishstiz.packed_packs.gui.FocusTarget;
@@ -17,12 +17,12 @@ import io.github.fishstiz.packed_packs.gui.model.PackListType;
 import io.github.fishstiz.packed_packs.gui.model.PackListUtils;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.states.PackListState;
-import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
+import io.github.fishstiz.packed_packs.gui2.Store;
 import io.github.fishstiz.packed_packs.gui2.actions.intents.PackListIntent;
 import io.github.fishstiz.packed_packs.gui2.states.PackListComputed;
-import io.github.fishstiz.packed_packs.models.PackEntry;
 import io.github.fishstiz.packed_packs.gui2.services.PackResourcesService;
-import io.github.fishstiz.packed_packs.impl.context.ScreenContextImpl;
+import io.github.fishstiz.packed_packs.impl.context.Context;
+import io.github.fishstiz.packed_packs.models.PackEntry;
 import io.github.fishstiz.packed_packs.models.ProfileSelection;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
@@ -54,7 +54,7 @@ import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
 public class PackListContainer extends AbstractWidget implements FocusPathProvider, Layout, ContainerEventHandlerPatch {
     private final PackListKey key;
     private final @Nullable PackListContainer root;
-    private final ScreenContextImpl screenContext;
+    private final Context context;
     private final PackResourcesService resources;
     private final PackList packList;
     private final PackListComputed state;
@@ -65,17 +65,17 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
     private PackListContainer(
             @Nullable PackListContainer root,
-            ScreenContextImpl screenContext,
+            Context context,
             PackResourcesService resources,
             PackListComputed state
     ) {
         super(0, 0, 0, 0, CommonComponents.EMPTY);
         this.key = state.key();
         this.root = root;
-        this.screenContext = screenContext;
+        this.context = context;
         this.resources = resources;
         this.state = state;
-        this.packList = new PackList(screenContext, resources, state);
+        this.packList = new PackList(context, resources, state);
         this.children = List.of(this.packList);
     }
 
@@ -85,22 +85,20 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             PackListState.Folder state,
             PackListKey key
     ) {
-        this(root, root.screenContext, resources, new PackListComputed(key, state.contents(), root.state.profiles()));
+        this(root, root.context, resources, new PackListComputed(key, state.contents(), root.state.profiles()));
     }
 
-    public static PackListContainer createRoot(
-            ScreenContextImpl context,
-            PackResourcesService resources,
-            PackListType type,
-            FZRef<PackedPacksState> state
-    ) {
+    public static PackListContainer createRoot(Context context, Store store, PackListType type) {
         PackListKey key = PackListKey.root(type);
-        PackListComputed computed = new PackListComputed(key, state.value().rootTargetList(type), state.value().profiles());
-        PackListContainer root = new PackListContainer(null, context, resources, computed);
+        PackListComputed computed = new PackListComputed(key, store.value().rootTargetList(type), store.value().profiles());
+        PackListContainer root = new PackListContainer(null, context, store.getPackResourcesService(), computed);
 
-        state.subscribe(
-                "PackListContainer#%s@%s".formatted(root.hashCode(), key),
-                value -> root.onStateChanged(value.rootTargetList(type), value.profiles())
+        store.subscribe(
+                "PackListContainer@" + key,
+                value -> {
+                    root.onStateChanged(value.rootTargetList(type), value.profiles());
+                    root.onStateChanged(value.dragging(), value.hideWarnings());
+                }
         );
 
         return root;
@@ -113,16 +111,28 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
     }
 
+    private void onStateChanged(ActiveAction.@Nullable Dragging dragging, boolean hideWarnings) {
+        state.onDrag(dragging);
+        state.onHideIncompatibleWarnings(hideWarnings);
+
+        if (folder != null) {
+            folder.listContainer.onStateChanged(dragging, hideWarnings);
+        }
+    }
+
     private void onStateChanged(PackListState state, ProfileSelection profiles) {
         PackListState prev = this.state.state();
         ProfileSelection prevProfiles = this.state.profiles();
+
         if (prev == state && profiles == prevProfiles) {
             return;
         }
 
         this.state.onStateChanged(state, profiles);
 
+        PackListState.Folder previousFolderState = prev.folder();
         PackListState.Folder folderState = state.folder();
+
         if ((folderState == null) != (this.folder == null)) {
             if (folderState != null) {
                 Folder newFolder = new Folder(root == null ? this : root, resources, key.nest(), folderState);
@@ -131,6 +141,16 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
                 ComponentPath path = newFolder.nextFocusPath(new FocusNavigationEvent.InitialFocus());
                 if (path != null) path.applyFocus(true);
             } else {
+                if (previousFolderState != null) {
+                    resources.saveFolderMetadata(
+                            previousFolderState.pack(),
+                            new FolderPackMeta(
+                                    previousFolderState.locked(),
+                                    previousFolderState.contents().packs().stream().map(PackEntry::id).toList()
+                            )
+                    );
+                }
+
                 this.folder = null;
                 updateChild(packList);
             }
@@ -315,7 +335,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
     @Override
     public void removeChildren() {
         if (this.folder != null) {
-            screenContext.dispatch(new PackListIntent.CloseFolder(key));
+            context.dispatch(new PackListIntent.CloseFolder(key));
         }
     }
 
@@ -341,7 +361,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             this.closeButton = FZIconButton.builder()
                     .size(HEADER_SIZE, HEADER_SIZE)
                     .icon(new WidgetElements(PackedPacks.id("icon/cross"), 16, 16))
-                    .onPress(() -> root.screenContext.dispatch(new PackListIntent.CloseFolder(key)))
+                    .onPress(() -> root.context.dispatch(new PackListIntent.CloseFolder(key)))
                     .build();
             this.folderIcon = FZIcon.builder(GuiUtils.lazyTexture(() -> resources.getIcon(pack), 16, 16))
                     .size(HEADER_SIZE, HEADER_SIZE)
@@ -428,18 +448,18 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
             collector.addEntry(builder -> builder
                     .message(CommonComponents.GUI_BACK.copy().append(CommonComponents.ELLIPSIS))
-                    .onPress(() -> root.screenContext.dispatch(new PackListIntent.CloseFolder(listContainer.key.unnest()))));
+                    .onPress(() -> root.context.dispatch(new PackListIntent.CloseFolder(listContainer.key.unnest()))));
 
             if (!listContainer.packList.isHovered()) {
                 if (listContainer.resources.isModifiable(listContainer.state.profiles(), pack)) {
                     collector.addEntry(builder -> builder
                             .message(RENAME_FILE_TEXT)
                             .active(() -> listContainer.resources.isModifiable(listContainer.state.profiles(), pack))
-                            .onPress(() -> root.screenContext.dispatch(new PackListIntent.OpenRenameModal(listContainer.key, pack))));
+                            .onPress(() -> root.context.dispatch(new PackListIntent.OpenRenameModal(listContainer.key, pack))));
                     collector.addEntry(builder -> builder
                             .message(DELETE_FILE_TEXT)
                             .active(() -> listContainer.resources.isModifiable(listContainer.state.profiles(), pack))
-                            .onPress(() -> root.screenContext.dispatch(new PackListIntent.Delete(listContainer.key, pack))));
+                            .onPress(() -> root.context.dispatch(new PackListIntent.Delete(listContainer.key, pack))));
                 }
 
                 collector.addEntry(builder -> builder.message(OPEN_FILE_TEXT).onPress(() -> PackUtil.openPack(pack.path())));

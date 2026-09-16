@@ -17,6 +17,15 @@ public sealed interface Mutation permits
     }
 
     record Reset(PackEntryLists packs) implements Mutation {
+        @Override
+        public boolean pushState() {
+            return false;
+        }
+
+        @Override
+        public boolean resetHistory() {
+            return true;
+        }
     }
 
     record PackRenaming(boolean loading) implements Mutation {

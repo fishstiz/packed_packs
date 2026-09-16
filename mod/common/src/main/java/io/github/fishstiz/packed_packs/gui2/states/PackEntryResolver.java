@@ -1,16 +1,21 @@
 package io.github.fishstiz.packed_packs.gui2.states;
 
+import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
+import io.github.fishstiz.packed_packs.gui.model.PackListType;
+import io.github.fishstiz.packed_packs.gui.states.PackListState;
 import io.github.fishstiz.packed_packs.models.PackEntry;
 import io.github.fishstiz.packed_packs.models.PackEntryLists;
 import io.github.fishstiz.packed_packs.models.ProfileSelection;
 import io.github.fishstiz.packed_packs.gui2.services.PackRepositoryService;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -161,5 +166,58 @@ public class PackEntryResolver {
     private static boolean isModule(PackRepositoryService repository, String folderId) {
         FolderPackMeta meta = repository.getFolderMetadata(folderId);
         return meta != null && meta.module();
+    }
+
+    public static List<PackEntry> resolveChildren(
+            List<PackEntry> unsortedChildren,
+            FolderPackMeta metadata,
+            PackListType type,
+            PackListState enabledPacks
+    ) {
+        if (metadata.module()) {
+            Map<String, PackEntry> contentById = new Object2ObjectOpenHashMap<>(
+                    unsortedChildren.size(),
+                    0.99f
+            );
+
+            for (PackEntry pack : unsortedChildren) {
+                contentById.put(pack.id(), pack);
+            }
+
+            List<String> orderedIds = metadata.packIds();
+            Set<PackEntry> seen = new ObjectOpenHashSet<>();
+            List<PackEntry> sorted = new ObjectArrayList<>(unsortedChildren.size());
+
+            for (String id : orderedIds) {
+                PackEntry pack = contentById.get(id);
+                if (pack != null && seen.add(pack)) {
+                    sorted.add(pack);
+                }
+            }
+
+            for (PackEntry pack : unsortedChildren) {
+                if (seen.add(pack)) {
+                    sorted.add(pack);
+                }
+            }
+
+            return sorted;
+        } else {
+            boolean enabledList = type.enabled();
+            if (enabledList) {
+                PackedPacks.LOGGER.warn(
+                        "[packed_packs] Opening an unlocked folder pack from the enabled list, which should not happen"
+                );
+            }
+
+            List<PackEntry> filtered = new ObjectArrayList<>(unsortedChildren.size());
+            for (PackEntry pack : unsortedChildren) {
+                if (enabledList || !enabledPacks.containsRecursively(pack)) {
+                    filtered.add(pack);
+                }
+            }
+
+            return filtered;
+        }
     }
 }

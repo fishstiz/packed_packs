@@ -4,23 +4,30 @@ import io.github.fishstiz.fidgetz.v0.gui.components.*;
 import io.github.fishstiz.fidgetz.v0.gui.components.events.FZHoverableElement;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.api.context.ScreenContext;
-import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.config.DevConfig;
 import io.github.fishstiz.packed_packs.config.DevConfig.ResourcePacks.LoadDefaultCondition;
-import io.github.fishstiz.packed_packs.gui.model.ProfilesViewModel;
+import io.github.fishstiz.packed_packs.config.Profile;
+import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
+import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
+import io.github.fishstiz.packed_packs.gui2.Store;
+import io.github.fishstiz.packed_packs.gui2.actions.intents.ProfileIntent;
+import io.github.fishstiz.packed_packs.impl.context.Context;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.WidgetSprites;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -28,14 +35,14 @@ import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
 
 public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> implements Layout {
     private static final Component EMPTY_TEXT = Component.translatable("packed_packs.profile.empty");
-    private final ScreenContext context;
-    private final ProfilesViewModel model;
+    private final Context context;
+    private boolean devMode;
+    private ProfilesState state = ProfilesState.empty();
 
-    public ProfileList(ScreenContext context, ProfilesViewModel model) {
+    public ProfileList(Context context, Store store) {
         this.context = context;
-        this.model = model;
-        refreshEntries();
-        model.subscribe(ProfilesViewModel.Property.ALL, this::refreshEntries);
+        onStateChanged(store.value());
+        store.subscribe("ProfileList", this::onStateChanged);
     }
 
     @Override
@@ -43,20 +50,54 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         return 0;
     }
 
-    private void refreshEntries() {
+    private void onStateChanged(PackedPacksState newState) {
+        ProfilesState prev = this.state;
+        boolean devModeChanged = devMode != newState.devMode();
+
+        if (prev == newState.profiles() && !devModeChanged) {
+            return;
+        }
+
+        this.state = newState.profiles();
+        this.devMode = newState.devMode();
+
+        if (prev.profiles() != this.state.profiles()) {
+            rebuildEntries();
+        } else {
+            for (Entry entry : children()) {
+                entry.onStateChanged(devModeChanged);
+            }
+        }
+    }
+
+    private void rebuildEntries() {
         Entry focused = getFocused();
-        String focusedId = focused == null ? null : focused.model.id();
+        Profile previousFocused = focused == null ? null : focused.profile;
         double scrollAmount = scrollAmount();
 
         clearEntries();
 
-        model.forEachEntry((entryModel, _) -> {
-            Entry entry = new Entry(context, entryModel);
+        Profile defaultProfile = state.defaultProfile();
+        List<Profile> profiles = new ObjectArrayList<>(state.profiles());
+
+        int i = 0;
+        if (defaultProfile != null) {
+            Entry entry = new Entry(defaultProfile, i++);
             addEntry(entry);
-            if (entryModel.id().equals(focusedId)) {
+            profiles.remove(defaultProfile);
+            if (previousFocused != null
+                && (previousFocused == defaultProfile || previousFocused.getId().equals(defaultProfile.getId()))) {
                 setFocused(entry);
             }
-        });
+        }
+
+        for (Profile profile : profiles) {
+            Entry entry = new Entry(profile, i++);
+            addEntry(entry);
+            if (previousFocused != null && previousFocused.getId().equals(profile.getId())) {
+                setFocused(entry);
+            }
+        }
 
         repositionEntries();
         setScrollAmount(scrollAmount);
@@ -112,7 +153,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         clearEntries();
     }
 
-    protected static final class Entry extends FZAbstractListWidget.Entry implements FZContextMenu.Source {
+    final class Entry extends FZAbstractListWidget.Entry implements FZContextMenu.Source {
         private static final Identifier STAR_OUTLINE_SPRITE = PackedPacks.id("icon/star_outline");
         private static final WidgetSprites LOCK_SPRITES = new WidgetSprites(
                 LOCK_SPRITE,
@@ -124,65 +165,141 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         );
         private final List<AbstractWidget> children = new ArrayList<>();
         private final FZFlexLayout layout;
-        private final ProfilesViewModel.Entry model;
-        private final ScreenContext context;
+        private final Profile profile;
+        private final int index;
+        private FZIconButton deleteButton;
+        private FZButton selectButton;
+        private @Nullable FZIconButton defaultButton;
+        private @Nullable FZIconButton lockButton;
+        private boolean prevDefault;
+        private boolean prevLocked;
 
-        private Entry(ScreenContext context, ProfilesViewModel.Entry model) {
-            this.model = model;
-            this.context = context;
+        private Entry(Profile profile, int index) {
+            this.index = index;
+            this.profile = profile;
             this.layout = FZFlexLayout.horizontal();
 
-            boolean deleteActive = !model.isLocked() && !model.isDefault();
-            FZIconButton delete = layout.child(FZIconButton.builder()
-                    .square()
-                    .message(Component.translatable("packed_packs.profile.delete"))
-                    .tooltip(deleteActive ? Component.translatable("packed_packs.profile.delete.info") : null)
-                    .icon(getDeleteIcon(model))
-                    .onPress(model::delete)
-                    .active(deleteActive)
-                    .build());
-
-            FZButton select = layout.child(FZButton.builder()
-                    .message(model.name())
-                    .onPress(model::select)
-                    .active(!model.isSelected())
-                    .build(), layout.flexChildHorizontalSettings());
-
-            children.add(select);
-            children.add(delete);
-
-            if (Config.get().isDevMode()) {
-                children.add(layout.child(FZIconButton.builder()
-                        .square()
-                        .icon(new WidgetElements(model.isDefault() ? STAR_SPRITE : STAR_OUTLINE_SPRITE, 16, 16))
-                        .tooltip(model.isDefault()
-                                ? Component.translatable("packed_packs.profile.default.unset")
-                                : Component.translatable("packed_packs.profile.default.set"))
-                        .onPress(model::toggleDefault)
-                        .build()));
-
-                children.add(layout.child(FZIconButton.builder(model.isLocked() ? LOCK_SPRITES : UNLOCK_SPRITES)
-                        .square()
-                        .tooltip(model.isLocked()
-                                ? Component.translatable("packed_packs.profile.unlock")
-                                : Component.translatable("packed_packs.profile.lock"))
-                        .onPress(model::toggleLock)
-                        .build()));
-            }
-
-            for (AbstractWidget child : children) {
-                if (child instanceof FZHoverableElement hoverableElement) {
-                    hoverableElement.fidgetz$setHovered(fidgetz$isHovered());
-                }
-            }
+            buildWidgets(state.defaultProfile() == profile, profile.isLocked());
 
             layout.arrangeElements();
         }
 
-        private static WidgetElements getDeleteIcon(ProfilesViewModel.Entry entry) {
-            if (entry.isDefault()) {
+        private <T extends AbstractWidget> T addChild(T widget) {
+            children.add(widget);
+            if (widget instanceof FZHoverableElement hoverableElement) {
+                hoverableElement.fidgetz$setHovered(fidgetz$isHovered());
+            }
+            return widget;
+        }
+
+        private void buildWidgets(boolean isDefault, boolean isLocked) {
+            boolean deleteActive = !isLocked && !isDefault;
+
+            this.deleteButton = addChild(layout.child(FZIconButton.builder()
+                    .square()
+                    .id("DeleteButton")
+                    .message(Component.translatable("packed_packs.profile.delete"))
+                    .tooltip(deleteActive ? Component.translatable("packed_packs.profile.delete.info") : null)
+                    .icon(getDeleteIcon(isDefault, isLocked))
+                    .onPress(() -> context.dispatch(new ProfileIntent.Delete(profile)))
+                    .active(deleteActive)
+                    .build()));
+
+            this.selectButton = addChild(layout.child(FZButton.builder()
+                    .id("SelectButton")
+                    .message(Component.literal(profile.getName()))
+                    .onPress(() -> context.dispatch(new ProfileIntent.Select(profile)))
+                    .active(state.selectedProfile() != profile)
+                    .build(), layout.flexChildHorizontalSettings()));
+
+            if (devMode) {
+                this.defaultButton = addChild(layout.child(FZIconButton.builder()
+                        .id("DefaultButton")
+                        .square()
+                        .icon(new WidgetElements(isDefault ? STAR_SPRITE : STAR_OUTLINE_SPRITE, 16, 16))
+                        .tooltip(isDefault
+                                ? Component.translatable("packed_packs.profile.default.unset")
+                                : Component.translatable("packed_packs.profile.default.set"))
+                        .onPress(this::toggleDefault)
+                        .build()));
+
+                this.lockButton = addChild(layout.child(FZIconButton.builder(isLocked ? LOCK_SPRITES : UNLOCK_SPRITES)
+                        .id("LockButton")
+                        .square()
+                        .tooltip(isLocked
+                                ? Component.translatable("packed_packs.profile.unlock")
+                                : Component.translatable("packed_packs.profile.lock"))
+                        .onPress(this::toggleLock)
+                        .build()));
+            }
+
+            this.prevDefault = isDefault;
+            this.prevLocked = isLocked;
+        }
+
+        private void rebuildWidgets(boolean isDefault, boolean isLocked) {
+            this.lockButton = null;
+            this.defaultButton = null;
+
+            children.clear();
+            layout.removeChildren();
+
+            GuiEventListener focused = getFocused();
+            setFocused(null);
+            buildWidgets(isDefault, isLocked);
+
+            if (focused instanceof FZComponent previousFocusedComponent) {
+                String id = previousFocusedComponent.fidgetz$componentId();
+                for (AbstractWidget child : children) {
+                    if (child instanceof FZComponent component && Objects.equals(id, component.fidgetz$componentId())) {
+                        setFocused(child);
+                    }
+                }
+            }
+
+            layout.arrangeElements();
+            layout.fidgetz$setWidth(getWidth());
+            layout.setPosition(getX(), getY());
+        }
+
+        private void onStateChanged(boolean devModeChanged) {
+            boolean isDefault = isDefault();
+            boolean isLocked = profile.isLocked();
+
+            if (devModeChanged || isDefault != prevDefault || isLocked != prevLocked) {
+                rebuildWidgets(isDefault, isLocked);
+                return;
+            }
+
+            String name = profile.getName();
+            if (!name.equals(this.selectButton.getMessage().getString())) {
+                this.selectButton.setMessage(Component.literal(name));
+            }
+
+            this.selectButton.active = state.selectedProfile() != profile;
+        }
+
+        @Override
+        public int getIndex() {
+            return index;
+        }
+
+        private boolean isDefault() {
+            return state.defaultProfile() == profile;
+        }
+
+        private void toggleDefault() {
+            context.dispatch(new ProfileIntent.SetDefault(isDefault() ? null : profile));
+        }
+
+        private void toggleLock() {
+            context.dispatch(new ProfileIntent.ToggleLock(profile));
+        }
+
+        private static WidgetElements getDeleteIcon(boolean isDefault, boolean isLocked) {
+            if (isDefault) {
                 return new WidgetElements(STAR_SPRITE, 16, 16);
-            } else if (entry.isLocked()) {
+            } else if (isLocked) {
                 return new WidgetElements(LOCK_SPRITE_DISABLED, 20, 20);
             } else {
                 return new WidgetElements(TRASH_SPRITE, 16, 16);
@@ -202,21 +319,21 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
 
         @Override
         public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
-            if (!Config.get().isDevMode()) return;
+            if (!devMode) return;
 
             collector.nextSection();
 
             collector.addEntry(builder -> buildDevEntry(builder)
-                    .message(Component.translatable("packed_packs.profile.default." + (model.isDefault() ? "unset" : "set")))
-                    .icon(createIcon(() -> model.isDefault() ? STAR_SPRITE : STAR_OUTLINE_SPRITE))
-                    .onPress(model::toggleDefault));
+                    .message(Component.translatable("packed_packs.profile.default." + (isDefault() ? "unset" : "set")))
+                    .icon(createIcon(() -> isDefault() ? STAR_SPRITE : STAR_OUTLINE_SPRITE))
+                    .onPress(this::toggleDefault));
 
             collector.addEntry(builder -> buildDevEntry(builder
-                    .message(Component.translatable("packed_packs.profile." + (model.isLocked() ? "unlock" : "lock")))
-                    .icon(createIcon(() -> model.isLocked() ? LOCK_SPRITE_SMALL : UNLOCK_SPRITE_SMALL))
-                    .onPress(model::toggleLock)));
+                    .message(Component.translatable("packed_packs.profile." + (state.isLocked() ? "unlock" : "lock")))
+                    .icon(createIcon(() -> state.isLocked() ? LOCK_SPRITE_SMALL : UNLOCK_SPRITE_SMALL))
+                    .onPress(this::toggleLock)));
 
-            if (!model.isDefault() || context.isServerData()) {
+            if (!isDefault() || context.isServerData()) {
                 return;
             }
 

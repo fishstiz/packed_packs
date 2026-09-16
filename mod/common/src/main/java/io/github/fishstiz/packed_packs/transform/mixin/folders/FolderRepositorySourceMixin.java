@@ -80,7 +80,6 @@ public abstract class FolderRepositorySourceMixin {
                 Path normalized = path.toAbsolutePath().normalize();
                 String name = PackUtil.generatePackName(normalized);
                 String baseId = PackUtil.generatePackId(name);
-                // todo consider not making it recursive
                 // id concat is needed otherwise nested folders cant have same names
                 // which is probably going to be common
                 String id = parent == null ? baseId : parent.getFirst() + '/' + baseId;
@@ -140,20 +139,20 @@ public abstract class FolderRepositorySourceMixin {
         suppressLogRef.set(false);
     }
 
-    @ModifyArg(method = "lambda$loadPacks$0", at = @At(
-            value = "INVOKE",
-            target = "Lnet/minecraft/server/packs/repository/Pack;readMetaAndCreate(Lnet/minecraft/server/packs/PackLocationInfo;Lnet/minecraft/server/packs/repository/Pack$ResourcesSupplier;Lnet/minecraft/server/packs/PackType;Lnet/minecraft/server/packs/PackSelectionConfig;)Lnet/minecraft/server/packs/repository/Pack;"
-    ))
-    private PackLocationInfo modifyPackLocation(
-            PackLocationInfo location,
-            @Local(argsOnly = true) Path path,
-            @Share("depth") LocalIntRef depthRef
-    ) {
-        // todo set as internal alias for depth == 1 instead and remove modifying pack location
-        return depthRef.get() == 1
-                ? PackUtil.replicateLocationInfo(location, PackUtil.generateNestedPackId(path))
-                : location;
-    }
+    // todo migrate folder pack ids using VersionState
+//    @ModifyArg(method = "lambda$loadPacks$0", at = @At(
+//            value = "INVOKE",
+//            target = "Lnet/minecraft/server/packs/repository/Pack;readMetaAndCreate(Lnet/minecraft/server/packs/PackLocationInfo;Lnet/minecraft/server/packs/repository/Pack$ResourcesSupplier;Lnet/minecraft/server/packs/PackType;Lnet/minecraft/server/packs/PackSelectionConfig;)Lnet/minecraft/server/packs/repository/Pack;"
+//    ))
+//    private PackLocationInfo modifyPackLocation(
+//            PackLocationInfo location,
+//            @Local(argsOnly = true) Path path,
+//            @Share("depth") LocalIntRef depthRef
+//    ) {
+//        return depthRef.get() == 1
+//                ? PackUtil.replicateLocationInfo(location, PackUtil.generateNestedPackId(path))
+//                : location;
+//    }
 
     @ModifyArg(method = "lambda$loadPacks$0", at = @At(
             value = "INVOKE",

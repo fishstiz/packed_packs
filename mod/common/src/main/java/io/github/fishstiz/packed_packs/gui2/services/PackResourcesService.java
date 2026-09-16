@@ -31,6 +31,10 @@ public class PackResourcesService {
         return iconCache.get(pack);
     }
 
+    public void clearIcons() {
+        iconCache.clear();
+    }
+
     public boolean isModifiable(ProfileSelection profiles, PackEntry pack) {
         return pack.path() != null &&
                !profiles.isLocked() &&
@@ -40,6 +44,13 @@ public class PackResourcesService {
 
     public boolean saveFolderMetadata(Path folderPath, FolderPackMeta metadata) {
         return JsonLoader.saveJson(metadata, folderPath.resolve(FolderPackMeta.FILENAME));
+    }
+
+    public boolean saveFolderMetadata(PackEntry.Parent parent, FolderPackMeta metadata) {
+        if (repository.setFolderMetadata(parent.id(), metadata)) {
+            return saveFolderMetadata(parent.path(), metadata);
+        }
+        return false;
     }
 
     public boolean renamePack(PackEntry pack, ProfileSelection profiles, String name) {
@@ -61,8 +72,9 @@ public class PackResourcesService {
         if (pack instanceof PackEntry.Parent) {
             FolderPackMeta metadata = repository.getFolderMetadata(pack.id());
             if (metadata != null) {
-                repository.setFolderMetadata(newId, metadata);
-                saveFolderMetadata(newPath, metadata);
+                if (repository.setFolderMetadata(newId, metadata)) {
+                    saveFolderMetadata(newPath, metadata);
+                }
                 repository.removeFolderMetadata(pack.id());
             }
         }

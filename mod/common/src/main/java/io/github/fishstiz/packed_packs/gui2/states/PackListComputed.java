@@ -62,7 +62,7 @@ public class PackListComputed {
 
         boolean packsChanged = prev.packs() != newState.packs();
         boolean selectionChanged = prev.selectedPacks() != newState.selectedPacks();
-        boolean profilesChanged = newProfiles != prevProfiles; // todo fix, wont work since profiles is currently mutable
+        boolean profilesChanged = newProfiles != prevProfiles;
 
         this.state = newState;
         this.profiles = newProfiles;

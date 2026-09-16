@@ -7,6 +7,7 @@ import io.github.fishstiz.packed_packs.models.PackEntry;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
 import java.util.SequencedCollection;
 
 // everything should be id-based/or not for optimization so we dont have to keep mapping
@@ -135,6 +136,6 @@ public sealed interface PackListIntent extends Intent {
     record OpenAliasesModal(PackListKey srcList, PackEntry pack) implements PackListIntent {
     }
 
-    record CloseAliases() implements PackListIntent {
+    record CloseAliases(List<String> newAliases) implements PackListIntent {
     }
 }

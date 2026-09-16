@@ -313,7 +313,7 @@ public class PackedPacksStore implements FZRef<PackedPacksState> {
                 yield true;
             }
             case PackListIntent.CloseFolder(PackListKey target) -> {
-                PackListState listState = prev.targetList(target);
+                PackListState listState = prev.getList(target);
                 if (listState == null || listState.folder() == null) yield false;
                 emitEffect(new UiEffect.Focus(target.type(), listState.folder().pack().getId()));
                 yield true;
@@ -327,8 +327,8 @@ public class PackedPacksStore implements FZRef<PackedPacksState> {
     }
 
     private boolean emitMoveEffects(PackedPacksState prev, PackedPacksState current, PackListIntent.Entry intent) {
-        PackListState prevList = prev.targetList(intent.target());
-        PackListState currentList = current.targetList(intent.target());
+        PackListState prevList = prev.getList(intent.target());
+        PackListState currentList = current.getList(intent.target());
         if (prevList != null && currentList != null && prevList.visiblePacks() != currentList.visiblePacks()) {
             if (intent instanceof PackListIntent.Drop drop && Objects.equals(drop.destination(), drop.target()) && drop.destination() != null) {
                 emitEffect(new UiEffect.Focus(drop.destination().type()));
@@ -649,7 +649,7 @@ public class PackedPacksStore implements FZRef<PackedPacksState> {
     }
 
     public boolean closeFolder(PackListType type) {
-        PackListKey deepest = this.state.deepestTarget(type);
+        PackListKey deepest = this.state.getLeafKey(type);
         PackListKey parent = deepest.unnest();
         if (parent.depth() < 0) return false;
 

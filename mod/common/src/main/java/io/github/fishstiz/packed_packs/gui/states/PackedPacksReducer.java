@@ -113,7 +113,7 @@ public class PackedPacksReducer {
                     yield state.withAction(draggingAction);
                 }
 
-                PackListState targetList = state.targetList(drag.target());
+                PackListState targetList = state.getList(drag.target());
                 if (targetList == null || !targetList.query().hasQuery()) {
                     yield state.withAction(draggingAction);
                 }
@@ -137,7 +137,7 @@ public class PackedPacksReducer {
                 PackedPacksState newState = state.withAction(null);
                 if (destination == null) yield newState;
 
-                PackListState targetList = newState.targetList(destination);
+                PackListState targetList = newState.getList(destination);
                 if (targetList == null) yield newState;
 
                 PackOptions options = newState.profiles().options();

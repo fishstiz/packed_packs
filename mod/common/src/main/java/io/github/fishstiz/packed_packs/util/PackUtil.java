@@ -63,6 +63,7 @@ public class PackUtil {
         return FILE_PREFIX + name;
     }
 
+    // todo remove
     public static String generateNestedPackId(Path path, String name) {
         return FILE_PREFIX + generatePackName(path.getParent()) + DELIMITER + name;
     }
@@ -71,6 +72,7 @@ public class PackUtil {
         return generatePackId(generatePackName(path));
     }
 
+    // todo remove
     public static String generateNestedPackId(Path path) {
         return generateNestedPackId(path, generatePackName(path));
     }
@@ -113,8 +115,7 @@ public class PackUtil {
         return Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS) && !hasMcmeta(path);
     }
 
-    public static boolean isZipPack(Pack pack) {
-        Path path = validatePackPath(pack);
+    public static boolean isZipPath(@Nullable Path path) {
         return path != null && Files.isRegularFile(path) && PackUtil.fileName(path).endsWith(ZIP_PACK_EXTENSION);
     }
 
@@ -248,12 +249,10 @@ public class PackUtil {
         return UtilAccess.packed_packs$createRenamer(path, newName).getAsBoolean();
     }
 
-    public static String getNewIdOnRename(Pack pack, String newName) {
-        FilePack filePack = (FilePack) pack;
-        Path path = filePack.packed_packs$getPath();
-        if (path == null) return pack.getId();
-
-        return filePack.packed_packs$nestedPack() ? generateNestedPackId(path, newName) : generatePackId(newName);
+    public static String getNewIdOnRename(String newName) {
+        return generatePackId(newName);
+        // no more modifying nested pack id
+//        return filePack.packed_packs$nestedPack() ? generateNestedPackId(path, newName) : generatePackId(newName);
     }
 
     public static PathValidationResults validatePaths(List<Path> packs) {

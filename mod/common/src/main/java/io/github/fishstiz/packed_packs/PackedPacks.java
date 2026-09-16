@@ -2,6 +2,7 @@ package io.github.fishstiz.packed_packs;
 
 import io.github.fishstiz.packed_packs.platform.Services;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,6 +12,7 @@ public class PackedPacks {
     public static final String MOD_ID = "packed_packs";
     public static final String MOD_NAME = "Packed Packs";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    public static final boolean DEBUG = System.getProperty("packed_packs.debug") != null;
 
     private PackedPacks() {
     }
@@ -21,5 +23,9 @@ public class PackedPacks {
 
     public static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath(MOD_ID, path);
+    }
+
+    public static void openPath(Path path) {
+        Util.getPlatform().openPath(path);
     }
 }

@@ -50,7 +50,8 @@ public final class Reducer {
                         state.profiles(),
                         state.lastTarget().root(),
                         null,
-                        state.devMode()
+                        state.devMode(),
+                        state.hideWarnings()
                 );
             }
             case Mutation.PackRenaming renaming -> {
@@ -304,7 +305,7 @@ public final class Reducer {
                     yield state.withAction(draggingAction);
                 }
 
-                PackListState targetList = state.targetList(dragged.srcList());
+                PackListState targetList = state.getList(dragged.srcList());
                 if (targetList == null || !targetList.query().hasQuery()) {
                     yield state.withAction(draggingAction);
                 }
@@ -321,7 +322,7 @@ public final class Reducer {
                 PackedPacksState newState = state.withAction(null);
                 if (destination == null) yield newState;
 
-                PackListState targetList = newState.targetList(destination);
+                PackListState targetList = newState.getList(destination);
                 if (targetList == null) yield newState;
 
                 if (!canDrop(srcList, dragging.srcPack(), dragging.packs(), destination, targetList, index, state.profiles())) {

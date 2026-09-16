@@ -92,15 +92,13 @@ public final class Profile {
         }
     }
 
-    public void syncPacks(Collection<Pack> available, Collection<Pack> selected) {
+    public void syncPacks(Set<String> available, SequencedSet<String> enabled) {
         if (!this.locked) {
-            this.packIds = new ObjectLinkedOpenHashSet<>(PackUtil.flattenPackIds(selected));
-            Set<String> availableIds = new ObjectOpenHashSet<>(PackUtil.flattenPackIds(available));
-
+            this.packIds = enabled;
             this.overrides.entrySet().removeIf(entry -> {
                 PackOverride override = entry.getValue();
                 String packId = entry.getKey();
-                return !override.hasOverride() || (!this.packIds.contains(packId) && !availableIds.contains(packId));
+                return !override.hasOverride() || (!this.packIds.contains(packId) && !available.contains(packId));
             });
         }
     }

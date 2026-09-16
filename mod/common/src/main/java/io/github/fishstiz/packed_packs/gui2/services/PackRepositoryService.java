@@ -109,6 +109,8 @@ public class PackRepositoryService {
         this.selectedPackIds = newSelected;
     }
 
+    // todo remove stale packs and metadata
+
     public void refreshSources() {
         refreshSelectionModel();
         Map<String, PackEntry> newPacks = new Object2ObjectLinkedOpenHashMap<>();
@@ -146,6 +148,9 @@ public class PackRepositoryService {
         refreshSelectedCache();
     }
 
+    /**
+     * @return flattened AND grouped pack entries.
+     */
     public List<PackEntry> getPacks() {
         return List.copyOf(this.packs.values());
     }
@@ -171,11 +176,13 @@ public class PackRepositoryService {
         return folderMeta.get(folderId);
     }
 
-    public void setFolderMetadata(String folderId, FolderPackMeta metadata) {
+    public boolean setFolderMetadata(String folderId, FolderPackMeta metadata) {
         if (folderMeta.containsKey(folderId)) {
             folderMeta.put(folderId, metadata);
+            return true;
         } else {
             PackedPacks.LOGGER.warn("[packed_packs] Tried to update folder metadata from non-existing folder '{}'", folderId);
+            return false;
         }
     }
 

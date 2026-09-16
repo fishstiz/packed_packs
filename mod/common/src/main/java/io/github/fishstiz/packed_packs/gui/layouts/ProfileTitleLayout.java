@@ -5,10 +5,10 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.config.ProfileManager;
-import io.github.fishstiz.packed_packs.gui.intents.ProfileIntent;
-import io.github.fishstiz.packed_packs.gui.model.PackedPacksStore;
 import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
 import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
+import io.github.fishstiz.packed_packs.gui2.Store;
+import io.github.fishstiz.packed_packs.gui2.actions.intents.ProfileIntent;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
@@ -20,7 +20,7 @@ import static io.github.fishstiz.packed_packs.gui.model.ProfilesViewModel.NO_PRO
 import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
 
 public class ProfileTitleLayout {
-    public static FZFlexLayout create(PackedPacksStore store) {
+    public static FZFlexLayout create(Store store) {
         FZIconButton editButton = FZIconButton.bind("ProfileNameEditButton", store
                 .map(PackedPacksState::profiles)
                 .map(profilesState -> FZIconButton.builder()
