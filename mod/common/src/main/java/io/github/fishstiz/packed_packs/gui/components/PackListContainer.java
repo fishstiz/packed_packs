@@ -97,7 +97,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
                 "PackListContainer@" + key,
                 value -> {
                     root.onStateChanged(value.rootTargetList(type), value.profiles());
-                    root.onStateChanged(value.dragging(), value.hideWarnings());
+                    root.onStateChanged(value.dragging());
                 }
         );
 
@@ -111,12 +111,11 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
     }
 
-    private void onStateChanged(ActiveAction.@Nullable Dragging dragging, boolean hideWarnings) {
+    private void onStateChanged(ActiveAction.@Nullable Dragging dragging) {
         state.onDrag(dragging);
-        state.onHideIncompatibleWarnings(hideWarnings);
 
         if (folder != null) {
-            folder.listContainer.onStateChanged(dragging, hideWarnings);
+            folder.listContainer.onStateChanged(dragging);
         }
     }
 
@@ -150,7 +149,9 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
                             )
                     );
                 }
-
+                if (this.folder != null) {
+                    this.folder.pack = null;
+                }
                 this.folder = null;
                 updateChild(packList);
             }
@@ -158,7 +159,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
         if (folderState != null) {
             this.folder.onStateChanged(folderState, profiles);
-        } else if (prev.visiblePacks() != state.visiblePacks()) {
+        } else if (prev.visiblePacks() != state.visiblePacks() || prevProfiles != profiles) {
             packList.rebuildEntries();
         }
     }
@@ -192,6 +193,13 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             this.folder.listContainer.visitLeafList(visitor);
         } else {
             visitor.accept(packList);
+        }
+    }
+
+    public void visitLists(Consumer<PackList> visitor) {
+        visitor.accept(packList);
+        if (state.state().folder() != null && this.folder != null) {
+            this.folder.listContainer.visitLists(visitor);
         }
     }
 
@@ -339,6 +347,10 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
     }
 
+    public void rebuildEntries() {
+        visitLists(PackList::rebuildEntries);
+    }
+
     static class Folder extends AbstractContainerEventHandler implements FocusPathProvider, FZContextMenu.Source, ContainerEventHandlerPatch, Renderable {
         private static final int HEADER_SIZE = 16;
         private static final int LAYOUT_SPACING = SPACING / 2;
@@ -356,13 +368,14 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
         Folder(PackListContainer root, PackResourcesService resources, PackListKey key, PackListState.Folder state) {
             this.root = root;
-            this.pack = state.pack();
+            PackEntry pack = state.pack();
             this.listContainer = new PackListContainer(root, resources, state, key);
             this.background = FZIcon.builder(Identifier.withDefaultNamespace("popup/background")).build();
             this.closeButton = FZIconButton.builder()
                     .size(HEADER_SIZE, HEADER_SIZE)
                     .icon(new WidgetElements(PackedPacks.id("icon/cross"), 16, 16))
-                    .onPress(() -> root.context.dispatch(new PackListIntent.CloseFolder(key)))
+                    .onPress(() -> root.context.dispatch(new PackListIntent.CloseFolder(key.unnest())))
+                    .focusOnInteraction(false)
                     .build();
             this.folderIcon = FZIcon.builder(GuiUtils.lazyTexture(() -> resources.getIcon(pack), 16, 16))
                     .size(HEADER_SIZE, HEADER_SIZE)
@@ -399,17 +412,17 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
                     return;
                 }
 
-                if (folderState.contents().folder() == null) {
-                    folderIcon.setMessage(this.pack.title());
+                folderIcon.setMessage(this.pack.title());
+            }
 
-                    this.renderables = List.of(background, folderIcon, folderTitle, closeButton, listContainer);
-                    this.children = List.of(closeButton, listContainer);
-                    this.childOpened = false;
-                } else {
-                    this.renderables = List.of(listContainer);
-                    this.children = List.of(listContainer);
-                    this.childOpened = true;
-                }
+            if (folderState.contents().folder() == null) {
+                this.renderables = List.of(background, folderIcon, folderTitle, closeButton, listContainer);
+                this.children = List.of(closeButton, listContainer);
+                this.childOpened = false;
+            } else {
+                this.renderables = List.of(listContainer);
+                this.children = List.of(listContainer);
+                this.childOpened = true;
             }
 
             if (listContainer.state.state() != folderState.contents() || listContainer.state.profiles() != profiles) {
@@ -510,6 +523,11 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             }
 
             return super.nextFocusPath(event);
+        }
+
+        @Override
+        public boolean shouldTakeFocusAfterInteraction() {
+            return this.pack != null;
         }
 
         @Override

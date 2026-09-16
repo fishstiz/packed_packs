@@ -81,11 +81,13 @@ public class PackRenameLayout extends WrappedLayout {
 
             FZButton closeButton = FZButton.builder().message(CommonComponents.GUI_CANCEL)
                     .onPress(closeHandler)
+                    .focusOnInteraction(false)
                     .build();
 
             FZButton saveButton = FZButton.bind("SaveButton", nameRef.map(value -> FZButton.builder()
                     .message(CommonComponents.GUI_DONE)
                     .active(canSave(previousName, value))
+                    .focusOnInteraction(false)
                     .onPress(() -> {
                         if (canSave(previousName, value)) {
                             store.dispatch(new PackListIntent.Rename(target, pack, sanitizeNameForSave(pack, value)));

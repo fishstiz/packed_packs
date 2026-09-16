@@ -28,4 +28,8 @@ public class PackedPacks {
     public static void openPath(Path path) {
         Util.getPlatform().openPath(path);
     }
+
+    public static long duration(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000;
+    }
 }

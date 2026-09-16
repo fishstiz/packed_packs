@@ -14,7 +14,7 @@ public record FolderLocationInfo(Path path, PackLocationInfo location, @Nullable
         String baseId = PackUtil.generatePackId(name);
         // id concat is needed otherwise nested folders cant have same names
         // which is probably going to be common
-        String id = parent == null ? baseId : parent.location().id() + '/' + baseId;
+        String id = parent == null ? baseId : parent.location().id() + '/' + baseId.replaceFirst("^file/", "");
         PackLocationInfo info = new PackLocationInfo(id, Component.literal(name), PackUtil.PACK_SOURCE, Optional.empty());
         return new FolderLocationInfo(path, info, parent);
     }

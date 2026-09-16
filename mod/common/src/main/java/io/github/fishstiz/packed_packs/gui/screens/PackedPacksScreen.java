@@ -502,10 +502,11 @@ public class PackedPacksScreen extends FZScreen {
         clearWidgets();
         store.saveSelectedProfile();
         store.saveState();
-        store.dispatch(new Intent.Reset(store.value().profiles().selectedProfile()));
         this.refreshOnInit = false;
         this.initialized = false;
         init();
+        availableList.rebuildEntries();
+        enabledList.rebuildEntries();
         dialogManager.refreshDialogs();
     }
 
@@ -670,8 +671,7 @@ public class PackedPacksScreen extends FZScreen {
             }
         }
         if (isDeveloperMode(event)) {
-            Config.get().setDevMode(!Config.get().isDevMode());
-            ToastUtil.onDevModeToggleToast(Config.get().isDevMode());
+            store.dispatch(new Intent.ToggleDevMode());
             rebuildWidgets();
             return true;
         }

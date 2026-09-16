@@ -50,8 +50,7 @@ public final class Reducer {
                         state.profiles(),
                         state.lastTarget().root(),
                         null,
-                        state.devMode(),
-                        state.hideWarnings()
+                        state.devMode()
                 );
             }
             case Mutation.PackRenaming renaming -> {
@@ -472,7 +471,8 @@ public final class Reducer {
             case ProfileMutation.LockToggled(Profile profile) ->
                     state.withProfiles(updateProfileState(state.profiles(), profile.withLocked(!profile.isLocked())));
             case ProfileMutation.Renamed(Profile profile, String name) ->
-                    state.withProfiles(updateProfileState(state.profiles(), profile.withName(name)));
+                    state.withProfiles(updateProfileState(state.profiles(), profile.withName(name))
+                            .withRenaming(state.profiles().renaming()));
             case ProfileMutation.RenamingToggled() ->
                     state.withProfiles(state.profiles().withRenaming(!state.profiles().renaming()));
         };

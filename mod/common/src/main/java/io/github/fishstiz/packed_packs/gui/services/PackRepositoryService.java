@@ -109,8 +109,16 @@ public class PackRepositoryService {
         this.selectedPackIds = newSelected;
     }
 
-    public void refreshSources() {
+    public void refreshSources() { // todo fix nested folders appearing in root
+        long start = 0;
+        if (PackedPacks.DEBUG) {
+            start = System.nanoTime();
+            PackedPacks.LOGGER.info("[packed_packs] ======== Refreshing Repository Sources ========");
+        }
+
         refreshSelectionModel();
+
+        this.selectionModel.findNewPacks();
 
         PackSelectionModelAccessor model = (PackSelectionModelAccessor) this.selectionModel;
         List<Pack> allPacks = new ObjectArrayList<>(model.getSelectedPacks().size() + model.getUnselectedPacks().size());
@@ -125,16 +133,16 @@ public class PackRepositoryService {
             String id = pack.getId();
             leavesById.putIfAbsent(id, pack);
 
-            FolderLocationInfo info = ((FilePack) pack).packed_packs$getParent();
+            FolderLocationInfo parentInfo = ((FilePack) pack).packed_packs$getParent();
             String childId = id;
 
-            while (info != null) {
-                String folderId = info.location().id();
-                folderInfoById.putIfAbsent(folderId, info);
+            while (parentInfo != null) {
+                String folderId = parentInfo.location().id();
+                folderInfoById.putIfAbsent(folderId, parentInfo);
                 folderChildIds.computeIfAbsent(folderId, ignored -> new ObjectLinkedOpenHashSet<>()).add(childId);
 
                 childId = folderId;
-                info = info.parent();
+                parentInfo = parentInfo.parent();
             }
         }
 
@@ -151,6 +159,10 @@ public class PackRepositoryService {
         this.packs = newPacks;
         folderMeta.keySet().retainAll(newPacks.keySet());
         refreshSelectedCache();
+
+        if (PackedPacks.DEBUG) {
+            PackedPacks.LOGGER.info("[packed_packs] ======== Repository Sources Refreshed in {}ms ========", PackedPacks.duration(start));
+        }
     }
 
     private PackEntry buildEntry(

@@ -132,21 +132,22 @@ public class Store implements FZRef<PackedPacksState> {
         return false;
     }
 
-    public void dispatch(Intent intent) {
+    public void dispatch(Intent intent) { // todo make profile actually immutable
         PackedPacksState prevState = this.state;
         switch (intent) {
-            case Intent.Reset(@Nullable Profile profile) -> {
-                if (dispatch(new Mutation.Reset(profile == null ? getCurrentPacks() : getPacks(profile)))) {
-                    effectHandler.accept(new UiEffect.ScrollToTop(PackListType.AVAILABLE));
-                    effectHandler.accept(new UiEffect.ScrollToTop(PackListType.ENABLED));
-                }
+            case Intent.ToggleDevMode() -> {
+                Mutation mutation = new Mutation.Reset(new PackEntryLists(state.available().packs(), state.enabled().packs()));
+                replaceState(Reducer.reduce(prevState.withDevMode(!prevState.devMode()), mutation));
+                ToastUtil.onDevModeToggleToast(state.devMode());
             }
+            case Intent.Reset(@Nullable Profile profile) ->
+                    dispatch(new Mutation.Reset(profile == null ? getCurrentPacks() : getPacks(profile)));
             case PackListIntent packListIntent -> {
                 switch (packListIntent) {
                     case PackListIntent.Enable enable -> {
                         if (dispatch(new PackListMutation.Enabled(enable.srcList(), enable.srcPack(), enable.packs(), enable.index()))
                             && prevState.enabled() != state.enabled()) {
-                            effectHandler.accept(new UiEffect.Focus(PackListType.AVAILABLE));
+                            effectHandler.accept(new UiEffect.Focus(PackListType.ENABLED));
                             AbstractWidget.playButtonClickSound(minecraft.getSoundManager());
                         }
                     }
@@ -196,9 +197,13 @@ public class Store implements FZRef<PackedPacksState> {
                         dispatch(new PackListMutation.AliasesModalOpened(open.srcList(), open.pack(), aliases));
                     }
                     case PackListIntent.OpenFolder open -> {
-                        List<PackEntry> unsortedChildren = open.pack().children();
+                        if (!(repository.getPackById(open.pack().id()) instanceof PackEntry.Parent canonical)) {
+                            return;
+                        }
+
+                        List<PackEntry> unsortedChildren = canonical.children();
                         FolderPackMeta metadata = Objects.requireNonNullElseGet(
-                                repository.getFolderMetadata(open.pack().id()),
+                                repository.getFolderMetadata(canonical.id()),
                                 FolderPackMeta::new
                         );
                         List<PackEntry> children = PackEntryResolver.resolveChildren(
@@ -207,12 +212,12 @@ public class Store implements FZRef<PackedPacksState> {
                                 open.srcList().type(),
                                 state.enabled()
                         );
-                        if (dispatch(new PackListMutation.FolderOpened(open.srcList(), open.pack(), metadata.module(), children))) {
+                        if (dispatch(new PackListMutation.FolderOpened(open.srcList(), canonical, metadata.module(), children))) {
                             effectHandler.accept(new UiEffect.FocusList(open.srcList().type()));
                         }
                     }
                     case PackListIntent.OpenRenameModal open ->
-                            dispatch(new PackListIntent.OpenRenameModal(open.srcList(), open.pack()));
+                            dispatch(new PackListMutation.RenameModalOpened(open.srcList(), open.pack()));
                     case PackListIntent.CloseAliases(List<String> newAliases) -> {
                         ActiveAction.EditingAliases aliases = state.editingAliases();
                         if (aliases == null) return;
@@ -537,14 +542,10 @@ public class Store implements FZRef<PackedPacksState> {
     public CompletableFuture<Void> refreshRepository() {
         cancelRefresh();
         CompletableFuture<Void> future = CompletableFuture.runAsync(repository::refreshSources, Util.backgroundExecutor())
-                .thenRunAsync(() -> syncStateWithRepository(state, repository), minecraft);
-
-//                .thenApplyAsync(ignored -> Pair.of(this.state, this.repository), minecraft)
-//                .thenApplyAsync(state -> syncStateWithRepository(state.getFirst(), state.getSecond()), Util.backgroundExecutor())
-//                .thenAcceptAsync(state -> {
-//                    resources.clearIcons();
-//                    replaceState(state);
-//                }, minecraft);
+                .thenRunAsync(() -> {
+                    replaceState(syncStateWithRepository(state, repository));
+                    history.reset(state);
+                }, minecraft);
 
         this.refreshFuture = future;
         return future;
@@ -555,6 +556,7 @@ public class Store implements FZRef<PackedPacksState> {
         repository.refreshSources();
         resources.clearIcons();
         replaceState(syncStateWithRepository(state, repository));
+        history.reset(state);
     }
 
     private void saveFolderMeta(PackEntry.Parent parent, FolderPackMeta metadata) {
@@ -629,7 +631,7 @@ public class Store implements FZRef<PackedPacksState> {
             start = System.nanoTime();
             PackedPacks.LOGGER.info("[packed_packs] ======== Syncing State ========");
         }
-
+        // todo doesnt work well
         PackEntryLists validated = PackEntryResolver.syncPackLists(
                 repository,
                 state.profiles(),
@@ -669,8 +671,7 @@ public class Store implements FZRef<PackedPacksState> {
         PackedPacksState newState = state.withPackLists(newAvailable, newEnabled);
 
         if (PackedPacks.DEBUG) {
-            long duration = (System.nanoTime() - start) / 1_000_000;
-            PackedPacks.LOGGER.info("[packed_packs] ======== State Synced in {}ms ========", duration);
+            PackedPacks.LOGGER.info("[packed_packs] ======== State Synced in {}ms ========", PackedPacks.duration(start));
         }
 
         return newState;
@@ -717,12 +718,12 @@ public class Store implements FZRef<PackedPacksState> {
         Query query = state.available().query();
         Config.get().setSort(query.sort() == null ? Query.SortOption.VANILLA : query.sort());
         Config.get().setHideIncompatible(query.hideIncompatible());
+        Config.get().setDevMode(state.devMode());
 
         syncSelectedProfile();
         configs.profiles().setLastViewed(state.profiles().selectedProfile());
         configs.profiles().setDefault(state.profiles().defaultProfile());
         configs.profiles().setOrder(state.profiles().profiles());
-        configs.user().setHideIncompatibleWarnings(state.hideWarnings());
 
         Profile selectedProfile = state.profiles().selectedProfile();
         Runnable profileSaver = selectedProfile != null
@@ -757,8 +758,7 @@ public class Store implements FZRef<PackedPacksState> {
                     profileState,
                     PackListKey.available(),
                     null,
-                    devMode,
-                    configs.user().isIncompatibleWarningsHidden()
+                    devMode
             );
 
             dispatch(new Intent.Reset(

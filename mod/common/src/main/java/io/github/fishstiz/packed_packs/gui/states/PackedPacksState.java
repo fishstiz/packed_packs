@@ -10,8 +10,7 @@ public record PackedPacksState(
         ProfilesState profiles,
         PackListKey lastTarget,
         @Nullable ActiveAction action,
-        boolean devMode,
-        boolean hideWarnings
+        boolean devMode
 ) {
     private static final PackedPacksState EMPTY = new PackedPacksState(
             PackListState.empty(),
@@ -19,7 +18,6 @@ public record PackedPacksState(
             ProfilesState.empty(),
             PackListKey.available(),
             null,
-            false,
             false
     );
 
@@ -28,31 +26,35 @@ public record PackedPacksState(
     }
 
     public PackedPacksState with(PackListState available, PackListState enabled, ProfilesState profiles) {
-        return new PackedPacksState(available, enabled, profiles, lastTarget, null, devMode, hideWarnings);
+        return new PackedPacksState(available, enabled, profiles, lastTarget, null, devMode);
     }
 
     public PackedPacksState withAvailable(PackListState newAvailable, PackListKey target) {
-        return new PackedPacksState(newAvailable, enabled, profiles, target, null, devMode, hideWarnings);
+        return new PackedPacksState(newAvailable, enabled, profiles, target, null, devMode);
     }
 
     public PackedPacksState withEnabled(PackListState newEnabled, PackListKey target) {
-        return new PackedPacksState(available, newEnabled, profiles, target, null, devMode, hideWarnings);
+        return new PackedPacksState(available, newEnabled, profiles, target, null, devMode);
     }
 
     public PackedPacksState withPackLists(PackListState available, PackListState enabled, PackListKey target) {
-        return new PackedPacksState(available, enabled, profiles, target, null, devMode, hideWarnings);
+        return new PackedPacksState(available, enabled, profiles, target, null, devMode);
     }
 
     public PackedPacksState withPackLists(PackListState available, PackListState enabled) {
-        return new PackedPacksState(available, enabled, profiles, lastTarget, null, devMode, hideWarnings);
+        return new PackedPacksState(available, enabled, profiles, lastTarget, null, devMode);
     }
 
     public PackedPacksState withProfiles(ProfilesState newProfiles) {
-        return new PackedPacksState(available, enabled, newProfiles, lastTarget, null, devMode, hideWarnings);
+        return new PackedPacksState(available, enabled, newProfiles, lastTarget, null, devMode);
     }
 
     public PackedPacksState withAction(@Nullable ActiveAction action) {
-        return new PackedPacksState(available, enabled, profiles, action == null ? lastTarget : action.target(), action, devMode, hideWarnings);
+        return new PackedPacksState(available, enabled, profiles, action == null ? lastTarget : action.target(), action, devMode);
+    }
+
+    public PackedPacksState withDevMode(boolean devMode) {
+        return new PackedPacksState(available, enabled, profiles, lastTarget, action, devMode);
     }
 
     public ActiveAction.@Nullable RenamingPack renamingPack() {

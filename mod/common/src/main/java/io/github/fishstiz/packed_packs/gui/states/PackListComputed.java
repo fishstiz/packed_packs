@@ -5,24 +5,23 @@ import io.github.fishstiz.packed_packs.util.PackListUtils;
 import io.github.fishstiz.packed_packs.pack.PackEntry;
 import it.unimi.dsi.fastutil.ints.Int2BooleanMap;
 import it.unimi.dsi.fastutil.ints.Int2BooleanOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIntBiConsumer;
-import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import org.jspecify.annotations.Nullable;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static io.github.fishstiz.packed_packs.util.PackListUtils.*;
 
 public class PackListComputed {
     private final PackListKey key;
-    private final Map<PackEntry, Entry> entrySelectors = new Reference2ReferenceOpenHashMap<>();
+    private final Map<String, Entry> entryStates = new Object2ObjectOpenHashMap<>();
 
     private PackListState state;
     private ProfileSelection profiles;
     private @Nullable PackEntry selected;
     private ActiveAction.@Nullable Dragging dragging;
-    private boolean hideIncompatibleWarnings;
 
     private boolean entriesDirty;
     private int selectionGen = 0;
@@ -66,15 +65,16 @@ public class PackListComputed {
 
         if (packsChanged) {
             entriesDirty = true;
-        }
-        if (selectionChanged) {
-            selectionGen++;
-            selected = newState.selectedPacks().isEmpty() ? null : newState.selectedPacks().getLast();
+            transferableGen++;
+            canDragGen++;
         }
         if (profilesChanged) {
             transferableGen++;
             canDragGen++;
-            canDropCache.clear();
+        }
+        if (selectionChanged) {
+            selectionGen++;
+            selected = newState.selectedPacks().isEmpty() ? null : newState.selectedPacks().getLast();
         }
         if (profilesChanged
             || selectionChanged
@@ -83,28 +83,28 @@ public class PackListComputed {
             || prev.query() != newState.query()) {
             moveUpGen++;
             moveDownGen++;
+            canDragGen++;
+            canDropCache.clear();
         }
-    }
-
-    public void onHideIncompatibleWarnings(boolean hideIncompatibleWarnings) {
-        this.hideIncompatibleWarnings = hideIncompatibleWarnings;
     }
 
     public void onDrag(ActiveAction.@Nullable Dragging dragging) {
         if (this.dragging != dragging) {
-            this.canDropCache.clear();
             this.dragging = dragging;
+            this.canDropCache.clear();
         }
     }
 
     public void forEachEntry(ObjectIntBiConsumer<Entry> action) {
         for (int i = 0; i < state.visiblePacks().size(); i++) {
             PackEntry pack = state.visiblePacks().get(i);
-            action.accept(entrySelectors.computeIfAbsent(pack, Entry::new), i);
+            Entry entry = entryStates.computeIfAbsent(pack.id(), ignored -> new Entry(pack));
+            entry.pack = pack;
+            action.accept(entry, i);
         }
         if (entriesDirty) {
             entriesDirty = false;
-            entrySelectors.keySet().retainAll(new ReferenceOpenHashSet<>(state.packs(), 0.99f));
+            entryStates.keySet().retainAll(state.packs().stream().map(PackEntry::id).collect(Collectors.toSet()));
         }
     }
 
@@ -138,10 +138,6 @@ public class PackListComputed {
         return profiles.isLocked();
     }
 
-    public boolean isIncompatibleWarningsHidden() {
-        return hideIncompatibleWarnings;
-    }
-
     public @Nullable PackEntry getSelected() {
         return selected;
     }
@@ -151,7 +147,7 @@ public class PackListComputed {
     }
 
     public class Entry {
-        private final PackEntry pack;
+        private PackEntry pack;
         private int selectionGenSeen = -1;
         private int moveUpGenSeen = -1;
         private int moveDownGenSeen = -1;
@@ -164,6 +160,7 @@ public class PackListComputed {
         private boolean canMoveDownCache;
         private boolean canDragCache;
         private boolean selectedCache;
+        private boolean lastSelectedCache;
 
         private Entry(PackEntry pack) {
             this.pack = pack;
@@ -274,18 +271,22 @@ public class PackListComputed {
             return canDragCache;
         }
 
-        public boolean isSelected() {
-            if (selectionGenSeen == selectionGen) {
-                return selectedCache;
+        private void computeSelectionCache() {
+            if (selectionGenSeen != selectionGen) {
+                selectionGenSeen = selectionGen;
+                selectedCache = state.selectedPacks().contains(pack);
+                lastSelectedCache = selected != null && selected.id().equals(pack.id());
             }
+        }
 
-            selectionGenSeen = selectionGen;
-            selectedCache = state.selectedPacks().contains(pack);
+        public boolean isSelected() {
+            computeSelectionCache();
             return selectedCache;
         }
 
         public boolean isSelectedLast() {
-            return pack == selected;
+            computeSelectionCache();
+            return lastSelectedCache;
         }
 
         public boolean isSelectedExclusively() {

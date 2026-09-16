@@ -26,9 +26,9 @@ import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.PackUtil;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
-import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -62,9 +62,9 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     private static final int ITEM_HEIGHT = INNER_ITEM_HEIGHT + INNER_ITEM_PADDING * 2;
     private static final int DROP_INDEX_PADDING = 3;
     private static final double SCROLL_RATE = (double) ITEM_HEIGHT / 2;
-    private final Map<String, Entry> entries = new Reference2ReferenceOpenHashMap<>();
+    private final Map<String, Entry> entries = new Object2ObjectOpenHashMap<>();
     private final Context context;
-    private final PackResourcesService resourcesService;
+    private final PackResourcesService resources;
     private final PackListComputed state;
     private int dropColor;
     private int dropRectColor;
@@ -73,9 +73,9 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     private boolean scrolling;
     private boolean initialized;
 
-    public PackList(Context context, PackResourcesService resourcesService, PackListComputed state) {
+    public PackList(Context context, PackResourcesService resources, PackListComputed state) {
         this.context = context;
-        this.resourcesService = resourcesService;
+        this.resources = resources;
         this.state = state;
         this.applyTheme();
     }
@@ -501,15 +501,15 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
 
         protected boolean isIncompatibleWarningsHidden() {
-            return !PackList.this.state.isIncompatibleWarningsHidden();
+            return context.configs().user().isIncompatibleWarningsHidden();
         }
 
         protected boolean isFileModifiable() {
-            return resourcesService.isModifiable(PackList.this.state.profiles(), pack);
+            return resources.isModifiable(PackList.this.state.profiles(), pack);
         }
 
         protected Identifier getPackIcon() {
-            return resourcesService.getIcon(pack);
+            return resources.getIcon(pack);
         }
 
         protected void buildWidgets() {
@@ -602,7 +602,9 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 List<PackEntry> payload = createPayload(state::canTransfer);
                 if (!payload.isEmpty()) {
                     List<PackEntry> orderedPayload = sortByOrderOf(PackList.this.state.state().visiblePacks(), payload).reversed();
-                    context.dispatch(new PackListIntent.Enable(key(), pack, orderedPayload));
+                    context.dispatch(key().type().available()
+                            ? new PackListIntent.Enable(key(), pack, orderedPayload)
+                            : new PackListIntent.Disable(key(), pack, orderedPayload));
                 }
             }
         }
@@ -731,11 +733,11 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 PackUtil.openParent(pack.path());
                 return true;
             }
-            if (isDelete(keyEvent) && resourcesService.isModifiable(PackList.this.state.profiles(), pack)) {
+            if (isDelete(keyEvent) && resources.isModifiable(PackList.this.state.profiles(), pack)) {
                 deletePack();
                 return true;
             }
-            if (isRename(keyEvent) && resourcesService.isModifiable(PackList.this.state.profiles(), pack)) {
+            if (isRename(keyEvent) && resources.isModifiable(PackList.this.state.profiles(), pack)) {
                 openRenameModal();
                 return true;
             }
@@ -743,7 +745,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
 
         public void renderBack(GuiGraphicsExtractor graphics, int top, int left, int width, int height) {
-            if (!pack.compatibility().isCompatible() && isIncompatibleWarningsHidden()) {
+            if (!pack.compatibility().isCompatible() && !isIncompatibleWarningsHidden()) {
                 int margin = INNER_ITEM_PADDING / 2;
                 int backgroundLeft = left + margin;
                 int backgroundTop = top + margin;
