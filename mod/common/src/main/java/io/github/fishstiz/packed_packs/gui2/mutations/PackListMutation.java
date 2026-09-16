@@ -3,7 +3,7 @@ package io.github.fishstiz.packed_packs.gui2.mutations;
 import io.github.fishstiz.packed_packs.config.PackOverride;
 import io.github.fishstiz.packed_packs.gui.model.PackListKey;
 import io.github.fishstiz.packed_packs.gui.model.Query;
-import io.github.fishstiz.packed_packs.gui2.models.PackEntry;
+import io.github.fishstiz.packed_packs.models.PackEntry;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
 

@@ -5,6 +5,7 @@ import io.github.fishstiz.packed_packs.api.Preference;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.gui.ContextMenuSink;
 import io.github.fishstiz.packed_packs.config.Config;
+import io.github.fishstiz.packed_packs.config.PackConfigs;
 import io.github.fishstiz.packed_packs.gui.components.PreferenceHelper;
 import io.github.fishstiz.packed_packs.gui.screens.PackSelectionScreenArgs;
 import io.github.fishstiz.packed_packs.gui.model.PackedPacksStore;
@@ -29,7 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.BiConsumer;
 
-public record ScreenContextImpl(
+public record ScreenContextImpl( // todo rename
         Minecraft getMinecraft,
         @Nullable Screen previousScreen,
         PackedPacksScreen screen,
@@ -125,6 +126,10 @@ public record ScreenContextImpl(
             itemSpec.apply(collector);
         }));
         return widget;
+    }
+
+    public PackConfigs configs() {
+        // todo
     }
 
     public void dispatch(Intent intent) {

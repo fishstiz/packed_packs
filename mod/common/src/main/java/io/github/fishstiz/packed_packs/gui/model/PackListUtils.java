@@ -226,6 +226,7 @@ public final class PackListUtils {
         return !options.isFixed(pack);
     }
 
+    // todo do more than check depth
     public static boolean canDrag(PackListKey target, PackEntry pack, ProfileSelection profiles) {
         if (target.depth() == 0 && target.type().available()) {
             return true;
@@ -243,6 +244,7 @@ public final class PackListUtils {
     }
 
     public static boolean canInteract(PackListKey target, PackListKey destination) {
+        // todo do more than check depth
         if (target.depth() > 0 || destination.depth() > 0) {
             return target.equals(destination);
         }

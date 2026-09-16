@@ -3,13 +3,12 @@ package io.github.fishstiz.packed_packs.gui2.intents;
 import io.github.fishstiz.packed_packs.config.PackOverride;
 import io.github.fishstiz.packed_packs.gui.model.PackListKey;
 import io.github.fishstiz.packed_packs.gui.model.Query;
-import io.github.fishstiz.packed_packs.gui2.models.PackEntry;
+import io.github.fishstiz.packed_packs.models.PackEntry;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
 
 import java.util.SequencedCollection;
 
-// everything should be id-based/or not for optimization so we dont have to keep mapping
 // should remove some payload that can be gotten from state
 public sealed interface PackListIntent extends Intent {
     record Search(PackListKey srcList, String query) implements PackListIntent {

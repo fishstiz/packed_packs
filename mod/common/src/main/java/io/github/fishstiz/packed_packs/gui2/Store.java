@@ -77,6 +77,7 @@ public class Store implements FZRef<PackedPacksState> {
     private boolean dispatch(Mutation mutation) {
         PackedPacksState prevState = this.state;
         PackedPacksState newState = Reducer.reduce(prevState, mutation);
+        this.state = newState;
 
         if (prevState != newState) {
             if (mutation.pushState()) {

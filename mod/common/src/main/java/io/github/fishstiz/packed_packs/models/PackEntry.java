@@ -163,7 +163,7 @@ public sealed interface PackEntry {
         }
 
         @Override
-        public PackSelectionConfig selectionConfig() {
+        public PackSelectionConfig selectionConfig() { // todo check this
             return ((ConfiguredPack) pack).packed_packs$originalConfig();
         }
 

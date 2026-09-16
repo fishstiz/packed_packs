@@ -1,6 +1,6 @@
 package io.github.fishstiz.packed_packs.gui2.mutations;
 
-import io.github.fishstiz.packed_packs.gui2.models.PackEntryLists;
+import io.github.fishstiz.packed_packs.models.PackEntryLists;
 
 public sealed interface Mutation permits
         Mutation.PackRenameFailed,

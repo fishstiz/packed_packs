@@ -14,18 +14,14 @@ import io.github.fishstiz.packed_packs.config.Preferences;
 import io.github.fishstiz.packed_packs.gui.ContainerEventHandlerPatch;
 import io.github.fishstiz.packed_packs.gui.FocusPathProvider;
 import io.github.fishstiz.packed_packs.gui.FocusTarget;
-import io.github.fishstiz.packed_packs.gui.components.MouseStateHandler;
-import io.github.fishstiz.packed_packs.gui.components.PackListDevMenu;
 import io.github.fishstiz.packed_packs.gui.components.PreferenceHelper;
 import io.github.fishstiz.packed_packs.gui.model.PackListKey;
 import io.github.fishstiz.packed_packs.gui.model.PackListUtils;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
-import io.github.fishstiz.packed_packs.gui.states.PackListState;
-import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
 import io.github.fishstiz.packed_packs.gui2.actions.intents.PackListIntent;
+import io.github.fishstiz.packed_packs.gui2.states.PackListComputed;
 import io.github.fishstiz.packed_packs.models.PackEntry;
 import io.github.fishstiz.packed_packs.gui2.services.PackResourcesService;
-import io.github.fishstiz.packed_packs.gui2.states.PackListEntrySelector;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.impl.context.ScreenContextImpl;
 import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
@@ -33,6 +29,8 @@ import io.github.fishstiz.packed_packs.pack.folder.FolderPack;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -43,14 +41,21 @@ import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.client.gui.navigation.FocusNavigationEvent;
 import net.minecraft.client.gui.navigation.ScreenDirection;
+import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.server.packs.repository.PackCompatibility;
+import net.minecraft.server.packs.repository.PackSource;
 import org.jspecify.annotations.Nullable;
 
 import java.util.*;
+import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 
+import static io.github.fishstiz.packed_packs.gui.model.PackListUtils.sortByOrderOf;
 import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
 import static io.github.fishstiz.packed_packs.util.InputUtil.*;
 
@@ -60,11 +65,10 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     private static final int ITEM_HEIGHT = INNER_ITEM_HEIGHT + INNER_ITEM_PADDING * 2;
     private static final int DROP_INDEX_PADDING = 3;
     private static final double SCROLL_RATE = (double) ITEM_HEIGHT / 2;
+    private final Map<PackEntry, Entry> entries = new Reference2ReferenceOpenHashMap<>();
     private final ScreenContextImpl screenContext;
     private final PackResourcesService resourcesService;
-    private final PackListKey key;
-    private PackListState listState;
-    private ProfilesState profilesState;
+    private final PackListComputed state;
     private int dropColor;
     private int dropRectColor;
     private int scrollColorFrom;
@@ -72,15 +76,15 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     private boolean scrolling;
     private boolean initialized;
 
-    public PackList(ScreenContextImpl screenContext, PackResourcesService resourcesService, PackListKey key) {
+    public PackList(ScreenContextImpl screenContext, PackResourcesService resourcesService, PackListComputed state) {
         this.screenContext = screenContext;
         this.resourcesService = resourcesService;
-        this.key = key;
+        this.state = state;
         this.applyTheme();
     }
 
     public PackListKey key() {
-        return key;
+        return state.key();
     }
 
     @Override
@@ -99,7 +103,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     }
 
     private void applyTheme() {
-        if (listModel.supportsReordering()) {
+        if (state.canReorder()) {
             this.dropColor = Colors.GREEN_500;
             this.scrollColorFrom = Colors.alpha(dropColor, 0.75f);
             this.scrollColorTo = Colors.alpha(dropColor, 0);
@@ -111,40 +115,32 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
     void initializeEntries() {
         if (!this.initialized) {
-            onStateChanged();
+            rebuildEntries();
             this.initialized = true;
         }
     }
 
-    void onStateChanged(PackListState listState, ProfilesState profilesState) {
+    void rebuildEntries() {
+        Entry previousFocused = this.getFocused();
+        double previousScrollAmount = scrollAmount();
 
-        PackListState previousState = this.listState;
-        ProfilesState previousProfilesState = this.profilesState;
+        clearEntries();
+        entries.clear();
 
-        this.listState = listState;
-        this.profilesState = profilesState;
+        state.forEachEntry((entryState, i) -> {
+            Entry entry = entryState.pack() instanceof PackEntry.Leaf leaf
+                    ? new LeafEntry(entryState, leaf.pack(), i)
+                    : new Entry(entryState, i);
 
-        if (previousState.visiblePacks() != this.listState.visiblePacks()) {
-            Entry previousFocused = this.getFocused();
-            double previousScrollAmount = scrollAmount();
-
-            clearEntries();
-            for (int i = 0; i < listState.visiblePacks().size(); i++) {
-                Entry listEntry = new Entry(listState.visiblePacks().get(i), i);
-                addEntry(listEntry);
-                if (previousFocused != null && previousFocused.pack().equals(listEntry.pack())) {
-                    setFocused(listEntry);
-                }
+            addEntry(entry);
+            entries.put(entryState.pack(), entry);
+            if (previousFocused != null && previousFocused.pack.equals(entryState.pack())) {
+                setFocused(entry);
             }
+        });
 
-            repositionEntries();
-            setScrollAmount(previousScrollAmount);
-        } else {
-            // todo diff dependencies
-            for (Entry listEntry : children()) {
-                listEntry.onStateChanged(listState, profilesState);
-            }
-        }
+        repositionEntries();
+        setScrollAmount(previousScrollAmount);
     }
 
     public void scrollToTop() {
@@ -173,24 +169,30 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         return index;
     }
 
-    private boolean isMouseOverSelectionEntry(SequencedCollection<Pack> selection, double mouseX, double mouseY, int index) {
+    private boolean isMouseOverSelectionEntry(SequencedCollection<PackEntry> selection, double mouseX, double mouseY, int index) {
         if (index < 0 || index >= children().size()) return false;
         Entry entry = children().get(index);
-        return entry.isMouseOver(mouseX, mouseY) && selection.contains(entry.pack());
+        return entry.isMouseOver(mouseX, mouseY) && selection.contains(entry.pack);
     }
 
-    private boolean isMouseOverSelection(SequencedCollection<Pack> selection, double mouseX, double mouseY, int index) {
+    private boolean isMouseOverSelection(SequencedCollection<PackEntry> selection, double mouseX, double mouseY, int index) {
         return isMouseOverSelectionEntry(selection, mouseX, mouseY, index - 1) || isMouseOverSelectionEntry(selection, mouseX, mouseY, index);
     }
 
-    private boolean canDropAt(ActiveAction.Dragging dragging, int mouseX, int mouseY, int index) {
+    private boolean canDrop(ActiveAction.Dragging dragging, int mouseX, int mouseY, int index) {
         if (this.scrolling || (dragging.target() == key() && isMouseOverSelection(dragging.packs(), mouseX, mouseY, index))) {
             return false;
         }
-        return listModel.canDrop(dragging.target(), dragging.ctx().pack(), dragging.packs(), index);
+        return state.canDrop(index);
     }
 
-    private void renderDroppableSlots(GuiGraphicsExtractor graphics, ActiveAction.Dragging dragging, int mouseX, int mouseY, float partialTick) {
+    private void renderDroppableSlots(
+            GuiGraphicsExtractor graphics,
+            ActiveAction.Dragging dragging,
+            int mouseX,
+            int mouseY,
+            float partialTick
+    ) {
         int x = getX();
         int y = getY();
         int width = scrollbarVisible() ? getWidth() - scrollbarWidth() : getWidth();
@@ -214,7 +216,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             }
 
             int index = getDropIndex(mouseY);
-            if (canDropAt(dragging, mouseX, mouseY, index)) {
+            if (canDrop(dragging, mouseX, mouseY, index)) {
                 int rowTop;
                 if (index != -1) {
                     rowTop = children().get(index).getY();
@@ -235,8 +237,8 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         graphics.outline(x, y, width, height, dropColor);
     }
 
-    private void renderDroppableRect(GuiGraphicsExtractor graphics, ActiveAction.Dragging dragging, int mouseX, int mouseY) {
-        if (canDropAt(dragging, mouseX, mouseY, 0)) {
+    private void renderDroppableRect(GuiGraphicsExtractor graphics) {
+        if (state.canDrop(0)) {
             if (isHovered()) {
                 graphics.fill(getX(), getY(), getRight(), getBottom(), dropRectColor);
             }
@@ -244,22 +246,28 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
     }
 
-    public void renderDroppableZone(GuiGraphicsExtractor guiGraphics, ActiveAction.Dragging dragging, int mouseX, int mouseY, float partialTick) {
-        if (!listModel.locked() && PackListUtils.canInteract(dragging.target(), key())) {
-            if (listModel.supportsReordering()) {
+    private void renderDroppableZone(
+            GuiGraphicsExtractor guiGraphics,
+            ActiveAction.Dragging dragging,
+            int mouseX,
+            int mouseY,
+            float partialTick
+    ) {
+        if (!state.isLocked() && PackListUtils.canInteract(dragging.target(), key())) {
+            if (state.canReorder()) {
                 renderDroppableSlots(guiGraphics, dragging, mouseX, mouseY, partialTick);
             } else {
-                renderDroppableRect(guiGraphics, dragging, mouseX, mouseY);
+                renderDroppableRect(guiGraphics);
             }
         }
     }
 
     public void onDrop(ActiveAction.Dragging dragging, int mouseX, int mouseY) {
         int index = getDropIndex(mouseY);
-        if (canDropAt(dragging, mouseX, mouseY, index)) {
-            listModel.applyDrop(dragging.target(), dragging.ctx(), dragging.packs(), index);
+        if (canDrop(dragging, mouseX, mouseY, index)) {
+            screenContext.dispatch(new PackListIntent.Drop(dragging.target(), key(), index));
         } else {
-            listModel.cancelDrop(dragging.target(), dragging.ctx(), dragging.packs());
+            screenContext.dispatch(new PackListIntent.Drop(dragging.target(), null, 0));
         }
     }
 
@@ -278,12 +286,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     }
 
     private @Nullable Entry getSelected() {
-        for (Entry entry : children()) {
-            if (entry.entryModel.selectedLast()) {
-                return entry;
-            }
-        }
-        return null;
+        return entries.get(state.getSelected());
     }
 
     private @Nullable Entry getFocusedOrSelected() {
@@ -293,7 +296,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
     private @Nullable Entry getEntry(String packId) {
         for (Entry entry : this.children()) {
-            if (entry.pack().id().equals(packId)) {
+            if (entry.pack.id().equals(packId)) {
                 return entry;
             }
         }
@@ -361,8 +364,8 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             if (this.scroll) {
                 this.component.scrollToEntry(this.child);
             }
-            if (this.select && !this.child.entryModel.selectedLast()) {
-                this.child.entryModel.selectExclusive();
+            if (this.select && !this.child.state.isSelectedLast()) {
+                this.child.selectPackExclusively();
             }
         }
 
@@ -375,9 +378,9 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     private void selectOnKeyPress(@Nullable Entry entry) {
         if (entry == null) return;
         if (isRangeModifierActive()) {
-            screenContext.dispatch(new PackListIntent.SelectRange(key, entry.pack));
+            screenContext.dispatch(new PackListIntent.SelectRange(key(), entry.pack));
         } else {
-            screenContext.dispatch(new PackListIntent.SelectExclusive(key, entry.pack));
+            screenContext.dispatch(new PackListIntent.SelectExclusive(key(), entry.pack));
         }
         setFocused(entry);
         scrollToEntry(entry);
@@ -386,7 +389,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     @Override
     public boolean keyPressed(KeyEvent keyEvent) {
         if (isSelectAll(keyEvent)) {
-            screenContext.dispatch(new PackListIntent.SelectAll(key, getSelected().pack));
+            screenContext.dispatch(new PackListIntent.SelectAll(key(), state.getSelected()));
             return true;
         }
         if (super.keyPressed(keyEvent)) {
@@ -425,8 +428,13 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
     @Override
     protected void extractEntriesRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        if (!listState.isFolderOpened()) {
+        if (!state.isFolderOpened()) {
             super.extractEntriesRenderState(graphics, mouseX, mouseY, partialTick);
+
+            ActiveAction.Dragging dragging = state.getDragging();
+            if (dragging != null) {
+                renderDroppableZone(graphics, dragging, mouseX, mouseY, partialTick);
+            }
         }
     }
 
@@ -451,90 +459,78 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 Renderables.sprite(Identifier.withDefaultNamespace("transferable_list/move_down_highlighted"))
         );
         private final int index;
-        private final PackEntry pack;
-        private final PackListEntrySelector selector;
+        protected final PackEntry pack;
+        protected final PackListComputed.Entry state;
         private final MouseStateHandler mouseStateHandler;
         private final List<GuiEventListener> children = new ObjectArrayList<>();
         private final List<Renderable> renderables = new ObjectArrayList<>();
         private List<LayoutElement> rightElements = Collections.emptyList();
-        private @Nullable PackWidget packWidget;
+        protected @Nullable PackWidget packWidget;
         private @Nullable AbstractWidget folderWidget;
-        private @Nullable PackListDevMenu devMenu;
-        private @Nullable PackContext packContext;
+        private @Nullable PackDevMenu devMenu;
         private boolean initialized;
 
-        Entry(PackEntry pack, int index) {
+        Entry(PackListComputed.Entry state, int index) {
             super(ITEM_HEIGHT);
             this.index = index;
-            this.pack = pack;
-            this.selector = new PackListEntrySelector(key, pack);
-            this.mouseStateHandler = new MouseStateHandler(this, entryModel);
-        }
-
-        private void onStateChanged(PackListState listState, ProfilesState profilesState) {
-
-        }
-
-        private void init() {
-            if (this.initialized) return;
-
-            this.packWidget = new PackWidget(entryModel, INNER_ITEM_HEIGHT);
-            repositionPackWidget();
-
-            entryModel.folder().flatMap(_ -> PreferenceHelper.wrap(Preferences.FOLDER_PACK_WIDGET, FZIconButton.builder()
-                            .size(INNER_ITEM_HEIGHT / 3, INNER_ITEM_HEIGHT / 3)
-                            .icon(new WidgetElements(HAMBURGER_RECT, 8, 8))
-                            .tooltip(FOLDER_OPEN_INFO)
-                            .focusOnInteraction(false)
-                            .onPress(entryModel::openFolder)
-                            .build()))
-                    .ifPresent(widget -> {
-                        int x = getX() + PackWidget.ICON_SIZE + INNER_ITEM_PADDING * 2;
-                        int y = getY() + getHeight() - widget.getHeight() - INNER_ITEM_PADDING;
-                        widget.setPosition(x, y);
-                        acceptWidget(widget);
-                        acceptRenderable(widget);
-                        this.folderWidget = widget;
-                    });
-
-            this.devMenu = screenContext.devMode() ? entryModel.createDevMenu() : null;
-
-            this.initialized = true;
-
-            if (this.entryModel.pack() instanceof PackEntry.Leaf leaf) {
-                this.packContext = new PackContext() {
-                    @Override
-                    public Pack pack() {
-                        return leaf.pack();
-                    }
-
-                    @Override
-                    public Identifier icon() {
-                        return entryModel.icon();
-                    }
-
-                    @Override
-                    public boolean fileModifiable() {
-                        return entryModel.fileModifiable();
-                    }
-                };
-
-                PackedPacksApiImpl.getInstance().eventBus().post(new InitializePackEntryEvent(
-                        screenContext,
-                        packContext,
-                        packWidget,
-                        this
-                ));
-            }
-        }
-
-        public PackEntry pack() {
-            return entryModel.pack();
+            this.pack = state.pack();
+            this.state = state;
+            this.mouseStateHandler = new MouseStateHandler(this);
         }
 
         @Override
         public int getIndex() {
             return index;
+        }
+
+        protected PackListKey key() {
+            return PackList.this.state.key();
+        }
+
+        protected boolean isIncompatibleWarningsHidden() {
+            return !PackList.this.state.isIncompatibleWarningsHidden();
+        }
+
+        protected boolean isFileModifiable() {
+            return resourcesService.isModifiable(PackList.this.state.profiles(), pack);
+        }
+
+        protected Identifier getPackIcon() {
+            return resourcesService.getIcon(pack);
+        }
+
+        protected void buildWidgets() {
+            this.packWidget = new PackWidget(this, INNER_ITEM_HEIGHT);
+            repositionPackWidget();
+
+            if (pack instanceof PackEntry.Parent) {
+                PreferenceHelper.wrap(Preferences.FOLDER_PACK_WIDGET, FZIconButton.builder()
+                                .size(INNER_ITEM_HEIGHT / 3, INNER_ITEM_HEIGHT / 3)
+                                .icon(new WidgetElements(HAMBURGER_RECT, 8, 8))
+                                .tooltip(FOLDER_OPEN_INFO)
+                                .focusOnInteraction(false)
+                                .onPress(this::expandFolder)
+                                .build())
+                        .ifPresent(widget -> {
+                            int x = getX() + PackWidget.ICON_SIZE + INNER_ITEM_PADDING * 2;
+                            int y = getY() + getHeight() - widget.getHeight() - INNER_ITEM_PADDING;
+                            widget.setPosition(x, y);
+                            acceptWidget(widget);
+                            acceptRenderable(widget);
+                            this.folderWidget = widget;
+                        });
+            }
+
+            if (screenContext.devMode()) {
+                this.devMenu = new PackDevMenu(screenContext, PackList.this.state.profiles(), this);
+            }
+        }
+
+        private void init() {
+            if (!this.initialized) {
+                this.initialized = true;
+                buildWidgets();
+            }
         }
 
         @Override
@@ -555,6 +551,81 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             this.rightElements = CollectionUtils.addLast(rightElements, element);
         }
 
+        public void selectPack() {
+            if (PackList.this.state.isLocked()) return;
+            screenContext.dispatch(new PackListIntent.Select(key(), pack));
+        }
+
+        public void selectToggle() {
+            if (PackList.this.state.isLocked()) return;
+            screenContext.dispatch(new PackListIntent.SelectToggle(key(), pack));
+        }
+
+        public void selectTowardsPack() {
+            if (PackList.this.state.isLocked()) return;
+            screenContext.dispatch(new PackListIntent.SelectRange(key(), pack));
+        }
+
+        public void selectPackExclusively() {
+            if (PackList.this.state.isLocked()) return;
+            screenContext.dispatch(new PackListIntent.SelectExclusive(key(), pack));
+        }
+
+        protected List<PackEntry> createPayload(BooleanSupplier filter) {
+            SequencedCollection<PackEntry> selection = PackList.this.state.state().selectedPacks();
+            if (!selection.contains(pack)) {
+                return filter.getAsBoolean() ? List.of(pack) : Collections.emptyList();
+            }
+
+            return CollectionUtils.addIf(new ObjectArrayList<>(selection.size()), selection, ignored -> filter.getAsBoolean());
+        }
+
+        protected List<PackEntry> createPayload() {
+            return state.isSelected() ? List.copyOf(PackList.this.state.state().selectedPacks()) : List.of(pack);
+        }
+
+        protected void transferPack() {
+            if (!PackList.this.state.isLocked()) {
+                List<PackEntry> payload = createPayload(state::canTransfer);
+                if (!payload.isEmpty()) {
+                    List<PackEntry> orderedPayload = sortByOrderOf(PackList.this.state.state().visiblePacks(), payload).reversed();
+                    screenContext.dispatch(new PackListIntent.Enable(key(), pack, orderedPayload));
+                }
+            }
+        }
+
+        protected void movePack(boolean upwards) {
+            if (!PackList.this.state.isLocked()) {
+                List<PackEntry> payload = createPayload();
+                if (!payload.isEmpty()) {
+                    screenContext.dispatch(new PackListIntent.MoveOnce(key(), pack, payload, upwards));
+                }
+            }
+        }
+
+        protected void openRenameModal() {
+            screenContext.dispatch(new PackListIntent.OpenRenameModal(key(), pack));
+        }
+
+        protected void deletePack() {
+            screenContext.dispatch(new PackListIntent.Delete(key(), pack));
+        }
+
+        protected void expandFolder() {
+            if (pack instanceof PackEntry.Parent parent) {
+                screenContext.dispatch(new PackListIntent.OpenFolder(key(), parent));
+            }
+        }
+
+        protected void dragPack() {
+            if (!state.canDrag() || PackList.this.state.isLocked()) return;
+            List<PackEntry> payload = createPayload();
+            if (!payload.isEmpty()) {
+                List<PackEntry> orderedPayload = sortByOrderOf(PackList.this.state.state().visiblePacks(), payload);
+                screenContext.dispatch(new PackListIntent.Drag(key(), pack, new ObjectLinkedOpenHashSet<>(orderedPayload)));
+            }
+        }
+
         @Override
         public void setFocused(boolean focused) {
             super.setFocused(focused);
@@ -564,13 +635,18 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
 
         private boolean isFocusedOrSelected() {
-            return PackList.this.getFocused() == null ? entryModel.selectedLast() : isFocused();
+            return PackList.this.getFocused() == null ? state.isSelectedLast() : isFocused();
+        }
+
+        @Override
+        public boolean shouldTakeFocusAfterInteraction() {
+            return !PackList.this.state.isFolderOpened();
         }
 
         @Override
         public boolean mouseClicked(MouseButtonEvent mouseButtonEvent, boolean doubleClicked) {
             if (ContainerEventHandlerPatch.super.mouseClicked(mouseButtonEvent, doubleClicked) || isRightClick(mouseButtonEvent)) {
-                if (!listModel.isFolderOpened()) return true;
+                if (!PackList.this.state.isFolderOpened()) return true;
                 // ideally folderWidget should return false on #shouldTakeFocusAfterInteraction,
                 // #shouldTakeFocusAfterInteraction also does not bubble up,
                 // we want to return false regardless so that the folder can be focused
@@ -582,20 +658,20 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 int relativeX = (int) mouseButtonEvent.x() - (getX() + INNER_ITEM_PADDING);
                 int relativeY = (int) mouseButtonEvent.y() - (getY() + INNER_ITEM_PADDING);
 
-                if (entryModel.canEnable() && mouseOverIcon(relativeX, relativeY, ICON_SIZE)) {
-                    entryModel.enable();
+                if (state.canEnable() && mouseOverIcon(relativeX, relativeY, ICON_SIZE)) {
+                    transferPack();
                     return false;
                 }
-                if (entryModel.canDisable() && mouseOverLeftHalf(relativeX, relativeY, ICON_SIZE)) {
-                    entryModel.disable();
+                if (state.canDisable() && mouseOverLeftHalf(relativeX, relativeY, ICON_SIZE)) {
+                    transferPack();
                     return false;
                 }
-                if (entryModel.canMoveUp() && mouseOverTopRightQuarter(relativeX, relativeY, ICON_SIZE)) {
-                    entryModel.moveUp();
+                if (state.canMoveUp() && mouseOverTopRightQuarter(relativeX, relativeY, ICON_SIZE)) {
+                    movePack(true);
                     return false;
                 }
-                if (entryModel.canMoveDown() && mouseOverBottomRightQuarter(relativeX, relativeY, ICON_SIZE)) {
-                    this.entryModel.moveDown();
+                if (state.canMoveDown() && mouseOverBottomRightQuarter(relativeX, relativeY, ICON_SIZE)) {
+                    movePack(false);
                     return false;
                 }
             }
@@ -618,43 +694,44 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             if (super.keyPressed(keyEvent)) {
                 return true;
             }
-            if (isExpandFolder(keyEvent) && entryModel.folder().isPresent() && entryModel.selectedExclusive()) {
-                entryModel.openFolder();
+            // todo subclass
+            if (isExpandFolder(keyEvent) && pack instanceof PackEntry.Parent && state.isSelectedExclusively()) {
+                expandFolder();
                 return true;
             }
-            if (isTransfer(keyEvent) && listModel.supportsTransferring()) {
-                entryModel.transfer();
+            if (isTransfer(keyEvent) && PackList.this.state.canReorder()) {
+                transferPack();
                 return true;
             }
-            if (isMoveDown(keyEvent) && listModel.supportsReordering()) {
-                entryModel.moveDown();
+            if (isMoveDown(keyEvent) && PackList.this.state.canReorder()) {
+                movePack(false);
                 return true;
             }
-            if (isMoveUp(keyEvent) && listModel.supportsReordering()) {
-                entryModel.moveUp();
+            if (isMoveUp(keyEvent) && PackList.this.state.canReorder()) {
+                movePack(true);
                 return true;
             }
             if (isOpenFile(keyEvent)) {
-                PackUtil.openPack(pack().path());
+                PackUtil.openPack(pack.path());
                 return true;
             }
             if (isOpenFolder(keyEvent)) {
-                PackUtil.openParent(pack().path());
+                PackUtil.openParent(pack.path());
                 return true;
             }
-            if (isDelete(keyEvent) && entryModel.fileModifiable()) {
-                entryModel.delete();
+            if (isDelete(keyEvent) && resourcesService.isModifiable(PackList.this.state.profiles(), pack)) {
+                deletePack();
                 return true;
             }
-            if (isRename(keyEvent) && entryModel.fileModifiable()) {
-                entryModel.openRename();
+            if (isRename(keyEvent) && resourcesService.isModifiable(PackList.this.state.profiles(), pack)) {
+                openRenameModal();
                 return true;
             }
             return false;
         }
 
         public void renderBack(GuiGraphicsExtractor graphics, int top, int left, int width, int height) {
-            if (!pack().compatibility().isCompatible() && !entryModel.incompatibleWarningsHidden()) {
+            if (!pack.compatibility().isCompatible() && isIncompatibleWarningsHidden()) {
                 int margin = INNER_ITEM_PADDING / 2;
                 int backgroundLeft = left + margin;
                 int backgroundTop = top + margin;
@@ -674,30 +751,30 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
         private void renderWidgetSprites(GuiGraphicsExtractor graphics, int top, int left, int mouseX, int mouseY) {
             boolean hovered = isHovered() && fidgetz$getHovered() == null;
-            if (!hovered && !this.entryModel.selectedLast()) return;
+            if (!hovered && !state.isSelectedLast()) return;
 
             int relX = mouseX - left;
             int relY = mouseY - top;
 
             WHITE_OVERLAY.extractRenderState(graphics, left, top, ICON_SIZE, ICON_SIZE, 0, 0, 0);
 
-            if (entryModel.canEnable()) {
+            if (state.canEnable()) {
                 renderWidgetSprites(graphics, SELECT_SPRITES, left, top, hovered && mouseOverIcon(relX, relY, ICON_SIZE));
             }
-            if (entryModel.canDisable()) {
+            if (state.canDisable()) {
                 renderWidgetSprites(graphics, UNSELECT_SPRITES, left, top, hovered && mouseOverLeftHalf(relX, relY, ICON_SIZE));
             }
-            if (entryModel.canMoveUp()) {
+            if (state.canMoveUp()) {
                 renderWidgetSprites(graphics, MOVE_UP_SPRITES, left, top, hovered && mouseOverTopRightQuarter(relX, relY, ICON_SIZE));
             }
-            if (entryModel.canMoveDown()) {
+            if (state.canMoveDown()) {
                 renderWidgetSprites(graphics, MOVE_DOWN_SPRITES, left, top, hovered && mouseOverBottomRightQuarter(relX, relY, ICON_SIZE));
             }
         }
 
         private void renderSelection(GuiGraphicsExtractor graphics, int top, int left, int width, int height) {
-            if (entryModel.selected()) {
-                RenderableRectangle overlay = entryModel.selectedLast() ? WHITE_OVERLAY : SELECTED_OVERLAY;
+            if (state.isSelected()) {
+                RenderableRectangle overlay = state.isSelectedLast() ? WHITE_OVERLAY : SELECTED_OVERLAY;
                 overlay.extractRenderState(graphics, left, top, width, height, 0, 0, 0);
                 graphics.outline(left, top, width, height, Colors.BLUE_500);
             }
@@ -730,21 +807,17 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             }
         }
 
-        @Override
-        public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
-            if (!this.initialized) return;
-
-            ContextMenuEventImpl<ContextMenuEvent.PackEntry.Pos> extensions = ContextMenuEventImpl.postPackEntry(
-                    screenContext,
-                    packContext
-            );
-
-
-            extensions.entries(ContextMenuEvent.PackEntry.Pos.BEFORE_HEADER).forEach(collector::addEntry);
+        protected void updateContextEntries(
+                Function<ContextMenuEvent.PackEntry.Pos, Collection<FZPopoverMenuItem>> entryFactory,
+                FZContextMenu.Collector collector,
+                double x,
+                double y
+        ) {
+            entryFactory.apply(ContextMenuEvent.PackEntry.Pos.BEFORE_HEADER).forEach(collector::addEntry);
 
             collector.addEntry(builder -> builder
-                    .message(pack().title())
-                    .icon(padded16Rect(Renderables.texture(entryModel.icon(), 32, 32)))
+                    .message(pack.title())
+                    .icon(padded16Rect(Renderables.texture(getPackIcon(), 32, 32)))
                     .background(Renderables.fill(Colors.GRAY_500))
                     .onPress(e -> {
                         e.context().closeMenu();
@@ -755,41 +828,52 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
             collector.nextSection();
 
-            extensions.entries(ContextMenuEvent.PackEntry.Pos.AFTER_HEADER).forEach(collector::addEntry);
+            entryFactory.apply(ContextMenuEvent.PackEntry.Pos.AFTER_HEADER).forEach(collector::addEntry);
 
             if (devMenu != null) {
                 devMenu.updateContextEntries(collector);
                 collector.nextSection();
             }
 
-            extensions.entries(ContextMenuEvent.PackEntry.Pos.AFTER_DEV).forEach(collector::addEntry);
+            entryFactory.apply(ContextMenuEvent.PackEntry.Pos.AFTER_DEV).forEach(collector::addEntry);
 
-            if (entryModel.folder().isPresent()) {
+            if (pack instanceof PackEntry.Parent) {
                 collector.addEntry(builder -> builder
                         .message(FolderPack.FOLDER_OPEN_TEXT)
-                        .onPress(entryModel::openFolder));
+                        .onPress(this::expandFolder));
                 collector.nextSection();
             }
 
-            if (entryModel.fileModifiable()) {
+            if (isFileModifiable()) {
                 collector.addEntry(builder -> builder
                         .message(RENAME_FILE_TEXT)
-                        .active(entryModel::fileModifiable)
-                        .onPress(entryModel::openRename));
+                        .active(this::isFileModifiable)
+                        .onPress(this::openRenameModal));
                 collector.addEntry(builder -> builder
                         .message(DELETE_FILE_TEXT)
-                        .active(entryModel::fileModifiable)
-                        .onPress(entryModel::delete));
+                        .active(this::isFileModifiable)
+                        .onPress(this::deletePack));
             }
 
-            if (pack().path() != null) {
-                collector.addEntry(builder -> builder.message(OPEN_FILE_TEXT).onPress(() -> PackUtil.openPack(pack().path())));
-                collector.addEntry(builder -> builder.message(OPEN_PARENT_TEXT).onPress(() -> PackUtil.openParent(pack().path())));
+            if (pack.path() != null) {
+                collector.addEntry(builder -> builder.message(OPEN_FILE_TEXT).onPress(() -> PackUtil.openPack(pack.path())));
+                collector.addEntry(builder -> builder.message(OPEN_PARENT_TEXT).onPress(() -> PackUtil.openParent(pack.path())));
             }
 
-            extensions.entries(ContextMenuEvent.PackEntry.Pos.AFTER_PACK).forEach(collector::addEntry);
+            entryFactory.apply(ContextMenuEvent.PackEntry.Pos.AFTER_PACK).forEach(collector::addEntry);
 
             FZContextMenu.Source.super.fidgetz$updateContextEntries(x, y, collector);
+        }
+
+        protected void updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
+            updateContextEntries(ignored -> Collections.emptyList(), collector, x, y);
+        }
+
+        @Override
+        public final void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
+            if (this.initialized) {
+                updateContextEntries(x, y, collector);
+            }
         }
 
         @Override
@@ -846,6 +930,144 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             }
             super.setBounds(x, y, width, height);
             repositionPackWidget();
+        }
+    }
+
+    class LeafEntry extends Entry implements PackContext, PackSelectionModel.Entry {
+        private final Pack exposed;
+
+        LeafEntry(PackListComputed.Entry state, Pack pack, int index) {
+            super(state, index);
+            this.exposed = pack;
+        }
+
+        @Override
+        public Pack pack() {
+            return exposed;
+        }
+
+        @Override
+        public Identifier icon() {
+            return getPackIcon();
+        }
+
+        @Override
+        public boolean fileModifiable() {
+            return isFileModifiable();
+        }
+
+        @Override
+        protected void buildWidgets() {
+            super.buildWidgets();
+
+            PackedPacksApiImpl.getInstance().eventBus().post(new InitializePackEntryEvent(
+                    screenContext,
+                    this,
+                    Objects.requireNonNull(packWidget),
+                    this
+            ));
+        }
+
+        @Override
+        public void updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
+            var extensions = ContextMenuEventImpl.postPackEntry(screenContext, this);
+            updateContextEntries(extensions::entries, collector, x, y);
+        }
+
+        // PackSelectionModel.Entry overrides
+
+        @Override
+        @Deprecated
+        public Identifier getIconTexture() {
+            return getPackIcon();
+        }
+
+        @Override
+        @Deprecated
+        public PackCompatibility getCompatibility() {
+            return pack.compatibility();
+        }
+
+        @Override
+        @Deprecated
+        public String getId() {
+            return pack.id();
+        }
+
+        @Override
+        @Deprecated
+        public Component getTitle() {
+            return pack.title();
+        }
+
+        @Override
+        @Deprecated
+        public Component getDescription() {
+            return pack.metadata().description();
+        }
+
+        @Override
+        @Deprecated
+        public PackSource getPackSource() {
+            return pack.packSource();
+        }
+
+        @Override
+        @Deprecated
+        public boolean isFixedPosition() {
+            return PackList.this.state.profiles().isPackFixed(pack);
+        }
+
+        @Override
+        @Deprecated
+        public boolean isRequired() {
+            return PackList.this.state.profiles().isPackRequired(pack);
+        }
+
+        @Override
+        @Deprecated
+        public void select() {
+            if (state.canEnable()) {
+                transferPack();
+            }
+        }
+
+        @Override
+        @Deprecated
+        public void unselect() {
+            if (state.canDisable()) {
+                transferPack();
+            }
+        }
+
+        @Override
+        @Deprecated
+        public void moveUp() {
+            movePack(true);
+        }
+
+        @Override
+        @Deprecated
+        public void moveDown() {
+            movePack(false);
+        }
+
+        @Override
+        @Deprecated
+        public boolean isSelected() {
+            return state.isSelected();
+        }
+
+        @Override
+        @Deprecated
+        public boolean canMoveUp() {
+            return state.canMoveUp();
+        }
+
+        @Override
+        @Deprecated
+        public boolean canMoveDown() {
+            return state.canMoveDown();
         }
     }
 }
