@@ -7,6 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 public class PackedPacks {
     public static final String MOD_ID = "packed_packs";
@@ -31,5 +33,18 @@ public class PackedPacks {
 
     public static long duration(long startNanos) {
         return (System.nanoTime() - startNanos) / 1_000_000;
+    }
+
+    public static <T, R> R mapOrElse(T obj, R defaultValue, Function<T, R> mapper) {
+        return obj != null ? mapper.apply(obj) : defaultValue;
+    }
+
+    public static void runInParallel(Runnable... tasks) {
+        @SuppressWarnings("unchecked")
+        CompletableFuture<Void>[] futures = (CompletableFuture<Void>[]) new CompletableFuture<?>[tasks.length];
+        for (int i = 0; i < tasks.length; i++) {
+            futures[i] = CompletableFuture.runAsync(tasks[i], Util.backgroundExecutor());
+        }
+        CompletableFuture.allOf(futures).join();
     }
 }

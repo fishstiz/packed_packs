@@ -13,6 +13,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Objects;
@@ -24,12 +25,16 @@ public record FolderResources(PackLocationInfo location, Path path) implements P
     public @Nullable IoSupplier<InputStream> getRootResource(String... elements) {
         if (elements.length > 0) {
             if (Objects.equals(elements[0], PackUtil.ICON_FILENAME)) {
-                return () -> Files.newInputStream(this.path.resolve(PackUtil.ICON_FILENAME));
+                return getRootResource(path.resolve(PackUtil.ICON_FILENAME));
             } else if (Objects.equals(elements[0], FolderPackMeta.FILENAME)) {
-                return () -> Files.newInputStream(this.path.resolve(FolderPackMeta.FILENAME));
+                return getRootResource(path.resolve(FolderPackMeta.FILENAME));
             }
         }
         return null;
+    }
+
+    private @Nullable IoSupplier<InputStream> getRootResource(Path path) {
+        return Files.exists(path, LinkOption.NOFOLLOW_LINKS) ? () -> Files.newInputStream(path) : null;
     }
 
     @Override

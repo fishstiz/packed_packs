@@ -1,6 +1,5 @@
 package io.github.fishstiz.packed_packs.pack;
 
-import com.mojang.datafixers.util.Pair;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.transform.interfaces.ConfiguredPack;
 import net.minecraft.network.chat.Component;
@@ -8,7 +7,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackSelectionConfig;
-import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackCompatibility;
 import net.minecraft.server.packs.repository.PackSource;
@@ -75,11 +73,6 @@ public sealed interface PackEntry {
         @Override
         public String id() {
             return location.id();
-        }
-
-        @Override
-        public @Nullable String parentId() {
-            return null;
         }
 
         @Override
@@ -163,7 +156,7 @@ public sealed interface PackEntry {
         }
 
         @Override
-        public PackSelectionConfig selectionConfig() { // todo check this
+        public PackSelectionConfig selectionConfig() {
             return ((ConfiguredPack) pack).packed_packs$originalConfig();
         }
 

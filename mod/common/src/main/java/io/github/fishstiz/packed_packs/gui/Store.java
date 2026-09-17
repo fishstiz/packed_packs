@@ -29,7 +29,6 @@ import io.github.fishstiz.packed_packs.util.PackEntryLists;
 import io.github.fishstiz.packed_packs.pack.PackWatcher;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import io.github.fishstiz.packed_packs.util.ToastUtil;
-import io.github.fishstiz.packed_packs.util.Utils;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.client.Minecraft;
@@ -447,7 +446,6 @@ public class Store implements FZRef<PackedPacksState> {
     }
 
     private PackEntryLists getCurrentPacks() {
-        // todo cache this maybe
         return PackEntryResolver.syncPackLists(
                 repository,
                 state.profiles(),
@@ -576,12 +574,17 @@ public class Store implements FZRef<PackedPacksState> {
 
     private static PackListState.@Nullable Folder syncFolderStateWithRepository(
             PackRepositoryService repository,
+            PackListType type,
             Set<String> enabledIds,
             PackListState.@Nullable Folder folder,
             ProfilesState profiles,
             boolean devMode
     ) {
         if (folder == null) {
+            return null;
+        }
+
+        if (type.available() == enabledIds.contains(folder.pack().id())) {
             return null;
         }
 
@@ -616,7 +619,7 @@ public class Store implements FZRef<PackedPacksState> {
 
         PackListState.Folder nestedFolder = folder.contents().folder();
         PackListState.Folder newNestedFolder = nestedFolder != null && currentContentIds.contains(nestedFolder.pack().id())
-                ? syncFolderStateWithRepository(repository, enabledIds, nestedFolder, profiles, devMode)
+                ? syncFolderStateWithRepository(repository, type, enabledIds, nestedFolder, profiles, devMode)
                 : null;
 
         return new PackListState.Folder(canonicalParent, folder.locked(), folder.contents()
@@ -631,7 +634,7 @@ public class Store implements FZRef<PackedPacksState> {
             start = System.nanoTime();
             PackedPacks.LOGGER.info("[packed_packs] ======== Syncing State ========");
         }
-        // todo doesnt work well
+
         PackEntryLists validated = PackEntryResolver.syncPackLists(
                 repository,
                 state.profiles(),
@@ -652,6 +655,7 @@ public class Store implements FZRef<PackedPacksState> {
                 .withPacks(validated.disabled(), profiles, devMode)
                 .withFolder(syncFolderStateWithRepository(
                         repository,
+                        PackListType.AVAILABLE,
                         enabledIds,
                         state.available().folder(),
                         profiles,
@@ -662,6 +666,7 @@ public class Store implements FZRef<PackedPacksState> {
                 .withPacks(validated.enabled(), profiles, devMode)
                 .withFolder(syncFolderStateWithRepository(
                         repository,
+                        PackListType.ENABLED,
                         enabledIds,
                         state.enabled().folder(),
                         profiles,
@@ -730,7 +735,7 @@ public class Store implements FZRef<PackedPacksState> {
                 ? () -> configs.profiles().save(selectedProfile)
                 : FunctionUtils.nop();
 
-        Utils.runInParallel(profileSaver, Config.get()::save, DevConfig.get()::save, Preferences::save);
+        PackedPacks.runInParallel(profileSaver, Config.get()::save, DevConfig.get()::save, Preferences::save);
     }
 
     public void initializeState() {

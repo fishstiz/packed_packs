@@ -2,11 +2,9 @@ package io.github.fishstiz.packed_packs.config;
 
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.util.PackUtil;
-import io.github.fishstiz.packed_packs.util.Utils;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
 
@@ -139,11 +137,11 @@ public final class Profile {
     }
 
     public boolean isHidden(String packId) {
-        return Boolean.TRUE.equals(Utils.mapOrElse(this.overrides.get(packId), false, PackOverride::hidden));
+        return Boolean.TRUE.equals(PackedPacks.mapOrElse(this.overrides.get(packId), false, PackOverride::hidden));
     }
 
     public boolean isRequired(String packId) {
-        return Boolean.TRUE.equals(Utils.mapOrElse(this.overrides.get(packId), false, PackOverride::required));
+        return Boolean.TRUE.equals(PackedPacks.mapOrElse(this.overrides.get(packId), false, PackOverride::required));
     }
 
     public boolean isFixed(String packId) {

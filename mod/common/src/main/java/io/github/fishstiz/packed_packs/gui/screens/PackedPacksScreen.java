@@ -39,7 +39,6 @@ import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionModelAccesso
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionScreenAccessor;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.PackUtil;
-import io.github.fishstiz.packed_packs.util.ToastUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -84,7 +83,6 @@ public class PackedPacksScreen extends FZScreen {
     private @Nullable FZLayout layout;
     private @Nullable FZTextField availableSearch;
     private @Nullable FZTextField enabledSearch;
-    private boolean refreshOnInit = true;
     private boolean initialized = false;
     private boolean preloading;
 
@@ -120,7 +118,6 @@ public class PackedPacksScreen extends FZScreen {
         PackedPacksScreen screen = new PackedPacksScreen(null, PackSelectionScreenArgs.dummy(minecraft));
         screen.store.stopWatcher();
         screen.preloading = true;
-        screen.refreshOnInit = false;
         screen.init();
     }
 
@@ -157,9 +154,7 @@ public class PackedPacksScreen extends FZScreen {
 
         store.initializeState();
         super.init();
-        if (this.refreshOnInit) store.refreshRepository();
 
-        this.refreshOnInit = true;
         this.initialized = true;
 
         InitializeEvent.Post postInit = new InitializeEvent.Post(context);
@@ -502,7 +497,6 @@ public class PackedPacksScreen extends FZScreen {
         clearWidgets();
         store.saveSelectedProfile();
         store.saveState();
-        this.refreshOnInit = false;
         this.initialized = false;
         init();
         availableList.rebuildEntries();

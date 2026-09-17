@@ -72,44 +72,99 @@ public class PackRepositoryService {
             IoSupplier<InputStream> streamSupplier = resources.getRootResource(FolderPackMeta.FILENAME);
             if (streamSupplier != null) {
                 try (InputStream stream = streamSupplier.get()) {
-                    folderMeta.put(
-                            entry.id(),
-                            JsonLoader.loadOrDefault(stream, FolderPackMeta.class, FolderPackMeta::new)
-                    );
+                    folderMeta.put(entry.id(), JsonLoader.loadOrDefault(
+                            stream,
+                            FolderPackMeta.class,
+                            FolderPackMeta::new
+                    ));
+                    return;
                 } catch (Exception e) {
                     PackedPacks.LOGGER.error("[packed_packs] Failed to read folder metadata at {}", entry.path(), e);
                 }
             }
+
+            folderMeta.put(entry.id(), new FolderPackMeta());
         }
     }
 
-    private void addParentsRecursively(String id, Collection<String> collection) {
-        PackEntry entry = this.packs.get(id);
-        if (entry instanceof PackEntry.Parent parent) {
-            FolderPackMeta meta = folderMeta.getOrDefault(parent.id(), new FolderPackMeta());
-            if (meta.module()) {
-                collection.add(parent.id());
-                String parentId = parent.parentId();
-                if (parentId != null) {
-                    addParentsRecursively(parentId, collection);
-                }
+    private void collectDescendantLeaves(PackEntry.Parent current, List<PackEntry> collector) {
+        FolderPackMeta meta = Objects.requireNonNullElseGet(folderMeta.get(current.id()), FolderPackMeta::new);
+        if (meta.module()) {
+            collector.add(current);
+            return;
+        }
+
+        for (PackEntry child : current.children()) {
+            if (child instanceof PackEntry.Leaf leaf) {
+                collector.add(leaf);
+            }
+            if (child instanceof PackEntry.Parent inner) {
+                collectDescendantLeaves(inner, collector);
             }
         }
     }
 
+    public List<PackEntry> findDescendantLeaves(PackEntry.Parent parent) {
+        List<PackEntry> leaves = new ObjectArrayList<>();
+        collectDescendantLeaves(parent, leaves);
+        return leaves;
+    }
+
+    public PackEntry.@Nullable Parent findAncestor(PackEntry pack) {
+        Map<String, PackEntry> packs = this.packs;
+
+        PackEntry current = packs.get(pack.parentId());
+        PackEntry.Parent ancestor = null;
+
+        while (current instanceof PackEntry.Parent parent) {
+            ancestor = parent;
+            current = current.parentId() == null ? null : packs.get(current.parentId());
+        }
+
+        return ancestor;
+    }
+
+    public PackEntry.@Nullable Parent findModuleAncestor(PackEntry pack) {
+        Map<String, PackEntry> packs = this.packs;
+
+        PackEntry current = packs.get(pack.parentId());
+        PackEntry.Parent moduleAncestor = null;
+
+        while (current instanceof PackEntry.Parent parent) {
+            FolderPackMeta meta = Objects.requireNonNullElseGet(folderMeta.get(current.id()), FolderPackMeta::new);
+
+            if (meta.module()) {
+                moduleAncestor = parent;
+            }
+            current = current.parentId() == null ? null : packs.get(current.parentId());
+        }
+
+        return moduleAncestor;
+    }
+
     private void refreshSelectedCache() {
+        Map<String, PackEntry> packs = this.packs;
+
         Collection<String> selectedLeaves = repository.getSelectedIds();
         Set<String> newSelected = new ObjectOpenHashSet<>(selectedLeaves.size());
 
         for (String id : selectedLeaves) {
             newSelected.add(id);
-            addParentsRecursively(id, newSelected);
+
+            PackEntry pack = packs.get(id);
+            if (pack != null) {
+                PackEntry.Parent moduleAncestor = findModuleAncestor(pack);
+                // the entire module should be selected if any of its descendants are selected
+                if (moduleAncestor != null && !newSelected.contains(moduleAncestor.id())) {
+                    moduleAncestor.visitEntries(entry -> newSelected.add(entry.id()));
+                }
+            }
         }
 
         this.selectedPackIds = newSelected;
     }
 
-    public void refreshSources() { // todo fix nested folders appearing in root
+    public void refreshSources() {
         long start = 0;
         if (PackedPacks.DEBUG) {
             start = System.nanoTime();

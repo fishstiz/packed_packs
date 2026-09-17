@@ -2,7 +2,6 @@ package io.github.fishstiz.packed_packs.gui.states;
 
 import io.github.fishstiz.packed_packs.gui.model.Query;
 import io.github.fishstiz.packed_packs.pack.PackEntry;
-import io.github.fishstiz.packed_packs.util.Utils;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import org.jspecify.annotations.Nullable;
@@ -176,6 +175,12 @@ public record PackListState(
 
     private static <E> boolean sequencedEquals(SequencedCollection<E> a, SequencedCollection<E> b) {
         if (a == b) return true;
-        return Utils.orderEquals(a, b);
+        if (a.size() != b.size()) return false;
+        Iterator<E> itA = a.iterator();
+        Iterator<E> itB = b.iterator();
+        while (itA.hasNext()) {
+            if (!Objects.equals(itA.next(), itB.next())) return false;
+        }
+        return true;
     }
 }
