@@ -2,7 +2,7 @@ package io.github.fishstiz.packed_packs.gui.services;
 
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.config.JsonLoader;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.gui.states.ProfileSelection;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import net.minecraft.resources.Identifier;
@@ -19,7 +19,7 @@ public class PackResourcesService {
         this.iconCache = iconCache;
     }
 
-    public Identifier getIcon(PackEntry pack) {
+    public Identifier getIcon(PackNode pack) {
         return iconCache.get(pack);
     }
 
@@ -27,7 +27,7 @@ public class PackResourcesService {
         iconCache.clear();
     }
 
-    public boolean isModifiable(ProfileSelection profiles, PackEntry pack) {
+    public boolean isModifiable(ProfileSelection profiles, PackNode pack) {
         return pack.path() != null &&
                !profiles.isLocked() &&
                !profiles.isPackRequired(pack) &&
@@ -38,14 +38,14 @@ public class PackResourcesService {
         return JsonLoader.saveJson(metadata, folderPath.resolve(FolderPackMeta.FILENAME));
     }
 
-    public boolean saveFolderMetadata(PackEntry.Parent parent, FolderPackMeta metadata) {
+    public boolean saveFolderMetadata(PackNode.Parent parent, FolderPackMeta metadata) {
         if (repository.setFolderMetadata(parent.id(), metadata)) {
             return saveFolderMetadata(parent.path(), metadata);
         }
         return false;
     }
 
-    public boolean renamePack(PackEntry pack, ProfileSelection profiles, String name) {
+    public boolean renamePack(PackNode pack, ProfileSelection profiles, String name) {
         if (!isModifiable(profiles, pack)) {
             return false;
         }
@@ -61,7 +61,7 @@ public class PackResourcesService {
         }
 
         String newId = PackUtil.generatePackId(newPath);
-        if (pack instanceof PackEntry.Parent) {
+        if (pack instanceof PackNode.Parent) {
             FolderPackMeta metadata = repository.getFolderMetadata(pack.id());
             if (metadata != null) {
                 if (repository.setFolderMetadata(newId, metadata)) {
@@ -74,7 +74,7 @@ public class PackResourcesService {
         return true;
     }
 
-    public boolean deletePack(PackEntry pack, ProfileSelection profiles) {
+    public boolean deletePack(PackNode pack, ProfileSelection profiles) {
         if (!isModifiable(profiles, pack)) {
             return false;
         }

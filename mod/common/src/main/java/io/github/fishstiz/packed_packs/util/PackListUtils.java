@@ -2,7 +2,7 @@ package io.github.fishstiz.packed_packs.util;
 
 import io.github.fishstiz.packed_packs.gui.model.PackListKey;
 import io.github.fishstiz.packed_packs.gui.states.PackListState;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.gui.states.ProfileSelection;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.packs.repository.Pack;
@@ -57,17 +57,17 @@ public final class PackListUtils {
 
     // 0 first/top, -1 last/bottom
     public static int getAbsoluteIndex(PackListState state, int visibleIndex) {
-        List<PackEntry> packs = state.packs();
-        List<PackEntry> visible = state.visiblePacks();
+        List<PackNode> packs = state.packs();
+        List<PackNode> visible = state.visiblePacks();
         if (visibleIndex == -1) {
             return visible.isEmpty() ? -1 : packs.indexOf(visible.getLast()) + 1;
         }
         return Math.clamp(packs.indexOf(visible.get(visibleIndex)), 0, packs.size());
     }
 
-    public static int getMoveUpIndex(List<PackEntry> packs, PackEntry pack, ProfileSelection profile) {
+    public static int getMoveUpIndex(List<PackNode> packs, PackNode pack, ProfileSelection profile) {
         for (int i = packs.indexOf(pack) - 1; i >= 0; i--) {
-            PackEntry nextPack = packs.get(i);
+            PackNode nextPack = packs.get(i);
             if (profile.isPackFixed(nextPack)) {
                 return -1;
             }
@@ -78,9 +78,9 @@ public final class PackListUtils {
         return -1;
     }
 
-    public static int getMoveDownIndex(List<PackEntry> packs, PackEntry pack, ProfileSelection profile) {
+    public static int getMoveDownIndex(List<PackNode> packs, PackNode pack, ProfileSelection profile) {
         for (int i = packs.indexOf(pack) + 1; i < packs.size(); i++) {
-            PackEntry nextPack = packs.get(i);
+            PackNode nextPack = packs.get(i);
             if (profile.isPackFixed(nextPack)) {
                 return -1;
             }
@@ -95,7 +95,7 @@ public final class PackListUtils {
         if (index == -1) {
             int minIndex = 0;
             for (int i = 0; i < state.packs().size(); i++) {
-                PackEntry pack = state.packs().get(i);
+                PackNode pack = state.packs().get(i);
                 if (profiles.isPackFixed(pack) && profiles.getPackPosition(pack) == Pack.Position.TOP) {
                     minIndex = i + 1;
                 }
@@ -108,7 +108,7 @@ public final class PackListUtils {
     private static boolean isValidInsertPosition(
             PackListState state,
             int visibleIndex,
-            SequencedCollection<PackEntry> payload
+            SequencedCollection<PackNode> payload
     ) {
         int[] indices = indicesOf(state.visiblePacks(), payload);
         if (indices.length == 0) return false;
@@ -132,7 +132,7 @@ public final class PackListUtils {
         int minDropIndex = 0;
         int maxDropIndex = state.packs().size();
         for (int i = 0; i < state.packs().size(); i++) {
-            PackEntry pack = state.packs().get(i);
+            PackNode pack = state.packs().get(i);
             if (profiles.isPackFixed(pack)) {
                 switch (profiles.getPackPosition(pack)) {
                     case TOP -> minDropIndex = i + 1;
@@ -145,7 +145,7 @@ public final class PackListUtils {
     }
 
     // todo do more than check depth
-    public static boolean canDrag(PackListKey target, PackEntry pack, ProfileSelection profiles) {
+    public static boolean canDrag(PackListKey target, PackNode pack, ProfileSelection profiles) {
         if (target.depth() == 0 && target.type().available()) {
             return true;
         }
@@ -153,7 +153,7 @@ public final class PackListUtils {
     }
 
     // todo do more than check depth
-    public static boolean canTransfer(PackListKey target, PackEntry pack, ProfileSelection profiles) {
+    public static boolean canTransfer(PackListKey target, PackNode pack, ProfileSelection profiles) {
         return target.depth() == 0 && (target.type().available() || !profiles.isPackRequired(pack));
     }
 
@@ -170,8 +170,8 @@ public final class PackListUtils {
 
     public static boolean canDrop(
             PackListKey target,
-            PackEntry pack,
-            SequencedCollection<PackEntry> payload,
+            PackNode pack,
+            SequencedCollection<PackNode> payload,
             PackListKey destination,
             PackListState targetState,
             int index,

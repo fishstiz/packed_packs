@@ -11,6 +11,7 @@ import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackCompatibility;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.world.flag.FeatureFlagSet;
+import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;
@@ -19,7 +20,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public sealed interface PackEntry {
+public sealed interface PackNode {
     String id();
 
     @Nullable String parentId();
@@ -44,7 +45,7 @@ public sealed interface PackEntry {
 
     PackResources open();
 
-    void visitEntries(Consumer<PackEntry> visitor);
+    void visitNodes(Consumer<PackNode> visitor);
 
     void visitPacks(Consumer<Pack> visitor);
 
@@ -53,8 +54,8 @@ public sealed interface PackEntry {
             Path path,
             PackLocationInfo location,
             Pack.ResourcesSupplier resourcesSupplier,
-            List<PackEntry> children
-    ) implements PackEntry {
+            List<PackNode> children
+    ) implements PackNode {
         public static final Identifier DEFAULT_ICON = PackedPacks.id("textures/misc/unknown_folder.png");
         public static final Component DESCRIPTION = Component.translatable("packed_packs.folder");
         public static final PackSelectionConfig SELECTION_CONFIG = new PackSelectionConfig(false, Pack.Position.TOP, false);
@@ -111,9 +112,9 @@ public sealed interface PackEntry {
         }
 
         @Override
-        public void visitEntries(Consumer<PackEntry> visitor) {
+        public void visitNodes(Consumer<PackNode> visitor) {
             visitor.accept(this);
-            children.forEach(child -> child.visitEntries(visitor));
+            children.forEach(child -> child.visitNodes(visitor));
         }
 
         @Override
@@ -130,9 +131,17 @@ public sealed interface PackEntry {
         public boolean equals(Object obj) {
             return obj == this || (obj instanceof Parent other && location.equals(other.location));
         }
+
+        @Override
+        public String toString() {
+            return "Parent{" +
+                   "id='" + location.id() + '\'' +
+                   ", parentId=" + parentId +
+                   '}';
+        }
     }
 
-    record Leaf(Pack pack, @Nullable Path path, @Nullable String parentId) implements PackEntry {
+    record Leaf(Pack pack, @Nullable Path path, @Nullable String parentId) implements PackNode {
         public static final Identifier DEFAULT_ICON = Identifier.withDefaultNamespace("textures/misc/unknown_pack.png");
 
         @Override
@@ -176,7 +185,7 @@ public sealed interface PackEntry {
         }
 
         @Override
-        public void visitEntries(Consumer<PackEntry> visitor) {
+        public void visitNodes(Consumer<PackNode> visitor) {
             visitor.accept(this);
         }
 
@@ -193,6 +202,14 @@ public sealed interface PackEntry {
         @Override
         public boolean equals(Object obj) {
             return obj == this || (obj instanceof Leaf other && pack.equals(other.pack));
+        }
+
+        @Override
+        public String toString() {
+            return "Leaf{" +
+                   "id='" + pack.getId() + '\'' +
+                   ", parentId=" + parentId +
+                   '}';
         }
     }
 }

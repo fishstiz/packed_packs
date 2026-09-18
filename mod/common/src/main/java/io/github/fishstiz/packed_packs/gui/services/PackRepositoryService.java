@@ -8,7 +8,7 @@ import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.config.JsonLoader;
 import io.github.fishstiz.packed_packs.pack.FolderLocationInfo;
 import io.github.fishstiz.packed_packs.pack.FolderResourcesSupplier;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionModelAccessor;
 import io.github.fishstiz.packed_packs.transform.mixin.folders.additional.FolderRepositorySourceAccessor;
@@ -22,6 +22,7 @@ import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.server.packs.resources.IoSupplier;
+import net.minecraft.util.TriState;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -30,6 +31,7 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 public class PackRepositoryService {
     private final PackRepository repository;
@@ -39,7 +41,7 @@ public class PackRepositoryService {
     private final Map<String, FolderPackMeta> folderMeta = new ConcurrentHashMap<>();
 
     private volatile PackSelectionModel selectionModel;
-    private volatile Map<String, PackEntry> packs = Collections.emptyMap();
+    private volatile Map<String, PackNode> packs = Collections.emptyMap();
     private volatile Set<String> selectedPackIds = Collections.emptySet();
 
     public PackRepositoryService(PackRepository repository, Path packDir) {
@@ -55,16 +57,16 @@ public class PackRepositoryService {
     private void refreshSelectionModel() {
         this.selectionModel = new PackSelectionModel(
                 FunctionUtils.nopConsumer(),
-                ignored -> PackEntry.Leaf.DEFAULT_ICON,
+                ignored -> PackNode.Leaf.DEFAULT_ICON,
                 this.repository,
                 FunctionUtils.nopConsumer()
         );
         ((PackSelectionModelAccessor) this.selectionModel).packed_packs$filterHidden(false);
     }
 
-    private void loadFolderMetadata(PackEntry entry) {
+    private void loadFolderMetadata(PackNode entry) {
         // load metadata on first discover only to prevent overwriting unsaved state
-        if (!(entry instanceof PackEntry.Parent parent) || folderMeta.containsKey(entry.id())) {
+        if (!(entry instanceof PackNode.Parent parent) || folderMeta.containsKey(entry.id())) {
             return;
         }
 
@@ -87,36 +89,57 @@ public class PackRepositoryService {
         }
     }
 
-    private void collectDescendantLeaves(PackEntry.Parent current, List<PackEntry> collector) {
+    /**
+     * @param includeModules <ul>
+     *                       <li>{@link TriState#DEFAULT} - includes modules grouped</li>
+     *                       <li>{@link TriState#TRUE} - includes modules and flattens children</li>
+     *                       <li>{@link TriState#FALSE} - excludes modules and flattens children</li>
+     *                       </ul>
+     */
+    public void collectDescendantLeaves(PackNode.Parent current, TriState includeModules, Consumer<PackNode> collector) {
         FolderPackMeta meta = Objects.requireNonNullElseGet(folderMeta.get(current.id()), FolderPackMeta::new);
         if (meta.module()) {
-            collector.add(current);
-            return;
+            if (includeModules == TriState.DEFAULT) {
+                collector.accept(current);
+                return;
+            }
+            if (includeModules == TriState.TRUE) {
+                collector.accept(current);
+            }
         }
 
-        for (PackEntry child : current.children()) {
-            if (child instanceof PackEntry.Leaf leaf) {
-                collector.add(leaf);
+        for (PackNode child : getSortedChildren(current)) {
+            if (child instanceof PackNode.Leaf leaf) {
+                collector.accept(leaf);
             }
-            if (child instanceof PackEntry.Parent inner) {
-                collectDescendantLeaves(inner, collector);
+            if (child instanceof PackNode.Parent inner) {
+                collectDescendantLeaves(inner, includeModules, collector);
             }
         }
     }
 
-    public List<PackEntry> findDescendantLeaves(PackEntry.Parent parent) {
-        List<PackEntry> leaves = new ObjectArrayList<>();
-        collectDescendantLeaves(parent, leaves);
-        return leaves;
+    public void collectNodes(PackNode pack, Consumer<PackNode> collector) {
+        switch (pack) {
+            case PackNode.Leaf leaf -> collector.accept(leaf);
+            case PackNode.Parent parent -> collectDescendantLeaves(parent, TriState.TRUE, collector);
+        }
     }
 
-    public PackEntry.@Nullable Parent findAncestor(PackEntry pack) {
-        Map<String, PackEntry> packs = this.packs;
+    public void collectPacks(PackNode pack, Consumer<Pack> collector) {
+        switch (pack) {
+            case PackNode.Leaf leaf -> collector.accept(leaf.pack());
+            case PackNode.Parent parent ->
+                    collectDescendantLeaves(parent, TriState.FALSE, node -> node.visitPacks(collector));
+        }
+    }
 
-        PackEntry current = packs.get(pack.parentId());
-        PackEntry.Parent ancestor = null;
+    public PackNode.@Nullable Parent findAncestor(PackNode pack) {
+        Map<String, PackNode> packs = this.packs;
 
-        while (current instanceof PackEntry.Parent parent) {
+        PackNode current = packs.get(pack.parentId());
+        PackNode.Parent ancestor = null;
+
+        while (current instanceof PackNode.Parent parent) {
             ancestor = parent;
             current = current.parentId() == null ? null : packs.get(current.parentId());
         }
@@ -124,13 +147,13 @@ public class PackRepositoryService {
         return ancestor;
     }
 
-    public PackEntry.@Nullable Parent findModuleAncestor(PackEntry pack) {
-        Map<String, PackEntry> packs = this.packs;
+    public PackNode.@Nullable Parent findModuleAncestor(PackNode pack) {
+        Map<String, PackNode> packs = this.packs;
 
-        PackEntry current = packs.get(pack.parentId());
-        PackEntry.Parent moduleAncestor = null;
+        PackNode current = packs.get(pack.parentId());
+        PackNode.Parent moduleAncestor = null;
 
-        while (current instanceof PackEntry.Parent parent) {
+        while (current instanceof PackNode.Parent parent) {
             FolderPackMeta meta = Objects.requireNonNullElseGet(folderMeta.get(current.id()), FolderPackMeta::new);
 
             if (meta.module()) {
@@ -142,8 +165,37 @@ public class PackRepositoryService {
         return moduleAncestor;
     }
 
+    public void collectSortedChildren(PackNode.Parent parent, Consumer<PackNode> collector) {
+        Map<String, PackNode> packs = this.packs;
+        List<PackNode> children = parent.children();
+
+        FolderPackMeta meta = Objects.requireNonNullElseGet(folderMeta.get(parent.id()), FolderPackMeta::new);
+
+        List<String> orderedIds = meta.packIds();
+        Set<String> seen = new ObjectOpenHashSet<>();
+
+        for (String id : orderedIds) {
+            PackNode pack = packs.get(id);
+            if (pack != null && seen.add(pack.id())) {
+                collector.accept(pack);
+            }
+        }
+
+        for (PackNode pack : children) {
+            if (seen.add(pack.id())) {
+                collector.accept(pack);
+            }
+        }
+    }
+
+    public List<PackNode> getSortedChildren(PackNode.Parent parent) {
+        List<PackNode> children = new ObjectArrayList<>(parent.children().size());
+        collectSortedChildren(parent, children::add);
+        return children;
+    }
+
     private void refreshSelectedCache() {
-        Map<String, PackEntry> packs = this.packs;
+        Map<String, PackNode> packs = this.packs;
 
         Collection<String> selectedLeaves = repository.getSelectedIds();
         Set<String> newSelected = new ObjectOpenHashSet<>(selectedLeaves.size());
@@ -151,12 +203,12 @@ public class PackRepositoryService {
         for (String id : selectedLeaves) {
             newSelected.add(id);
 
-            PackEntry pack = packs.get(id);
+            PackNode pack = packs.get(id);
             if (pack != null) {
-                PackEntry.Parent moduleAncestor = findModuleAncestor(pack);
+                PackNode.Parent moduleAncestor = findModuleAncestor(pack);
                 // the entire module should be selected if any of its descendants are selected
                 if (moduleAncestor != null && !newSelected.contains(moduleAncestor.id())) {
-                    moduleAncestor.visitEntries(entry -> newSelected.add(entry.id()));
+                    moduleAncestor.visitNodes(node -> newSelected.add(node.id()));
                 }
             }
         }
@@ -174,6 +226,9 @@ public class PackRepositoryService {
         refreshSelectionModel();
 
         this.selectionModel.findNewPacks();
+        if (PackedPacks.DEBUG) {
+            PackedPacks.LOGGER.info("[packed_packs] ======== Pack Repository reloaded in {}ms ========", PackedPacks.duration(start));
+        }
 
         PackSelectionModelAccessor model = (PackSelectionModelAccessor) this.selectionModel;
         List<Pack> allPacks = new ObjectArrayList<>(model.getSelectedPacks().size() + model.getUnselectedPacks().size());
@@ -201,14 +256,14 @@ public class PackRepositoryService {
             }
         }
 
-        Map<String, PackEntry> newPacks = new Object2ObjectLinkedOpenHashMap<>();
+        Map<String, PackNode> newPacks = new Object2ObjectLinkedOpenHashMap<>();
 
         for (String id : leavesById.keySet()) {
-            buildEntry(id, leavesById, folderInfoById, folderChildIds, newPacks);
+            buildNode(id, leavesById, folderInfoById, folderChildIds, newPacks);
         }
 
         for (String id : folderInfoById.keySet()) {
-            buildEntry(id, leavesById, folderInfoById, folderChildIds, newPacks);
+            buildNode(id, leavesById, folderInfoById, folderChildIds, newPacks);
         }
 
         this.packs = newPacks;
@@ -220,14 +275,14 @@ public class PackRepositoryService {
         }
     }
 
-    private PackEntry buildEntry(
+    private PackNode buildNode(
             String id,
             Map<String, Pack> leavesById,
             Map<String, FolderLocationInfo> folderInfoById,
             Map<String, Set<String>> folderChildIds,
-            Map<String, PackEntry> newPacks
+            Map<String, PackNode> newPacks
     ) {
-        PackEntry existing = newPacks.get(id);
+        PackNode existing = newPacks.get(id);
         if (existing != null) return existing;
 
         Pack leafPack = leavesById.get(id);
@@ -236,21 +291,21 @@ public class PackRepositoryService {
             String parentId = parent == null ? null : parent.location().id();
             Path path = ((FilePack) leafPack).packed_packs$getPath();
 
-            PackEntry entry = new PackEntry.Leaf(leafPack, path, parentId);
-            newPacks.put(id, entry);
-            return entry;
+            PackNode leaf = new PackNode.Leaf(leafPack, path, parentId);
+            newPacks.put(id, leaf);
+            return leaf;
         }
 
         FolderLocationInfo info = folderInfoById.get(id);
-        List<PackEntry> children = new ObjectArrayList<>();
+        List<PackNode> children = new ObjectArrayList<>();
         for (String childId : folderChildIds.getOrDefault(id, Set.of())) {
-            children.add(buildEntry(childId, leavesById, folderInfoById, folderChildIds, newPacks));
+            children.add(buildNode(childId, leavesById, folderInfoById, folderChildIds, newPacks));
         }
 
         FolderLocationInfo parentInfo = info.parent();
         String parentId = parentInfo == null ? null : parentInfo.location().id();
 
-        PackEntry entry = new PackEntry.Parent(
+        PackNode parent = new PackNode.Parent(
                 parentId,
                 info.path(),
                 info.location(),
@@ -258,23 +313,28 @@ public class PackRepositoryService {
                 children
         );
 
-        loadFolderMetadata(entry);
-        newPacks.put(id, entry);
-        return entry;
+        loadFolderMetadata(parent);
+        newPacks.put(id, parent);
+        return parent;
     }
 
-    public void setEnabledPacks(List<PackEntry> packs) {
+    public void setEnabledPacks(List<PackNode> packs) {
         MutableBoolean highContrast = new MutableBoolean(false);
         List<String> packIds = new ObjectArrayList<>();
 
-        packs.forEach(selectedEntry -> selectedEntry.visitPacks(entry -> {
-            String id = entry.getId();
-            packIds.add(id);
-
-            if (id.equals(PackUtil.HIGH_CONTRAST_ID)) {
+        Consumer<Pack> collector = (pack) -> {
+            if (!highContrast.booleanValue() && pack.getId().equals(PackUtil.HIGH_CONTRAST_ID)) {
                 highContrast.setTrue();
             }
-        }));
+            packIds.add(pack.getId());
+        };
+
+        for (PackNode pack : packs.reversed()) {
+            switch (pack) {
+                case PackNode.Leaf leaf -> collector.accept(leaf.pack());
+                case PackNode.Parent parent -> collectPacks(parent, collector);
+            }
+        }
 
         this.repository.setSelected(ImmutableList.copyOf(packIds));
 
@@ -290,16 +350,16 @@ public class PackRepositoryService {
     /**
      * @return flattened AND grouped pack entries.
      */
-    public List<PackEntry> getPacks() {
+    public List<PackNode> getPacks() {
         return List.copyOf(this.packs.values());
     }
 
-    public @Nullable PackEntry getPackById(String id) {
+    public @Nullable PackNode getPackById(String id) {
         return this.packs.get(id);
     }
 
-    public List<PackEntry> getEnabledPacks() {
-        Map<String, PackEntry> currentPacks = this.packs;
+    public List<PackNode> getEnabledPacks() {
+        Map<String, PackNode> currentPacks = this.packs;
         return ((PackSelectionModelAccessor) this.selectionModel).getSelectedPacks()
                 .stream()
                 .map(pack -> currentPacks.get(pack.getId()))
@@ -307,7 +367,7 @@ public class PackRepositoryService {
                 .toList();
     }
 
-    public List<PackEntry> getPacksById(List<String> packIds) {
+    public List<PackNode> getPacksById(List<String> packIds) {
         return CollectionUtils.lookup(packIds, this.packs);
     }
 
@@ -336,14 +396,13 @@ public class PackRepositoryService {
     public void removePack(String packId) {
         repository.removePack(packId);
 
-        Map<String, PackEntry> newPacks = new Object2ObjectLinkedOpenHashMap<>(this.packs);
-        PackEntry entry = newPacks.get(packId);
+        Map<String, PackNode> newPacks = new Object2ObjectLinkedOpenHashMap<>(this.packs);
+        PackNode entry = newPacks.get(packId);
         if (entry != null) {
-            entry.visitEntries(e -> {
+            entry.visitNodes(e -> {
                 newPacks.remove(e.id());
                 repository.removePack(e.id());
             });
-
             this.packs = newPacks;
             refreshSelectionModel();
         }

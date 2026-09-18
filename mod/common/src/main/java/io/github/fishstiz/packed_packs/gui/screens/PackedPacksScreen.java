@@ -219,11 +219,11 @@ public class PackedPacksScreen extends FZScreen {
                     FZFlexLayout leftRibbon = ribbon.child(horizontal(), ribbon.flexChildHorizontalSettings());
 
                     this.availableSearch = leftRibbon.child(FZTextField.bind("AvailableSearchField", store
-                                    .map(s -> s.available().query().unmodifiedSearch())
+                                    .map(s -> s.getLeafList(PackListType.AVAILABLE).query().search())
                                     .map(value -> FZTextField.builder()
                                             .text(value == null ? "" : value)
                                             .onChange(e -> store.dispatch(new PackListIntent.Search(
-                                                    PackListKey.available(),
+                                                    store.value().getLeafKey(PackListType.AVAILABLE),
                                                     e.value()
                                             )))
                                             .hint(SEARCH_TEXT)
@@ -232,7 +232,7 @@ public class PackedPacksScreen extends FZScreen {
                     );
 
                     leftRibbon.child(FZDropdown.bind("AvailableSortDropdown", store
-                            .map(s -> s.available().query().sort())
+                            .map(s -> s.getLeafList(PackListType.AVAILABLE).query().sort())
                             .map(sort -> {
                                 Component sortText = Component.translatable("packed_packs.sort");
                                 Component valueText = sort == null ? CommonComponents.EMPTY : sort.text();
@@ -242,16 +242,17 @@ public class PackedPacksScreen extends FZScreen {
                                         .minContainerWidth(175)
                                         .hideMessage(true)
                                         .message(sortText)
-                                        .tooltip(CommonComponents.optionNameValue(sortText, valueText))
-                                        .entryDivider(null)
-                                        .leftIcon(sort == null ? null : padded16Sprite(sort.icon()));
+                                        .active(sort != null)
+                                        .tooltip(sort == null ? sortText : CommonComponents.optionNameValue(sortText, valueText))
+                                        .leftIcon(sort == null ? null : padded16Sprite(sort.icon()))
+                                        .entryDivider(null);
 
                                 for (Query.SortOption option : Query.SortOption.values()) {
                                     dropdown.entry(button -> button
                                             .message(option.text())
                                             .leftIcon(padded16Sprite(option.icon()))
                                             .onPress(() -> store.dispatch(new PackListIntent.Sort(
-                                                    PackListKey.available(),
+                                                    store.value().getLeafKey(PackListType.AVAILABLE),
                                                     option
                                             ))));
                                 }
@@ -263,7 +264,7 @@ public class PackedPacksScreen extends FZScreen {
                         leftRibbon.child(PreferenceHelper.wrapNonNull(
                                 Preferences.INCOMPATIBLE_TOGGLE_WIDGET,
                                 FZIconButton.bind("AvailableIncompatibleButton", store
-                                        .map(s -> s.available().query().hideIncompatible())
+                                        .map(s -> s.getLeafList(PackListType.AVAILABLE).query().hideIncompatible())
                                         .map(value -> {
                                             Identifier icon = value
                                                     ? PackedPacks.id("icon/incompatible_hidden")
@@ -275,7 +276,7 @@ public class PackedPacksScreen extends FZScreen {
                                                     .tooltip(Component.translatable("packed_packs.hide_incompatible.info"))
                                                     .icon(new WidgetElements(icon, 16, 16))
                                                     .onPress(() -> store.dispatch(new PackListIntent.HideIncompatible(
-                                                            PackListKey.available(),
+                                                            store.value().getLeafKey(PackListType.AVAILABLE),
                                                             !value
                                                     )))
                                                     .toProps();
@@ -308,11 +309,11 @@ public class PackedPacksScreen extends FZScreen {
                                     .toProps())));
 
                     this.enabledSearch = rightRibbon.child(FZTextField.bind("EnabledSearchField", store
-                                    .map(s -> s.enabled().query().unmodifiedSearch())
+                                    .map(s -> s.getLeafList(PackListType.ENABLED).query().search())
                                     .map(value -> FZTextField.builder()
                                             .text(value == null ? "" : value)
                                             .onChange(e -> store.dispatch(new PackListIntent.Search(
-                                                    PackListKey.enabled(),
+                                                    store.value().getLeafKey(PackListType.ENABLED),
                                                     e.value()
                                             )))
                                             .hint(SEARCH_TEXT)

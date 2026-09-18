@@ -10,6 +10,7 @@ import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.pack.FolderLocationInfo;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.util.PackUtil;
+import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.repository.FolderRepositorySource;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackDetector;
@@ -17,9 +18,7 @@ import net.minecraft.world.level.validation.DirectoryValidator;
 import net.minecraft.world.level.validation.ForbiddenSymlinkInfo;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Coerce;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -34,6 +33,10 @@ import java.util.function.Consumer;
 
 @Mixin(FolderRepositorySource.class)
 public abstract class FolderRepositorySourceMixin {
+    @Shadow
+    @Final
+    private static Logger LOGGER;
+
     @Unique
     private static final ThreadLocal<@Nullable FolderLocationInfo> PARENT_CONTEXT = new ThreadLocal<>();
 
@@ -50,12 +53,19 @@ public abstract class FolderRepositorySourceMixin {
             @Coerce PackDetector<Pack.ResourcesSupplier> instance,
             Path path,
             List<ForbiddenSymlinkInfo> list,
-            Operation<Object> original,
+            Operation<Pack.ResourcesSupplier> original,
             @Local(argsOnly = true) DirectoryValidator validator,
             @Local(argsOnly = true) BiConsumer<Path, Pack.ResourcesSupplier> output,
             @Share("suppressLog") LocalBooleanRef suppressLogRef
     ) {
-        if (PackUtil.isNonPackDirectory(path)) {
+        Pack.ResourcesSupplier resourcesSupplier = null;
+        try {
+            resourcesSupplier = original.call(instance, path, list);
+        } catch (Exception e) {
+            LOGGER.warn("Failed to read properties of '{}', ignoring", path, e);
+        }
+
+        if (resourcesSupplier == null && PackUtil.isNonPackDirectory(path)) {
             suppressLogRef.set(true);
 
             FolderLocationInfo parent = PARENT_CONTEXT.get();
@@ -75,7 +85,7 @@ public abstract class FolderRepositorySourceMixin {
             }
         }
 
-        return original.call(instance, path, list);
+        return resourcesSupplier;
     }
 
     @WrapOperation(method = "discoverPacks", at = @At(

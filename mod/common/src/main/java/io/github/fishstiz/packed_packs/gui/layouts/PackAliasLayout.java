@@ -14,7 +14,7 @@ import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.Store;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
 import io.github.fishstiz.packed_packs.gui.services.PackResourcesService;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.gui.text.GroupCloseStyleMatcher;
 import net.minecraft.network.chat.Component;
@@ -57,7 +57,7 @@ public class PackAliasLayout extends WrappedLayout {
 
         PackResourcesService resources = store.getPackResourcesService();
         List<TextStyleMatcher> styles = styleMatchers();
-        PackEntry pack = editingAliases.pack();
+        PackNode pack = editingAliases.pack();
         final FZMutableRef<List<MutableObject<String>>> aliasesRef = new FZMutableRef<>(editingAliases
                 .aliases()
                 .stream()

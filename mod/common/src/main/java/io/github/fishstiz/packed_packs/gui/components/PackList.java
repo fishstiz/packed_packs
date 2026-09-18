@@ -20,7 +20,7 @@ import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
 import io.github.fishstiz.packed_packs.gui.states.PackListComputed;
 import io.github.fishstiz.packed_packs.impl.context.Context;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.gui.services.PackResourcesService;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
@@ -125,7 +125,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         entries.clear();
 
         state.forEachEntry((entryState, i) -> {
-            Entry entry = entryState.pack() instanceof PackEntry.Leaf leaf
+            Entry entry = entryState.pack() instanceof PackNode.Leaf leaf
                     ? new LeafEntry(entryState, leaf.pack(), i)
                     : new Entry(entryState, i);
 
@@ -151,16 +151,16 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
     public void transferAll() {
         if (!state.isLocked()) {
-            List<PackEntry> packs = state.state().visiblePacks();
-            List<PackEntry> payload = new ObjectArrayList<>(packs.size());
-            for (PackEntry pack : packs) {
+            List<PackNode> packs = state.state().visiblePacks();
+            List<PackNode> payload = new ObjectArrayList<>(packs.size());
+            for (PackNode pack : packs) {
                 Entry entry = entries.get(pack.id());
                 if (entry != null && entry.state.canTransfer()) {
                     payload.add(pack);
                 }
             }
             if (!payload.isEmpty()) {
-                List<PackEntry> orderedPayload = sortByOrderOf(packs, payload).reversed();
+                List<PackNode> orderedPayload = sortByOrderOf(packs, payload).reversed();
                 context.dispatch(switch (key().type()) {
                     case AVAILABLE -> new PackListIntent.Enable(key(), orderedPayload.getFirst(), orderedPayload);
                     case ENABLED -> new PackListIntent.Disable(key(), orderedPayload.getFirst(), orderedPayload);
@@ -186,13 +186,13 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         return index;
     }
 
-    private boolean isMouseOverSelectionEntry(SequencedCollection<PackEntry> selection, double mouseX, double mouseY, int index) {
+    private boolean isMouseOverSelectionEntry(SequencedCollection<PackNode> selection, double mouseX, double mouseY, int index) {
         if (index < 0 || index >= children().size()) return false;
         Entry entry = children().get(index);
         return entry.isMouseOver(mouseX, mouseY) && selection.contains(entry.pack);
     }
 
-    private boolean isMouseOverSelection(SequencedCollection<PackEntry> selection, double mouseX, double mouseY, int index) {
+    private boolean isMouseOverSelection(SequencedCollection<PackNode> selection, double mouseX, double mouseY, int index) {
         return isMouseOverSelectionEntry(selection, mouseX, mouseY, index - 1) || isMouseOverSelectionEntry(selection, mouseX, mouseY, index);
     }
 
@@ -303,7 +303,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     }
 
     private @Nullable Entry getSelected() {
-        PackEntry selected = state.getSelected();
+        PackNode selected = state.getSelected();
         return selected == null ? null : entries.get(selected.id());
     }
 
@@ -472,7 +472,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 Renderables.sprite(Identifier.withDefaultNamespace("transferable_list/move_down_highlighted"))
         );
         private final int index;
-        protected final PackEntry pack;
+        protected final PackNode pack;
         protected final PackListComputed.Entry state;
         private final MouseStateHandler mouseStateHandler;
         private final List<GuiEventListener> children = new ObjectArrayList<>();
@@ -516,7 +516,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             this.packWidget = new PackWidget(this, INNER_ITEM_HEIGHT);
             repositionPackWidget();
 
-            if (pack instanceof PackEntry.Parent) {
+            if (pack instanceof PackNode.Parent) {
                 PreferenceHelper.wrap(Preferences.FOLDER_PACK_WIDGET, FZIconButton.builder()
                                 .size(INNER_ITEM_HEIGHT / 3, INNER_ITEM_HEIGHT / 3)
                                 .icon(new WidgetElements(HAMBURGER_RECT, 8, 8))
@@ -584,8 +584,8 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             context.dispatch(new PackListIntent.SelectExclusive(key(), pack));
         }
 
-        protected List<PackEntry> createPayload(BooleanSupplier filter) {
-            SequencedCollection<PackEntry> selection = PackList.this.state.state().selectedPacks();
+        protected List<PackNode> createPayload(BooleanSupplier filter) {
+            SequencedCollection<PackNode> selection = PackList.this.state.state().selectedPacks();
             if (!selection.contains(pack)) {
                 return filter.getAsBoolean() ? List.of(pack) : Collections.emptyList();
             }
@@ -593,15 +593,15 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             return CollectionUtils.addIf(new ObjectArrayList<>(selection.size()), selection, ignored -> filter.getAsBoolean());
         }
 
-        protected List<PackEntry> createPayload() {
+        protected List<PackNode> createPayload() {
             return state.isSelected() ? List.copyOf(PackList.this.state.state().selectedPacks()) : List.of(pack);
         }
 
         protected void transferPack() {
             if (!PackList.this.state.isLocked()) {
-                List<PackEntry> payload = createPayload(state::canTransfer);
+                List<PackNode> payload = createPayload(state::canTransfer);
                 if (!payload.isEmpty()) {
-                    List<PackEntry> orderedPayload = sortByOrderOf(PackList.this.state.state().visiblePacks(), payload).reversed();
+                    List<PackNode> orderedPayload = sortByOrderOf(PackList.this.state.state().visiblePacks(), payload).reversed();
                     context.dispatch(key().type().available()
                             ? new PackListIntent.Enable(key(), pack, orderedPayload)
                             : new PackListIntent.Disable(key(), pack, orderedPayload));
@@ -611,7 +611,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
         protected void movePack(boolean upwards) {
             if (!PackList.this.state.isLocked()) {
-                List<PackEntry> payload = createPayload();
+                List<PackNode> payload = createPayload();
                 if (!payload.isEmpty()) {
                     context.dispatch(new PackListIntent.MoveOnce(key(), pack, payload, upwards));
                 }
@@ -627,16 +627,16 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
 
         protected void expandFolder() {
-            if (pack instanceof PackEntry.Parent parent) {
+            if (pack instanceof PackNode.Parent parent) {
                 context.dispatch(new PackListIntent.OpenFolder(key(), parent));
             }
         }
 
         protected void dragPack() {
             if (!state.canDrag() || PackList.this.state.isLocked()) return;
-            List<PackEntry> payload = createPayload();
+            List<PackNode> payload = createPayload();
             if (!payload.isEmpty()) {
-                List<PackEntry> orderedPayload = sortByOrderOf(PackList.this.state.state().visiblePacks(), payload);
+                List<PackNode> orderedPayload = sortByOrderOf(PackList.this.state.state().visiblePacks(), payload);
                 context.dispatch(new PackListIntent.Drag(key(), pack, new ObjectLinkedOpenHashSet<>(orderedPayload)));
             }
         }
@@ -709,7 +709,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             if (super.keyPressed(keyEvent)) {
                 return true;
             }
-            if (isExpandFolder(keyEvent) && pack instanceof PackEntry.Parent && state.isSelectedExclusively()) {
+            if (isExpandFolder(keyEvent) && pack instanceof PackNode.Parent && state.isSelectedExclusively()) {
                 expandFolder();
                 return true;
             }
@@ -851,7 +851,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
             entryFactory.apply(ContextMenuEvent.PackEntry.Pos.AFTER_DEV).forEach(collector::addEntry);
 
-            if (pack instanceof PackEntry.Parent) {
+            if (pack instanceof PackNode.Parent) {
                 collector.addEntry(builder -> builder
                         .message(FOLDER_OPEN_TEXT)
                         .onPress(this::expandFolder));

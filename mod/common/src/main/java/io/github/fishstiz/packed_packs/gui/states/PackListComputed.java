@@ -2,7 +2,7 @@ package io.github.fishstiz.packed_packs.gui.states;
 
 import io.github.fishstiz.packed_packs.gui.model.PackListKey;
 import io.github.fishstiz.packed_packs.util.PackListUtils;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import it.unimi.dsi.fastutil.ints.Int2BooleanMap;
 import it.unimi.dsi.fastutil.ints.Int2BooleanOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -20,7 +20,7 @@ public class PackListComputed {
 
     private PackListState state;
     private ProfileSelection profiles;
-    private @Nullable PackEntry selected;
+    private @Nullable PackNode selected;
     private ActiveAction.@Nullable Dragging dragging;
 
     private boolean entriesDirty;
@@ -65,16 +65,15 @@ public class PackListComputed {
 
         if (packsChanged) {
             entriesDirty = true;
-            transferableGen++;
-            canDragGen++;
-        }
-        if (profilesChanged) {
-            transferableGen++;
-            canDragGen++;
         }
         if (selectionChanged) {
             selectionGen++;
             selected = newState.selectedPacks().isEmpty() ? null : newState.selectedPacks().getLast();
+        }
+        if (packsChanged || profilesChanged) {
+            transferableGen++;
+            canDragGen++;
+            canDropCache.clear();
         }
         if (profilesChanged
             || selectionChanged
@@ -83,8 +82,6 @@ public class PackListComputed {
             || prev.query() != newState.query()) {
             moveUpGen++;
             moveDownGen++;
-            canDragGen++;
-            canDropCache.clear();
         }
     }
 
@@ -97,14 +94,14 @@ public class PackListComputed {
 
     public void forEachEntry(ObjectIntBiConsumer<Entry> action) {
         for (int i = 0; i < state.visiblePacks().size(); i++) {
-            PackEntry pack = state.visiblePacks().get(i);
+            PackNode pack = state.visiblePacks().get(i);
             Entry entry = entryStates.computeIfAbsent(pack.id(), ignored -> new Entry(pack));
             entry.pack = pack;
             action.accept(entry, i);
         }
         if (entriesDirty) {
             entriesDirty = false;
-            entryStates.keySet().retainAll(state.packs().stream().map(PackEntry::id).collect(Collectors.toSet()));
+            entryStates.keySet().retainAll(state.packs().stream().map(PackNode::id).collect(Collectors.toSet()));
         }
     }
 
@@ -138,7 +135,7 @@ public class PackListComputed {
         return profiles.isLocked();
     }
 
-    public @Nullable PackEntry getSelected() {
+    public @Nullable PackNode getSelected() {
         return selected;
     }
 
@@ -147,7 +144,7 @@ public class PackListComputed {
     }
 
     public class Entry {
-        private PackEntry pack;
+        private PackNode pack;
         private int selectionGenSeen = -1;
         private int moveUpGenSeen = -1;
         private int moveDownGenSeen = -1;
@@ -162,11 +159,11 @@ public class PackListComputed {
         private boolean selectedCache;
         private boolean lastSelectedCache;
 
-        private Entry(PackEntry pack) {
+        private Entry(PackNode pack) {
             this.pack = pack;
         }
 
-        public PackEntry pack() {
+        public PackNode pack() {
             return pack;
         }
 
@@ -212,7 +209,7 @@ public class PackListComputed {
                 return false;
             }
             if (state.selectedPacks().contains(pack)) {
-                List<PackEntry> selection = sortByOrderOf(state.visiblePacks(), state.selectedPacks());
+                List<PackNode> selection = sortByOrderOf(state.visiblePacks(), state.selectedPacks());
                 if (selection.size() > 1) {
                     int index = state.packs().indexOf(selection.getFirst());
                     int moveIndex = index > -1 ? getMoveUpIndex(state.packs(), pack, profiles) : -1;
@@ -246,7 +243,7 @@ public class PackListComputed {
 
             int size = state.packs().size();
             if (state.selectedPacks().contains(pack)) {
-                List<PackEntry> selection = sortByOrderOf(state.visiblePacks(), state.selectedPacks());
+                List<PackNode> selection = sortByOrderOf(state.visiblePacks(), state.selectedPacks());
                 if (selection.size() > 1) {
                     int index = state.packs().indexOf(selection.getLast());
                     int moveIndex = index > -1 ? getMoveDownIndex(state.packs(), pack, profiles) : -1;

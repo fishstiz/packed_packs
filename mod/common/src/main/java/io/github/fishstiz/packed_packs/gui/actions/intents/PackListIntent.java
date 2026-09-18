@@ -3,7 +3,7 @@ package io.github.fishstiz.packed_packs.gui.actions.intents;
 import io.github.fishstiz.packed_packs.config.PackOverride;
 import io.github.fishstiz.packed_packs.gui.model.PackListKey;
 import io.github.fishstiz.packed_packs.gui.model.Query;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
@@ -21,54 +21,54 @@ public sealed interface PackListIntent extends Intent {
     record HideIncompatible(PackListKey srcList, boolean hide) implements PackListIntent {
     }
 
-    record Select(PackListKey srcList, PackEntry pack) implements PackListIntent {
+    record Select(PackListKey srcList, PackNode pack) implements PackListIntent {
     }
 
-    record SelectExclusive(PackListKey srcList, PackEntry pack) implements PackListIntent {
+    record SelectExclusive(PackListKey srcList, PackNode pack) implements PackListIntent {
     }
 
-    record SelectToggle(PackListKey srcList, PackEntry pack) implements PackListIntent {
+    record SelectToggle(PackListKey srcList, PackNode pack) implements PackListIntent {
     }
 
-    record SelectRange(PackListKey srcList, PackEntry pack) implements PackListIntent {
+    record SelectRange(PackListKey srcList, PackNode pack) implements PackListIntent {
     }
 
-    record SelectAll(PackListKey srcList, @Nullable PackEntry pack) implements PackListIntent {
+    record SelectAll(PackListKey srcList, @Nullable PackNode pack) implements PackListIntent {
     }
 
     record Enable(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs,
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs,
             int index
     ) implements PackListIntent {
-        public Enable(PackListKey srcList, PackEntry srcPack, SequencedCollection<PackEntry> payload) {
+        public Enable(PackListKey srcList, PackNode srcPack, SequencedCollection<PackNode> payload) {
             this(srcList, srcPack, payload, 0);
         }
     }
 
-    record Disable(PackListKey srcList, PackEntry srcPack, SequencedCollection<PackEntry> packs) implements PackListIntent {
+    record Disable(PackListKey srcList, PackNode srcPack, SequencedCollection<PackNode> packs) implements PackListIntent {
     }
 
     record Move(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs,
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs,
             int index
     ) implements PackListIntent {
     }
 
     record MoveOnce(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs,
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs,
             boolean upwards
     ) implements PackListIntent {
-        public static MoveOnce up(PackListKey srcList, PackEntry srcPack, SequencedCollection<PackEntry> packs) {
+        public static MoveOnce up(PackListKey srcList, PackNode srcPack, SequencedCollection<PackNode> packs) {
             return new MoveOnce(srcList, srcPack, packs, true);
         }
 
-        public static MoveOnce down(PackListKey srcList, PackEntry srcPack, SequencedCollection<PackEntry> packs) {
+        public static MoveOnce down(PackListKey srcList, PackNode srcPack, SequencedCollection<PackNode> packs) {
             return new MoveOnce(srcList, srcPack, packs, false);
         }
 
@@ -77,62 +77,62 @@ public sealed interface PackListIntent extends Intent {
         }
     }
 
-    record Drag(PackListKey srcList, PackEntry srcPack, SequencedCollection<PackEntry> packs) implements PackListIntent {
+    record Drag(PackListKey srcList, PackNode srcPack, SequencedCollection<PackNode> packs) implements PackListIntent {
     }
 
     record Drop(PackListKey srcList, @Nullable PackListKey targetList, int index) implements PackListIntent {
     }
 
-    record OpenRenameModal(PackListKey srcList, PackEntry pack) implements PackListIntent {
+    record OpenRenameModal(PackListKey srcList, PackNode pack) implements PackListIntent {
     }
 
-    record CloseRenameModal(PackListKey srcList, PackEntry pack) implements PackListIntent {
+    record CloseRenameModal(PackListKey srcList, PackNode pack) implements PackListIntent {
     }
 
-    record OpenFolder(PackListKey srcList, PackEntry.Parent pack) implements PackListIntent {
+    record OpenFolder(PackListKey srcList, PackNode.Parent pack) implements PackListIntent {
     }
 
     record CloseFolder(PackListKey srcList) implements PackListIntent {
     }
 
-    record Rename(PackListKey srcList, PackEntry pack, String newName) implements PackListIntent {
+    record Rename(PackListKey srcList, PackNode pack, String newName) implements PackListIntent {
     }
 
-    record Delete(PackListKey srcList, PackEntry pack) implements PackListIntent {
+    record Delete(PackListKey srcList, PackNode pack) implements PackListIntent {
     }
 
     record OverrideHidden(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs,
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs,
             boolean hidden
     ) implements PackListIntent {
     }
 
     record OverrideRequirement(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs,
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs,
             @Nullable Boolean required
     ) implements PackListIntent {
     }
 
     record OverridePosition(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs,
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs,
             PackOverride.@Nullable Position position
     ) implements PackListIntent {
     }
 
     record RemoveOverrides(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs
     ) implements PackListIntent {
     }
 
-    record OpenAliasesModal(PackListKey srcList, PackEntry pack) implements PackListIntent {
+    record OpenAliasesModal(PackListKey srcList, PackNode pack) implements PackListIntent {
     }
 
     record CloseAliases(List<String> newAliases) implements PackListIntent {

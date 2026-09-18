@@ -22,14 +22,15 @@ import io.github.fishstiz.packed_packs.gui.actions.mutations.ProfileMutation;
 import io.github.fishstiz.packed_packs.gui.services.PackIconCache;
 import io.github.fishstiz.packed_packs.gui.services.PackRepositoryService;
 import io.github.fishstiz.packed_packs.gui.services.PackResourcesService;
-import io.github.fishstiz.packed_packs.util.PackEntryResolver;
+import io.github.fishstiz.packed_packs.util.PackSelectionResolver;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
-import io.github.fishstiz.packed_packs.util.PackEntryLists;
+import io.github.fishstiz.packed_packs.pack.PackNode;
+import io.github.fishstiz.packed_packs.pack.PackSelection;
 import io.github.fishstiz.packed_packs.pack.PackWatcher;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import io.github.fishstiz.packed_packs.util.ToastUtil;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -131,11 +132,11 @@ public class Store implements FZRef<PackedPacksState> {
         return false;
     }
 
-    public void dispatch(Intent intent) { // todo make profile actually immutable
+    public void dispatch(Intent intent) {
         PackedPacksState prevState = this.state;
         switch (intent) {
             case Intent.ToggleDevMode() -> {
-                Mutation mutation = new Mutation.Reset(new PackEntryLists(state.available().packs(), state.enabled().packs()));
+                Mutation mutation = new Mutation.Reset(new PackSelection(state.available().packs(), state.enabled().packs()));
                 replaceState(Reducer.reduce(prevState.withDevMode(!prevState.devMode()), mutation));
                 ToastUtil.onDevModeToggleToast(state.devMode());
             }
@@ -196,22 +197,37 @@ public class Store implements FZRef<PackedPacksState> {
                         dispatch(new PackListMutation.AliasesModalOpened(open.srcList(), open.pack(), aliases));
                     }
                     case PackListIntent.OpenFolder open -> {
-                        if (!(repository.getPackById(open.pack().id()) instanceof PackEntry.Parent canonical)) {
+                        if (!(repository.getPackById(open.pack().id()) instanceof PackNode.Parent canonical)) {
                             return;
                         }
 
-                        List<PackEntry> unsortedChildren = canonical.children();
+                        List<PackNode> unsortedChildren = canonical.children();
                         FolderPackMeta metadata = Objects.requireNonNullElseGet(
                                 repository.getFolderMetadata(canonical.id()),
                                 FolderPackMeta::new
                         );
-                        List<PackEntry> children = PackEntryResolver.resolveChildren(
-                                unsortedChildren,
-                                metadata,
-                                open.srcList().type(),
-                                state.enabled()
-                        );
-                        if (dispatch(new PackListMutation.FolderOpened(open.srcList(), canonical, metadata.module(), children))) {
+
+                        List<PackNode> sorted;
+                        if (metadata.module()) {
+                            sorted = repository.getSortedChildren(canonical);
+                        } else {
+                            if (open.srcList().type().enabled()) {
+                                PackedPacks.LOGGER.warn(
+                                        "[packed_packs] Opening a non-module folder pack from the enabled list, which should not happen"
+                                );
+                            }
+
+                            List<PackNode> filtered = new ObjectArrayList<>(unsortedChildren.size());
+                            for (PackNode pack : unsortedChildren) {
+                                if (open.srcList().type().enabled() || !state.enabled().containsRecursively(pack)) {
+                                    filtered.add(pack);
+                                }
+                            }
+
+                            sorted = filtered;
+                        }
+
+                        if (dispatch(new PackListMutation.FolderOpened(open.srcList(), canonical, metadata.module(), sorted))) {
                             effectHandler.accept(new UiEffect.FocusList(open.srcList().type()));
                         }
                     }
@@ -331,11 +347,8 @@ public class Store implements FZRef<PackedPacksState> {
                             );
                         } else {
                             configs.profiles().save(selectedProfile);
-                            List<String> enabled = new ObjectArrayList<>(state.enabled().packs().size());
-                            state.enabled().packs().forEach(enabledEntry ->
-                                    enabledEntry.visitEntries(entry -> enabled.add(entry.id()))
-                            );
-
+                            Set<String> enabled = new ObjectLinkedOpenHashSet<>(state.enabled().packs().size());
+                            state.enabled().packs().forEach(pack -> repository.collectNodes(pack, node -> enabled.add(node.id())));
                             selectedProfile.setPacks(enabled);
                             copiedProfile = configs.profiles().copy(selectedProfile);
                         }
@@ -367,7 +380,7 @@ public class Store implements FZRef<PackedPacksState> {
                             configs.profiles().save(selectedProfile);
                         }
 
-                        PackEntryLists packs = profile == null ? getCurrentPacks() : getPacks(profile);
+                        PackSelection packs = profile == null ? getCurrentPacks() : getPacks(profile);
 
                         if (dispatch(new ProfileMutation.Selected(profile, packs))) {
                             effectHandler.accept(new UiEffect.ScrollToTop(PackListType.AVAILABLE));
@@ -405,7 +418,9 @@ public class Store implements FZRef<PackedPacksState> {
             saveFolderState(prev.available().folder());
             saveFolderState(prev.enabled().folder());
             if (previousProfile != null && current.profiles().profiles().contains(previousProfile)) {
-                previousProfile.setPacks(prev.enabled().packs().stream().map(PackEntry::id).toList());
+                Set<String> packIds = new ObjectLinkedOpenHashSet<>(state.enabled().packs().size());
+                prev.enabled().packs().forEach(pack -> repository.collectNodes(pack, node -> packIds.add(node.id())));
+                previousProfile.setPacks(packIds);
                 configs.profiles().save(previousProfile);
             }
         }
@@ -435,18 +450,18 @@ public class Store implements FZRef<PackedPacksState> {
 
     public List<Pack> getDisabledPacks() {
         List<Pack> disabled = new ObjectArrayList<>(state.available().packs().size());
-        state.available().packs().forEach(pack -> pack.visitPacks(disabled::add));
+        state.available().packs().forEach(pack -> repository.collectPacks(pack, disabled::add));
         return disabled;
     }
 
     public List<Pack> getEnabledPacks() {
         List<Pack> enabled = new ObjectArrayList<>(state.enabled().packs().size());
-        state.enabled().packs().forEach(pack -> pack.visitPacks(enabled::add));
+        state.enabled().packs().forEach(pack -> repository.collectPacks(pack, enabled::add));
         return enabled;
     }
 
-    private PackEntryLists getCurrentPacks() {
-        return PackEntryResolver.syncPackLists(
+    private PackSelection getCurrentPacks() {
+        return PackSelectionResolver.syncPacksWithRepository(
                 repository,
                 state.profiles(),
                 Collections.emptyList(),
@@ -454,8 +469,8 @@ public class Store implements FZRef<PackedPacksState> {
         );
     }
 
-    private PackEntryLists getPacks(Profile profile) {
-        return PackEntryResolver.syncPackLists(
+    private PackSelection getPacks(Profile profile) {
+        return PackSelectionResolver.syncPacksWithRepository(
                 repository,
                 state.profiles(),
                 Collections.emptyList(),
@@ -557,7 +572,7 @@ public class Store implements FZRef<PackedPacksState> {
         history.reset(state);
     }
 
-    private void saveFolderMeta(PackEntry.Parent parent, FolderPackMeta metadata) {
+    private void saveFolderMeta(PackNode.Parent parent, FolderPackMeta metadata) {
         if (repository.setFolderMetadata(parent.id(), metadata)) {
             resources.saveFolderMetadata(parent.path(), metadata);
         }
@@ -568,7 +583,7 @@ public class Store implements FZRef<PackedPacksState> {
         saveFolderState(folder.contents().folder());
         saveFolderMeta(
                 folder.pack(),
-                new FolderPackMeta(folder.locked(), folder.contents().packs().stream().map(PackEntry::id).toList())
+                new FolderPackMeta(folder.locked(), folder.contents().packs().stream().map(PackNode::id).toList())
         );
     }
 
@@ -588,29 +603,29 @@ public class Store implements FZRef<PackedPacksState> {
             return null;
         }
 
-        if (!(repository.getPackById(folder.pack().id()) instanceof PackEntry.Parent canonicalParent)) {
+        if (!(repository.getPackById(folder.pack().id()) instanceof PackNode.Parent canonicalParent)) {
             return null;
         }
 
         Set<String> oldChildIds = folder.pack().children().stream()
-                .map(PackEntry::id)
+                .map(PackNode::id)
                 .collect(Collectors.toCollection(ObjectOpenHashSet::new));
 
         Set<String> canonicalChildIds = canonicalParent.children().stream()
-                .map(PackEntry::id)
+                .map(PackNode::id)
                 .collect(Collectors.toCollection(ObjectOpenHashSet::new));
 
-        List<PackEntry> newContents = new ObjectArrayList<>(folder.contents().packs().size());
+        List<PackNode> newContents = new ObjectArrayList<>(folder.contents().packs().size());
         Set<String> currentContentIds = new ObjectOpenHashSet<>(folder.contents().packs().size());
 
-        for (PackEntry entry : folder.contents().packs()) {
+        for (PackNode entry : folder.contents().packs()) {
             if (canonicalChildIds.contains(entry.id()) && !enabledIds.contains(entry.id())) {
                 newContents.add(entry);
                 currentContentIds.add(entry.id());
             }
         }
 
-        for (PackEntry child : canonicalParent.children()) {
+        for (PackNode child : canonicalParent.children()) {
             if (enabledIds.contains(child.id())) continue;
             if (!oldChildIds.contains(child.id()) && currentContentIds.add(child.id())) {
                 newContents.add(child);
@@ -635,7 +650,7 @@ public class Store implements FZRef<PackedPacksState> {
             PackedPacks.LOGGER.info("[packed_packs] ======== Syncing State ========");
         }
 
-        PackEntryLists validated = PackEntryResolver.syncPackLists(
+        PackSelection validated = PackSelectionResolver.syncPacksWithRepository(
                 repository,
                 state.profiles(),
                 state.available().packs(),
@@ -648,7 +663,7 @@ public class Store implements FZRef<PackedPacksState> {
         Set<String> enabledIds = state.available().folder() == null && state.enabled().folder() == null
                 ? Collections.emptySet()
                 : validated.enabled().stream()
-                .map(PackEntry::id)
+                .map(PackNode::id)
                 .collect(Collectors.toCollection(ObjectOpenHashSet::new));
 
         PackListState newAvailable = state.available()
@@ -685,13 +700,14 @@ public class Store implements FZRef<PackedPacksState> {
     private void syncSelectedProfile() {
         Profile selectedProfile = this.state.profiles().selectedProfile();
         if (selectedProfile != null) {
+            ObjectLinkedOpenHashSet<String> enabledIds = new ObjectLinkedOpenHashSet<>(state.enabled().packs().size());
+            state.enabled().packs().forEach(pack -> repository.collectNodes(pack, node -> enabledIds.add(node.id())));
+
             selectedProfile.syncPacks(
                     repository.getPacks().stream()
-                            .map(PackEntry::id)
+                            .map(PackNode::id)
                             .collect(Collectors.toSet()),
-                    this.state.enabled().packs().stream()
-                            .map(PackEntry::id)
-                            .collect(Collectors.toCollection(LinkedHashSet::new))
+                    enabledIds
             );
         }
     }
@@ -700,7 +716,7 @@ public class Store implements FZRef<PackedPacksState> {
         Profile selectedProfile = this.state.profiles().selectedProfile();
         if (selectedProfile != null) {
             saveFolderState(this.state.enabled().folder());
-            selectedProfile.setPacks(this.state.enabled().packs().stream().map(PackEntry::id).toList());
+            selectedProfile.setPacks(this.state.enabled().packs().stream().map(PackNode::id).toList());
             configs.profiles().save(selectedProfile);
         }
     }
@@ -752,7 +768,7 @@ public class Store implements FZRef<PackedPacksState> {
             Profile defaultProfile = configs.profiles().getDefault();
             ProfilesState profileState = new ProfilesState(configs.profiles().getProfiles(), null, defaultProfile);
             PackListState availableState = PackListState.empty().withQuery(
-                    new Query(Config.get().isHideIncompatible(), Config.get().getSort(), null, null),
+                    new Query(Config.get().isHideIncompatible(), Config.get().getSort(), null),
                     profileState,
                     devMode
             );

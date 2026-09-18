@@ -3,7 +3,7 @@ package io.github.fishstiz.packed_packs.gui.actions.mutations;
 import io.github.fishstiz.packed_packs.config.PackOverride;
 import io.github.fishstiz.packed_packs.gui.model.PackListKey;
 import io.github.fishstiz.packed_packs.gui.model.Query;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
@@ -17,20 +17,20 @@ public sealed interface PackListMutation extends Mutation {
 
     record Enabled(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs,
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs,
             int index
     ) implements Cross {
     }
 
     record Disabled(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs
     ) implements Cross {
     }
 
-    record Dragged(PackListKey srcList, PackEntry srcPack, SequencedCollection<PackEntry> packs) implements Cross {
+    record Dragged(PackListKey srcList, PackNode srcPack, SequencedCollection<PackNode> packs) implements Cross {
         @Override
         public boolean pushState() {
             return false;
@@ -44,24 +44,24 @@ public sealed interface PackListMutation extends Mutation {
         }
     }
 
-    record RenameModalOpened(PackListKey srcList, PackEntry pack) implements Cross {
+    record RenameModalOpened(PackListKey srcList, PackNode pack) implements Cross {
     }
 
-    record RenameModalClosed(PackListKey srcList, PackEntry pack) implements Cross {
+    record RenameModalClosed(PackListKey srcList, PackNode pack) implements Cross {
     }
 
     record VisibilityOverridden(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs,
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs,
             boolean hidden
     ) implements Cross {
     }
 
     record RequirementOverridden(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs,
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs,
             @Nullable Boolean required
     ) implements Cross {
         @Override
@@ -72,22 +72,22 @@ public sealed interface PackListMutation extends Mutation {
 
     record PositionOverridden(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs,
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs,
             PackOverride.@Nullable Position position
     ) implements Cross {
     }
 
     record OverridesRemoved(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs
     ) implements Cross {
     }
 
     record AliasesModalOpened(
             PackListKey srcList,
-            PackEntry srcPack,
+            PackNode srcPack,
             List<String> aliases
     ) implements Cross {
     }
@@ -109,42 +109,42 @@ public sealed interface PackListMutation extends Mutation {
     record IncompatibleHidden(PackListKey srcList, boolean hidden) implements Local {
     }
 
-    record Selected(PackListKey srcList, PackEntry pack) implements Local {
+    record Selected(PackListKey srcList, PackNode pack) implements Local {
     }
 
-    record SelectedExclusively(PackListKey srcList, PackEntry pack) implements Local {
+    record SelectedExclusively(PackListKey srcList, PackNode pack) implements Local {
     }
 
-    record SelectionToggled(PackListKey srcList, PackEntry pack) implements Local {
+    record SelectionToggled(PackListKey srcList, PackNode pack) implements Local {
     }
 
-    record SelectedRange(PackListKey srcList, PackEntry pack) implements Local {
+    record SelectedRange(PackListKey srcList, PackNode pack) implements Local {
     }
 
-    record SelectedAll(PackListKey srcList, PackEntry pack) implements Local {
+    record SelectedAll(PackListKey srcList, PackNode pack) implements Local {
     }
 
     record Moved(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs,
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs,
             int index
     ) implements Local {
     }
 
     record MovedOnce(
             PackListKey srcList,
-            PackEntry srcPack,
-            SequencedCollection<PackEntry> packs,
+            PackNode srcPack,
+            SequencedCollection<PackNode> packs,
             boolean upwards
     ) implements Local {
     }
 
     record FolderOpened(
             PackListKey srcList,
-            PackEntry.Parent pack,
+            PackNode.Parent pack,
             boolean locked,
-            List<PackEntry> children
+            List<PackNode> children
     ) implements Local {
     }
 

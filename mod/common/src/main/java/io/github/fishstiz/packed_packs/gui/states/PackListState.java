@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
 import io.github.fishstiz.packed_packs.gui.model.Query;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import org.jspecify.annotations.Nullable;
@@ -9,13 +9,13 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 
 public record PackListState(
-        List<PackEntry> packs,
-        List<PackEntry> visiblePacks,
-        SequencedCollection<PackEntry> selectedPacks,
+        List<PackNode> packs,
+        List<PackNode> visiblePacks,
+        SequencedCollection<PackNode> selectedPacks,
         Query query,
         @Nullable Folder folder
 ) {
-    public record Folder(PackEntry.Parent pack, boolean locked, PackListState contents) {
+    public record Folder(PackNode.Parent pack, boolean locked, PackListState contents) {
         public Folder withContents(PackListState contents) {
             return new Folder(pack, locked, contents);
         }
@@ -33,39 +33,39 @@ public record PackListState(
         return EMPTY;
     }
 
-    public PackListState(List<PackEntry> packs) {
+    public PackListState(List<PackNode> packs) {
         this(packs, List.copyOf(packs), Collections.emptyList(), Query.empty(), null);
     }
 
     public PackListState with(
-            List<PackEntry> newPacks,
-            SequencedCollection<PackEntry> newSelection,
+            List<PackNode> newPacks,
+            SequencedCollection<PackNode> newSelection,
             Query query,
             ProfileSelection profiles,
             boolean devMode
     ) {
-        List<PackEntry> newVisiblePacks = processQuery(newPacks, query, profiles, devMode);
+        List<PackNode> newVisiblePacks = processQuery(newPacks, query, profiles, devMode);
         // use a SequencedSet for faster lookups as this is queried every frame for each visible item within view
         // to avoid refreshing the pack list entries on each selection change
         // ... which I realize may not actually be worth it now that I'm writing this out,
         // but it has always worked that way since the creation of this project
-        SequencedSet<PackEntry> newSelectedPacks = new ObjectLinkedOpenHashSet<>(newSelection.size());
-        for (PackEntry pack : newSelection) {
+        SequencedSet<PackNode> newSelectedPacks = new ObjectLinkedOpenHashSet<>(newSelection.size());
+        for (PackNode pack : newSelection) {
             if (newVisiblePacks.contains(pack)) newSelectedPacks.add(pack);
         }
         return new PackListState(newPacks, newVisiblePacks, Collections.unmodifiableSequencedSet(newSelectedPacks), query, null);
     }
 
     public PackListState with(
-            List<PackEntry> newPacks,
-            SequencedCollection<PackEntry> newSelection,
+            List<PackNode> newPacks,
+            SequencedCollection<PackNode> newSelection,
             ProfileSelection profiles,
             boolean devMode
     ) {
         return this.with(newPacks, newSelection, this.query, profiles, devMode);
     }
 
-    public PackListState withPacks(List<PackEntry> newPacks, ProfileSelection profiles, boolean devMode) {
+    public PackListState withPacks(List<PackNode> newPacks, ProfileSelection profiles, boolean devMode) {
         return this.with(newPacks, this.selectedPacks, profiles, devMode);
     }
 
@@ -73,8 +73,8 @@ public record PackListState(
         return this.with(this.packs, this.selectedPacks, query, profiles, devMode);
     }
 
-    public PackListState withSelection(SequencedCollection<PackEntry> newSelection) {
-        SequencedSet<PackEntry> newSelectedPacks = new ObjectLinkedOpenHashSet<>(newSelection);
+    public PackListState withSelection(SequencedCollection<PackNode> newSelection) {
+        SequencedSet<PackNode> newSelectedPacks = new ObjectLinkedOpenHashSet<>(newSelection);
         newSelectedPacks.retainAll(this.visiblePacks);
         return new PackListState(
                 this.packs,
@@ -86,8 +86,8 @@ public record PackListState(
     }
 
     public PackListState withPacksAndSelectedLast(
-            List<PackEntry> newPacks,
-            PackEntry selectedLast,
+            List<PackNode> newPacks,
+            PackNode selectedLast,
             ProfileSelection profiles,
             boolean devMode
     ) {
@@ -96,7 +96,7 @@ public record PackListState(
         if (!this.selectedPacks().contains(selectedLast)) {
             return this.with(newPacks, List.of(selectedLast), profiles, devMode);
         } else if (this.selectedPacks().getLast() != selectedLast) {
-            ObjectLinkedOpenHashSet<PackEntry> newSelection = new ObjectLinkedOpenHashSet<>(this.selectedPacks());
+            ObjectLinkedOpenHashSet<PackNode> newSelection = new ObjectLinkedOpenHashSet<>(this.selectedPacks());
             newSelection.addAndMoveToLast(selectedLast);
             return this.with(newPacks, newSelection, profiles, devMode);
         }
@@ -123,18 +123,18 @@ public record PackListState(
         return current;
     }
 
-    public boolean containsRecursively(PackEntry pack) {
+    public boolean containsRecursively(PackNode pack) {
         return packs.contains(pack) || (folder != null && folder.contents.containsRecursively(pack));
     }
 
-    private static List<PackEntry> processQuery(
-            List<PackEntry> sourcePacks,
+    private static List<PackNode> processQuery(
+            List<PackNode> sourcePacks,
             Query query,
             ProfileSelection profiles,
             boolean devMode
     ) {
-        List<PackEntry> filtered = new ObjectArrayList<>(sourcePacks.size());
-        for (PackEntry pack : sourcePacks) {
+        List<PackNode> filtered = new ObjectArrayList<>(sourcePacks.size());
+        for (PackNode pack : sourcePacks) {
             if ((devMode || !profiles.isPackHidden(pack)) && query.test(pack)) {
                 filtered.add(pack);
             }

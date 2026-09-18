@@ -8,7 +8,7 @@ import io.github.fishstiz.packed_packs.config.PackOverride;
 import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
 import io.github.fishstiz.packed_packs.impl.context.Context;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.gui.states.ProfileSelection;
 import io.github.fishstiz.packed_packs.gui.states.ProfileScope;
 import io.github.fishstiz.packed_packs.transform.interfaces.ConfiguredPack;
@@ -94,7 +94,7 @@ class PackDevMenu {
             GuiGraphicsUtils.sprite(graphics, EYE_SLASH_SPRITE, iconX, top, size, size);
             iconX -= size;
         }
-        if (entry.pack instanceof PackEntry.Leaf leaf) {
+        if (entry.pack instanceof PackNode.Leaf leaf) {
             ProfileScope included = hasOverride(Profile::includes);
             if (included.global() && !((ConfiguredPack) leaf.pack()).packed_packs$getMetadata().compatibility().isCompatible()) {
                 graphics.fill(iconX, top, iconX + size, top + size, Colors.alpha(Colors.RED_700, 0.75f));

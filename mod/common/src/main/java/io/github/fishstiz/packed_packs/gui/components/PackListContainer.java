@@ -22,7 +22,7 @@ import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
 import io.github.fishstiz.packed_packs.gui.states.PackListComputed;
 import io.github.fishstiz.packed_packs.gui.services.PackResourcesService;
 import io.github.fishstiz.packed_packs.impl.context.Context;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.gui.states.ProfileSelection;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
@@ -145,7 +145,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
                             previousFolderState.pack(),
                             new FolderPackMeta(
                                     previousFolderState.locked(),
-                                    previousFolderState.contents().packs().stream().map(PackEntry::id).toList()
+                                    previousFolderState.contents().packs().stream().map(PackNode::id).toList()
                             )
                     );
                 }
@@ -361,14 +361,14 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         private final FZIcon folderIcon;
         private final FZText folderTitle;
         private final FZLayout layout;
-        private PackEntry.@Nullable Parent pack;
+        private PackNode.@Nullable Parent pack;
         private List<GuiEventListener> children = Collections.emptyList();
         private List<Renderable> renderables = Collections.emptyList();
         private boolean childOpened;
 
         Folder(PackListContainer root, PackResourcesService resources, PackListKey key, PackListState.Folder state) {
             this.root = root;
-            PackEntry pack = state.pack();
+            PackNode pack = state.pack();
             this.listContainer = new PackListContainer(root, resources, state, key);
             this.background = FZIcon.builder(Identifier.withDefaultNamespace("popup/background")).build();
             this.closeButton = FZIconButton.builder()
@@ -442,7 +442,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
         @Override
         public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
-            PackEntry.Parent pack = this.pack;
+            PackNode.Parent pack = this.pack;
 
             if (this.childOpened || pack == null) {
                 FZContextMenu.Source.super.fidgetz$updateContextEntries(x, y, collector);

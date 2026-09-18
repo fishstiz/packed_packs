@@ -98,4 +98,8 @@ public record PackedPacksState(
     public PackListKey getLeafKey(PackListType type) {
         return this.getLeafKey(this.rootTargetList(type), PackListKey.root(type));
     }
+
+    public PackListState getLeafList(PackListType type) {
+        return getList(getLeafKey(type));
+    }
 }

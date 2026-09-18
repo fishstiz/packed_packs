@@ -3,7 +3,7 @@ package io.github.fishstiz.packed_packs.gui.services;
 import com.google.common.hash.Hashing;
 import com.mojang.blaze3d.platform.NativeImage;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
@@ -32,7 +32,7 @@ public class PackIconCache {
         this.textureManager = textureManager;
     }
 
-    public Identifier get(PackEntry pack) {
+    public Identifier get(PackNode pack) {
         if (!cachedIcons.containsKey(pack.id())) {
             Identifier fallback = (this.staleIcons != null) ? this.staleIcons.get(pack.id()) : null;
             if (fallback == null) {
@@ -59,7 +59,7 @@ public class PackIconCache {
     /**
      * Refer to {@code PackSelectionScreen#loadPackIcon(TextureManager, Pack)}
      */
-    private CompletableFuture<@Nullable Identifier> loadPackIcon(PackEntry pack) {
+    private CompletableFuture<@Nullable Identifier> loadPackIcon(PackNode pack) {
         return CompletableFuture.supplyAsync(() -> {
             try (PackResources packResources = pack.open()) {
                 IoSupplier<@NonNull InputStream> iconIoSupplier = packResources.getRootResource(PackUtil.ICON_FILENAME);

@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.gui.actions.mutations;
 
 import io.github.fishstiz.packed_packs.config.Profile;
-import io.github.fishstiz.packed_packs.util.PackEntryLists;
+import io.github.fishstiz.packed_packs.pack.PackSelection;
 import org.jspecify.annotations.Nullable;
 
 public sealed interface ProfileMutation extends Mutation {
@@ -15,7 +15,7 @@ public sealed interface ProfileMutation extends Mutation {
         return true;
     }
 
-    record Selected(@Nullable Profile profile, PackEntryLists packEntries) implements ProfileMutation {
+    record Selected(@Nullable Profile profile, PackSelection packs) implements ProfileMutation {
     }
 
     record RenamingToggled() implements ProfileMutation {
@@ -35,7 +35,7 @@ public sealed interface ProfileMutation extends Mutation {
     record Deleted(Profile profile) implements ProfileMutation {
     }
 
-    record DeletedAndReset(Profile profile, PackEntryLists packEntries) implements ProfileMutation {
+    record DeletedAndReset(Profile profile, PackSelection packs) implements ProfileMutation {
     }
 
     record Added(Profile profile) implements ProfileMutation {
@@ -44,7 +44,7 @@ public sealed interface ProfileMutation extends Mutation {
     record DefaultRemoved() implements ProfileMutation {
     }
 
-    record DefaultChanged(Profile profile, @Nullable PackEntryLists packEntries) implements ProfileMutation {
+    record DefaultChanged(Profile profile, @Nullable PackSelection packs) implements ProfileMutation {
     }
 
     record LockToggled(Profile profile) implements ProfileMutation {

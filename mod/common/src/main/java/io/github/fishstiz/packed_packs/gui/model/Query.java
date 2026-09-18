@@ -1,7 +1,7 @@
 package io.github.fishstiz.packed_packs.gui.model;
 
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import net.minecraft.network.chat.Component;
@@ -16,16 +16,25 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Predicate;
 
-public record Query(
-        boolean hideIncompatible,
-        @Nullable SortOption sort,
-        @Nullable String search,
-        @Nullable String unmodifiedSearch
-) implements Predicate<PackEntry> {
+public final class Query implements Predicate<PackNode> {
     private static final Query EMPTY = new Query(false, null, null, null);
+    private final boolean hideIncompatible;
+    private final @Nullable SortOption sort;
+    private final @Nullable String search;
+    private final @Nullable String searchLower;
 
-    public Query {
-        search = search != null ? search.toLowerCase(Locale.ROOT) : null;
+    private Query(boolean hideIncompatible, @Nullable SortOption sort, @Nullable String search, @Nullable String searchLower) {
+        this.hideIncompatible = hideIncompatible;
+        this.sort = sort;
+        this.search = search;
+        this.searchLower = searchLower;
+    }
+
+    public Query(boolean hideIncompatible, @Nullable SortOption sort, @Nullable String search) {
+        this.hideIncompatible = hideIncompatible;
+        this.sort = sort;
+        this.search = search;
+        this.searchLower = search == null ? null : search.toLowerCase(Locale.ROOT);
     }
 
     public static Query empty() {
@@ -34,22 +43,22 @@ public record Query(
 
     public Query withHideIncompatible(boolean hideIncompatible) {
         if (this.hideIncompatible == hideIncompatible) return this;
-        return new Query(hideIncompatible, this.sort, this.search, this.unmodifiedSearch);
+        return new Query(hideIncompatible, this.sort, this.search, this.searchLower);
     }
 
     public Query withSort(SortOption sort) {
         if (Objects.equals(this.sort, sort)) return this;
-        return new Query(this.hideIncompatible, sort, this.search, this.unmodifiedSearch);
+        return new Query(this.hideIncompatible, sort, this.search, this.searchLower);
     }
 
     public Query withSearch(String search) {
         String searchLower = search != null ? search.toLowerCase(Locale.ROOT) : null;
         if (Objects.equals(this.search, searchLower)) return this;
-        return new Query(this.hideIncompatible, this.sort, searchLower, search);
+        return new Query(this.hideIncompatible, this.sort, search, searchLower);
     }
 
     @Override
-    public boolean test(PackEntry pack) {
+    public boolean test(PackNode pack) {
         if (pack == null) {
             return false;
         }
@@ -67,10 +76,46 @@ public record Query(
         return title.replaceAll("§.", "").trim();
     }
 
+    public boolean hideIncompatible() {
+        return hideIncompatible;
+    }
+
+    public @Nullable SortOption sort() {
+        return sort;
+    }
+
+    public @Nullable String search() {
+        return search;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) return true;
+        if (obj == null || obj.getClass() != this.getClass()) return false;
+        var that = (Query) obj;
+        return this.hideIncompatible == that.hideIncompatible &&
+               Objects.equals(this.sort, that.sort) &&
+               Objects.equals(this.search, that.search);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(hideIncompatible, sort, search);
+    }
+
+    @Override
+    public String toString() {
+        return "Query[" +
+               "hideIncompatible=" + hideIncompatible + ", " +
+               "sort=" + sort + ", " +
+               "search=" + search + ']';
+    }
+
+
     public enum SortOption {
         VANILLA("packed_packs.sort.vanilla", "icon/sort_vanilla") {
             @Override
-            public Comparator<PackEntry> comparator(SequencedCollection<PackEntry> packs) {
+            public Comparator<PackNode> comparator(SequencedCollection<PackNode> packs) {
                 return folderFirst((first, second) -> {
                     PackSource firstPackSource = first.packSource();
                     PackSource secondPackSource = second.packSource();
@@ -91,7 +136,7 @@ public record Query(
         },
         A_Z("packed_packs.sort.a_z", "icon/sort_a_z") {
             @Override
-            public Comparator<PackEntry> comparator(SequencedCollection<PackEntry> packs) {
+            public Comparator<PackNode> comparator(SequencedCollection<PackNode> packs) {
                 return folderFirst(Comparator.comparing(
                         pack -> normalizeTitle(pack.title().getString()),
                         String.CASE_INSENSITIVE_ORDER
@@ -100,20 +145,20 @@ public record Query(
         },
         Z_A("packed_packs.sort.z_a", "icon/sort_z_a") {
             @Override
-            public Comparator<PackEntry> comparator(SequencedCollection<PackEntry> packs) {
+            public Comparator<PackNode> comparator(SequencedCollection<PackNode> packs) {
                 return A_Z.comparator(packs).reversed();
             }
         },
         RECENT("packed_packs.sort.recent", "icon/sort_recent") {
             @Override
-            public Comparator<PackEntry> comparator(SequencedCollection<PackEntry> packs) {
-                Map<PackEntry, Long> cache = buildTimestampCache(packs);
-                return folderFirst(Comparator.<PackEntry, Long>comparing(cache::get).reversed());
+            public Comparator<PackNode> comparator(SequencedCollection<PackNode> packs) {
+                Map<PackNode, Long> cache = buildTimestampCache(packs);
+                return folderFirst(Comparator.<PackNode, Long>comparing(cache::get).reversed());
             }
         },
         OLDEST("packed_packs.sort.oldest", "icon/sort_oldest") {
             @Override
-            public Comparator<PackEntry> comparator(SequencedCollection<PackEntry> packs) {
+            public Comparator<PackNode> comparator(SequencedCollection<PackNode> packs) {
                 return RECENT.comparator(packs).reversed();
             }
         };
@@ -126,7 +171,7 @@ public record Query(
             this.spritePath = icon;
         }
 
-        public abstract Comparator<PackEntry> comparator(SequencedCollection<PackEntry> packs);
+        public abstract Comparator<PackNode> comparator(SequencedCollection<PackNode> packs);
 
         public Identifier icon() {
             return PackedPacks.id(spritePath);
@@ -136,8 +181,8 @@ public record Query(
             return Component.translatable(translationKey);
         }
 
-        static Comparator<PackEntry> folderFirst(Comparator<PackEntry> base) {
-            return Comparator.comparing((PackEntry pack) -> !(pack instanceof PackEntry.Parent)).thenComparing(base);
+        static Comparator<PackNode> folderFirst(Comparator<PackNode> base) {
+            return Comparator.comparing((PackNode pack) -> !(pack instanceof PackNode.Parent)).thenComparing(base);
         }
 
         public static SortOption getOrDefault(String name) {
@@ -152,13 +197,13 @@ public record Query(
             }
         }
 
-        private static Map<PackEntry, Long> buildTimestampCache(SequencedCollection<PackEntry> packs) {
-            Map<PackEntry, Long> cache = new Object2LongLinkedOpenHashMap<>(packs.size());
-            for (PackEntry pack : packs) cache.put(pack, getLastUpdatedEpochMs(pack));
+        private static Map<PackNode, Long> buildTimestampCache(SequencedCollection<PackNode> packs) {
+            Map<PackNode, Long> cache = new Object2LongLinkedOpenHashMap<>(packs.size());
+            for (PackNode pack : packs) cache.put(pack, getLastUpdatedEpochMs(pack));
             return cache;
         }
 
-        private static long getLastUpdatedEpochMs(PackEntry pack) {
+        private static long getLastUpdatedEpochMs(PackNode pack) {
             Path path = pack.path();
             if (path == null) {
                 return -1;

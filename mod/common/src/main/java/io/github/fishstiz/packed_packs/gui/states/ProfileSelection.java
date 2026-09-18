@@ -2,7 +2,7 @@ package io.github.fishstiz.packed_packs.gui.states;
 
 import io.github.fishstiz.packed_packs.config.PackOverride;
 import io.github.fishstiz.packed_packs.config.Profile;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
@@ -25,7 +25,7 @@ public interface ProfileSelection {
         return selectedProfile != null && selectedProfile.isLocked();
     }
 
-    default boolean isPackHidden(PackEntry entry) {
+    default boolean isPackHidden(PackNode entry) {
         Profile selectedProfile = selectedProfile();
         Profile defaultProfile = defaultProfile();
 
@@ -41,7 +41,7 @@ public interface ProfileSelection {
         return false;
     }
 
-    default boolean isPackRequired(PackEntry entry) {
+    default boolean isPackRequired(PackNode entry) {
         Profile selectedProfile = selectedProfile();
         Profile defaultProfile = defaultProfile();
 
@@ -57,7 +57,7 @@ public interface ProfileSelection {
         return entry.selectionConfig().required();
     }
 
-    default boolean isPackFixed(PackEntry entry) {
+    default boolean isPackFixed(PackNode entry) {
         Profile selectedProfile = selectedProfile();
         Profile defaultProfile = defaultProfile();
 
@@ -73,7 +73,7 @@ public interface ProfileSelection {
         return entry.selectionConfig().fixedPosition();
     }
 
-    default Pack.Position getPackPosition(PackEntry entry) {
+    default Pack.Position getPackPosition(PackNode entry) {
         Profile selectedProfile = selectedProfile();
         Profile defaultProfile = defaultProfile();
 
@@ -89,7 +89,7 @@ public interface ProfileSelection {
         return entry.selectionConfig().defaultPosition();
     }
 
-    default PackSelectionConfig getPackSelectionConfig(PackEntry entry) {
+    default PackSelectionConfig getPackSelectionConfig(PackNode entry) {
         Profile selectedProfile = selectedProfile();
         Profile defaultProfile = defaultProfile();
 
@@ -133,7 +133,7 @@ public interface ProfileSelection {
         return scope;
     }
 
-    default void validate(PackEntry pack) {
+    default void validate(PackNode pack) {
         Profile selectedProfile = selectedProfile();
         if (selectedProfile == null) return;
 

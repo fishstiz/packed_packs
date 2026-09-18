@@ -19,6 +19,7 @@ public final class Profile {
     private Set<String> packIds = new ObjectLinkedOpenHashSet<>();
     transient String id;
     transient boolean temp = false;
+    transient int overrideGen;
 
     Profile(String id) {
         this.id = id;
@@ -77,12 +78,6 @@ public final class Profile {
     public List<String> getPackIds() {
         return List.copyOf(this.packIds);
     }
-
-//    public void setPacks(Collection<Pack> selected) {
-//        if (!this.locked) {
-//            this.packIds = new ObjectLinkedOpenHashSet<>(PackUtil.flattenPackIds(selected));
-//        }
-//    }
 
     public void setPacks(Collection<String> selected) {
         if (!this.locked) {
@@ -191,6 +186,11 @@ public final class Profile {
         PackOverride override = this.overrides.computeIfAbsent(packId, id -> new PackOverride());
         setter.accept(override, property);
         if (!override.hasOverride()) this.overrides.remove(packId);
+        this.overrideGen++;
+    }
+
+    public int overridesGen() {
+        return overrideGen;
     }
 
     // immutability is too much of a hassle. just override equals and hashcode for state

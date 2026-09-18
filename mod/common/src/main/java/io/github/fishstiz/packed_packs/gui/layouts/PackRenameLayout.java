@@ -11,7 +11,7 @@ import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.Store;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
 import io.github.fishstiz.packed_packs.gui.services.PackResourcesService;
-import io.github.fishstiz.packed_packs.pack.PackEntry;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
@@ -51,7 +51,7 @@ public class PackRenameLayout extends WrappedLayout {
         }
 
         final PackResourcesService resources = store.getPackResourcesService();
-        final PackEntry pack = renamingPack.pack();
+        final PackNode pack = renamingPack.pack();
         final PackListKey target = renamingPack.target();
         final String previousName = sanitizeNameForEdit(pack);
         final FZMutableRef<String> nameRef = new FZMutableRef<>(previousName);
@@ -140,12 +140,12 @@ public class PackRenameLayout extends WrappedLayout {
         return testIllegalChars(newName);
     }
 
-    private static String sanitizeNameForEdit(PackEntry pack) {
+    private static String sanitizeNameForEdit(PackNode pack) {
         String name = pack.title().getString();
         return PackUtil.isZipPath(pack.path()) ? name.replaceFirst(Pattern.quote(ZIP_PACK_EXTENSION) + "$", "") : name;
     }
 
-    private static String sanitizeNameForSave(PackEntry pack, String newName) {
+    private static String sanitizeNameForSave(PackNode pack, String newName) {
         newName = FilenameUtils.getName(newName).trim();
         return PackUtil.isZipPath(pack.path()) ? newName + ZIP_PACK_EXTENSION : newName;
     }
