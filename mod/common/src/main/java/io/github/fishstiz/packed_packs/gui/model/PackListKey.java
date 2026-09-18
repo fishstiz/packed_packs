@@ -30,12 +30,4 @@ public record PackListKey(PackListType type, int depth) {
     public PackListKey unnest() {
         return new PackListKey(this.type, this.depth - 1);
     }
-
-    @Override
-    public String toString() {
-        return "PackListKey{" +
-               "type=" + type +
-               ", depth=" + depth +
-               '}';
-    }
 }

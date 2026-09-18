@@ -1,4 +1,4 @@
-package io.github.fishstiz.packed_packs.gui.services;
+package io.github.fishstiz.packed_packs.pack;
 
 import com.google.common.collect.ImmutableList;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
@@ -6,9 +6,6 @@ import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.config.JsonLoader;
-import io.github.fishstiz.packed_packs.pack.FolderLocationInfo;
-import io.github.fishstiz.packed_packs.pack.FolderResourcesSupplier;
-import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionModelAccessor;
 import io.github.fishstiz.packed_packs.transform.mixin.folders.additional.FolderRepositorySourceAccessor;
@@ -33,7 +30,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-public class PackRepositoryService {
+public class PackNodeRepository {
     private final PackRepository repository;
     private final Path packDir;
 
@@ -44,7 +41,7 @@ public class PackRepositoryService {
     private volatile Map<String, PackNode> packs = Collections.emptyMap();
     private volatile Set<String> selectedPackIds = Collections.emptySet();
 
-    public PackRepositoryService(PackRepository repository, Path packDir) {
+    public PackNodeRepository(PackRepository repository, Path packDir) {
         this.repository = repository;
         this.packDir = packDir;
         this.refreshSelectionModel();

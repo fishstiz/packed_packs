@@ -115,6 +115,7 @@ public final class Reducer {
                 newSelection.add(pack);
                 yield state.withSelection(newSelection);
             }
+            case PackListMutation.SelectedMultiple selected -> state.withSelection(selected.packs());
             case PackListMutation.SelectedExclusively selected -> {
                 PackNode pack = selected.pack();
                 if (!state.visiblePacks().contains(pack)) yield state;

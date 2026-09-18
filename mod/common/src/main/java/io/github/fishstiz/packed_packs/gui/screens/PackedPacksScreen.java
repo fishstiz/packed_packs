@@ -152,8 +152,8 @@ public class PackedPacksScreen extends FZScreen {
         List<Consumer<InitializeEvent.Post>> postActions = new ArrayList<>();
         postEvent(new InitializeEvent.Pre(context, postActions::add));
 
-        store.initializeState();
         super.init();
+        store.initializeState();
 
         this.initialized = true;
 

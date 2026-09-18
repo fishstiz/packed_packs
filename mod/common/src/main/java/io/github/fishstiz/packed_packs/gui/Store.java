@@ -19,9 +19,9 @@ import io.github.fishstiz.packed_packs.gui.actions.mutations.Mutation;
 import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
 import io.github.fishstiz.packed_packs.gui.actions.mutations.PackListMutation;
 import io.github.fishstiz.packed_packs.gui.actions.mutations.ProfileMutation;
-import io.github.fishstiz.packed_packs.gui.services.PackIconCache;
-import io.github.fishstiz.packed_packs.gui.services.PackRepositoryService;
-import io.github.fishstiz.packed_packs.gui.services.PackResourcesService;
+import io.github.fishstiz.packed_packs.pack.PackIconCache;
+import io.github.fishstiz.packed_packs.pack.PackNodeRepository;
+import io.github.fishstiz.packed_packs.pack.PackResourcesService;
 import io.github.fishstiz.packed_packs.util.PackSelectionResolver;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.pack.PackNode;
@@ -54,7 +54,7 @@ import static io.github.fishstiz.packed_packs.util.PackUtil.mapValidDirectories;
 public class Store implements FZRef<PackedPacksState> {
     private final Minecraft minecraft;
     private final PackConfigs configs;
-    private final PackRepositoryService repository;
+    private final PackNodeRepository repository;
     private final Consumer<PackRepository> onCommit;
     private final PackResourcesService resources;
     private final HistoryManager<PackedPacksState> history;
@@ -76,7 +76,7 @@ public class Store implements FZRef<PackedPacksState> {
         this.minecraft = minecraft;
         this.configs = configs;
         this.history = new HistoryManager<>(state);
-        this.repository = new PackRepositoryService(repository, baseDir);
+        this.repository = new PackNodeRepository(repository, baseDir);
         this.initialStateFuture = CompletableFuture.runAsync(this.repository::refreshSources, Util.backgroundExecutor());
         this.resources = new PackResourcesService(this.repository, new PackIconCache(minecraft, minecraft.getTextureManager()));
         this.onCommit = onCommit;
@@ -105,16 +105,59 @@ public class Store implements FZRef<PackedPacksState> {
         this.effectHandler = effectHandler;
     }
 
-    private void replaceState(PackedPacksState state) {
-        if (this.state != state) {
-            this.state = state;
+    private PackedPacksState normalize(PackedPacksState prevState, PackedPacksState newState) {
+        PackListKey newAvailableLeafKey = newState.getLeafKey(PackListType.AVAILABLE);
+        PackListState newAvailableLeaf = Objects.requireNonNull(newState.getList(newAvailableLeafKey));
+        if (prevState.getLeafList(PackListType.AVAILABLE).packs() == newAvailableLeaf.packs()) {
+            return newState;
+        }
+
+        PackListKey newEnabledLeafKey = newState.getLeafKey(PackListType.ENABLED);
+        PackListState newEnabledLeaf = Objects.requireNonNull(newState.getList(newEnabledLeafKey));
+        if (prevState.getLeafList(PackListType.ENABLED).packs() == newEnabledLeaf.packs()) {
+            return newState;
+        }
+
+        PackedPacksState normalized = syncStateWithRepository(newState, repository);
+
+        PackListKey normalizedEnabledLeafKey = normalized.getLeafKey(PackListType.ENABLED);
+        if (newEnabledLeafKey.depth() != normalizedEnabledLeafKey.depth()) {
+            return normalized;
+        }
+
+        PackListState normalizedEnabledLeaf = Objects.requireNonNull(normalized.getList(normalizedEnabledLeafKey));
+        Set<PackNode> enabledLeafPacks = new ObjectOpenHashSet<>(newEnabledLeaf.packs());
+        ObjectLinkedOpenHashSet<PackNode> normalizedEnabledSelectedLeafPacks =
+                new ObjectLinkedOpenHashSet<>(newEnabledLeaf.selectedPacks());
+
+        for (PackNode pack : normalizedEnabledLeaf.visiblePacks()) {
+            if (!enabledLeafPacks.contains(pack)) {
+                normalizedEnabledSelectedLeafPacks.add(pack);
+            }
+        }
+
+        if (!newEnabledLeaf.selectedPacks().isEmpty()
+            && normalizedEnabledSelectedLeafPacks.remove(newEnabledLeaf.selectedPacks().getLast())) {
+            normalizedEnabledSelectedLeafPacks.add(newEnabledLeaf.selectedPacks().getLast());
+        }
+
+        return Reducer.reduce(normalized, new PackListMutation.SelectedMultiple(
+                normalizedEnabledLeafKey,
+                normalizedEnabledSelectedLeafPacks
+        ));
+    }
+
+    private void replaceState(PackedPacksState newState) {
+        PackedPacksState prev = this.state;
+        if (prev != newState) {
+            this.state = normalize(prev, newState);
             subscribers.values().forEach(Runnable::run);
         }
     }
 
     private boolean dispatch(Mutation mutation) {
         PackedPacksState prevState = this.state;
-        PackedPacksState newState = Reducer.reduce(prevState, mutation);
+        PackedPacksState newState = normalize(prevState, Reducer.reduce(prevState, mutation));
         this.state = newState;
 
         if (prevState != newState) {
@@ -136,8 +179,7 @@ public class Store implements FZRef<PackedPacksState> {
         PackedPacksState prevState = this.state;
         switch (intent) {
             case Intent.ToggleDevMode() -> {
-                Mutation mutation = new Mutation.Reset(new PackSelection(state.available().packs(), state.enabled().packs()));
-                replaceState(Reducer.reduce(prevState.withDevMode(!prevState.devMode()), mutation));
+                replaceState(prevState.withDevMode(!prevState.devMode()));
                 ToastUtil.onDevModeToggleToast(state.devMode());
             }
             case Intent.Reset(@Nullable Profile profile) ->
@@ -588,7 +630,7 @@ public class Store implements FZRef<PackedPacksState> {
     }
 
     private static PackListState.@Nullable Folder syncFolderStateWithRepository(
-            PackRepositoryService repository,
+            PackNodeRepository repository,
             PackListType type,
             Set<String> enabledIds,
             PackListState.@Nullable Folder folder,
@@ -642,7 +684,7 @@ public class Store implements FZRef<PackedPacksState> {
                 .withFolder(newNestedFolder));
     }
 
-    private static PackedPacksState syncStateWithRepository(PackedPacksState state, PackRepositoryService repository) {
+    private static PackedPacksState syncStateWithRepository(PackedPacksState state, PackNodeRepository repository) {
         long start = 0;
 
         if (PackedPacks.DEBUG) {
@@ -785,9 +827,10 @@ public class Store implements FZRef<PackedPacksState> {
             dispatch(new Intent.Reset(
                     configs.user().isLastViewedProfileRemembered() ? configs.profiles().getLastViewed() : null
             ));
+        } else {
+            history.reset(state);
         }
 
-        history.reset(state);
         this.otherDirectorySources = null;
     }
 

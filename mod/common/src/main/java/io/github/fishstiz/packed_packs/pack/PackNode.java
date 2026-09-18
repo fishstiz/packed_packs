@@ -11,7 +11,6 @@ import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackCompatibility;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.world.flag.FeatureFlagSet;
-import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.file.Path;

@@ -6,10 +6,10 @@ import io.github.fishstiz.packed_packs.gui.model.Query;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.SequencedCollection;
 
-// todo maybe combine with intent, this is too much boilerplate
 public sealed interface PackListMutation extends Mutation {
     // state mutations that cross beyond pack list state
     sealed interface Cross extends PackListMutation {
@@ -110,6 +110,9 @@ public sealed interface PackListMutation extends Mutation {
     }
 
     record Selected(PackListKey srcList, PackNode pack) implements Local {
+    }
+
+    record SelectedMultiple(PackListKey srcList, SequencedCollection<PackNode> packs) implements Local {
     }
 
     record SelectedExclusively(PackListKey srcList, PackNode pack) implements Local {

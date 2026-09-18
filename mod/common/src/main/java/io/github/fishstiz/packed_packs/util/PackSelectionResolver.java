@@ -3,7 +3,7 @@ package io.github.fishstiz.packed_packs.util;
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.gui.states.ProfileSelection;
-import io.github.fishstiz.packed_packs.gui.services.PackRepositoryService;
+import io.github.fishstiz.packed_packs.pack.PackNodeRepository;
 import io.github.fishstiz.packed_packs.pack.PackSelection;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -14,7 +14,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class PackSelectionResolver {
-    private static boolean canRequire(PackRepositoryService repository, PackNode pack) {
+    private static boolean canRequire(PackNodeRepository repository, PackNode pack) {
         if (pack instanceof PackNode.Parent parent) {
             return Objects.requireNonNullElseGet(repository.getFolderMetadata(parent.id()), FolderPackMeta::new).module();
         } else {
@@ -31,7 +31,7 @@ public class PackSelectionResolver {
     }
 
     private static void addToEnabled(
-            PackRepositoryService repository,
+            PackNodeRepository repository,
             @Nullable ProfileSelection profiles,
             List<PackNode> enabled,
             Set<String> enabledIds,
@@ -56,7 +56,7 @@ public class PackSelectionResolver {
                 repository.collectDescendantLeaves(ancestor, TriState.DEFAULT, leaf -> {
                     leaf = repository.getPackById(leaf.id()); // canonical
                     // preserve order from enabled ids, do no eagerly add
-                    if (leaf != null && enabledIds.contains(leaf.id()) && seen.add(leaf.id())) {
+                    if (leaf != null && !enabledIds.contains(leaf.id()) && seen.add(leaf.id())) {
                         insertNode(enabled, leaf, profiles);
                     }
                 });
@@ -72,7 +72,7 @@ public class PackSelectionResolver {
     }
 
     private static void addToDisabled(
-            PackRepositoryService repository,
+            PackNodeRepository repository,
             ProfileSelection profiles,
             List<PackNode> disabled,
             List<PackNode> enabled,
@@ -114,7 +114,7 @@ public class PackSelectionResolver {
      * </ol>
      */
     public static PackSelection syncPacksWithRepository( // this could really use some automated tests
-            PackRepositoryService repository,
+            PackNodeRepository repository,
             ProfileSelection profiles,
             List<PackNode> disabled,
             List<PackNode> enabled

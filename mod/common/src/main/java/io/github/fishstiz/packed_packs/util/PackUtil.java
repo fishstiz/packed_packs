@@ -60,18 +60,8 @@ public class PackUtil {
         return FILE_PREFIX + name;
     }
 
-    // todo remove
-    public static String generateNestedPackId(Path path, String name) {
-        return FILE_PREFIX + generatePackName(path.getParent()) + DELIMITER + name;
-    }
-
     public static String generatePackId(Path path) {
         return generatePackId(generatePackName(path));
-    }
-
-    // todo remove
-    public static String generateNestedPackId(Path path) {
-        return generateNestedPackId(path, generatePackName(path));
     }
 
     public static PackLocationInfo replicateLocationInfo(PackLocationInfo info, String id) {

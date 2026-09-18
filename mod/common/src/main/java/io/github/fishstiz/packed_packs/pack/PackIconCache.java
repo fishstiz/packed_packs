@@ -1,9 +1,8 @@
-package io.github.fishstiz.packed_packs.gui.services;
+package io.github.fishstiz.packed_packs.pack;
 
 import com.google.common.hash.Hashing;
 import com.mojang.blaze3d.platform.NativeImage;
 import io.github.fishstiz.packed_packs.PackedPacks;
-import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureManager;

@@ -13,7 +13,7 @@ import io.github.fishstiz.packed_packs.config.DevConfig;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.Store;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
-import io.github.fishstiz.packed_packs.gui.services.PackResourcesService;
+import io.github.fishstiz.packed_packs.pack.PackResourcesService;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.gui.text.GroupCloseStyleMatcher;

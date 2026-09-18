@@ -20,7 +20,7 @@ import io.github.fishstiz.packed_packs.gui.states.PackListState;
 import io.github.fishstiz.packed_packs.gui.Store;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
 import io.github.fishstiz.packed_packs.gui.states.PackListComputed;
-import io.github.fishstiz.packed_packs.gui.services.PackResourcesService;
+import io.github.fishstiz.packed_packs.pack.PackResourcesService;
 import io.github.fishstiz.packed_packs.impl.context.Context;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.gui.states.ProfileSelection;

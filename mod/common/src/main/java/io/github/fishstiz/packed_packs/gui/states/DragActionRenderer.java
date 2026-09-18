@@ -3,7 +3,7 @@ package io.github.fishstiz.packed_packs.gui.states;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import io.github.fishstiz.fidgetz.v0.utils.GuiGraphicsUtils;
 import io.github.fishstiz.packed_packs.gui.components.PackListContainer;
-import io.github.fishstiz.packed_packs.gui.services.PackResourcesService;
+import io.github.fishstiz.packed_packs.pack.PackResourcesService;
 import io.github.fishstiz.packed_packs.util.Colors;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
