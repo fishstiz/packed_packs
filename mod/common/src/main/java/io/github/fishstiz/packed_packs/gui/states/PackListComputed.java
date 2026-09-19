@@ -1,12 +1,12 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
-import io.github.fishstiz.packed_packs.gui.model.PackListKey;
 import io.github.fishstiz.packed_packs.util.PackListUtils;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import it.unimi.dsi.fastutil.ints.Int2BooleanMap;
 import it.unimi.dsi.fastutil.ints.Int2BooleanOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIntBiConsumer;
+import net.minecraft.util.TriState;
 import org.jspecify.annotations.Nullable;
 
 import java.util.*;
@@ -30,6 +30,7 @@ public class PackListComputed {
     private int moveDownGen = 0;
     private int canDragGen = 0;
     private final Int2BooleanMap canDropCache;
+    private TriState dropCandidateCache = TriState.DEFAULT;
 
     public PackListComputed(PackListKey key, PackListState initialState, ProfileSelection initialProfiles) {
         this.key = key;
@@ -56,6 +57,7 @@ public class PackListComputed {
         PackListState prev = this.state;
         ProfileSelection prevProfiles = this.profiles;
 
+        boolean moduleStateChanged = prev.module() != newState.module();
         boolean packsChanged = prev.packs() != newState.packs();
         boolean selectionChanged = prev.selectedPacks() != newState.selectedPacks();
         boolean profilesChanged = newProfiles != prevProfiles;
@@ -70,14 +72,15 @@ public class PackListComputed {
             selectionGen++;
             selected = newState.selectedPacks().isEmpty() ? null : newState.selectedPacks().getLast();
         }
-        if (packsChanged || profilesChanged) {
+        if (packsChanged || profilesChanged || moduleStateChanged) {
             transferableGen++;
             canDragGen++;
             canDropCache.clear();
         }
-        if (profilesChanged
+        if (packsChanged
             || selectionChanged
-            || packsChanged
+            || profilesChanged
+            || moduleStateChanged
             || prev.visiblePacks() != newState.visiblePacks()
             || prev.query() != newState.query()) {
             moveUpGen++;
@@ -89,6 +92,7 @@ public class PackListComputed {
         if (this.dragging != dragging) {
             this.dragging = dragging;
             this.canDropCache.clear();
+            this.dropCandidateCache = TriState.DEFAULT;
         }
     }
 
@@ -106,23 +110,14 @@ public class PackListComputed {
     }
 
     public boolean canReorder() {
-        // todo do more than check depth
-        return key.depth() > 0 || key.type().enabled();
+        return state.module() || (key.depth() == 0 && key.type().enabled());
     }
 
     public boolean canDrop(int index) {
         if (canDropCache.containsKey(index)) {
             return canDropCache.get(index);
         }
-        boolean canDrop = dragging != null && PackListUtils.canDrop(
-                dragging.target(),
-                dragging.srcPack(),
-                dragging.packs(),
-                key,
-                state,
-                index,
-                profiles
-        );
+        boolean canDrop = dragging != null && PackListUtils.canDrop(dragging, key, state, index, profiles);
         canDropCache.put(index, canDrop);
         return canDrop;
     }
@@ -141,6 +136,14 @@ public class PackListComputed {
 
     public ActiveAction.@Nullable Dragging getDragging() {
         return dragging;
+    }
+
+    public boolean isDropCandidate() {
+        if (dropCandidateCache == TriState.DEFAULT) {
+            dropCandidateCache = TriState.from(dragging != null && PackListUtils.isDropCandidate(dragging, key, state));
+        }
+
+        return dropCandidateCache == TriState.TRUE;
     }
 
     public class Entry {
@@ -170,9 +173,8 @@ public class PackListComputed {
         private void computeTransferableCache() {
             if (transferableGenSeen != transferableGen) {
                 transferableGenSeen = transferableGen;
-                // todo do more than check depth
-                canEnableCache = !profiles.isLocked() && key.depth() == 0 && key.type().available();
-                canDisableCache = !profiles.isLocked() && key.depth() == 0 && key.type().enabled() && !profiles.isPackRequired(pack);
+                canEnableCache = !profiles.isLocked() && !state.module() && key.type().available();
+                canDisableCache = !profiles.isLocked() && !state.module() && key.type().enabled() && !profiles.isPackRequired(pack);
                 canTransferCache = key.type().available() ? canEnableCache : canDisableCache;
             }
         }
@@ -199,7 +201,7 @@ public class PackListComputed {
 
             moveUpGenSeen = moveUpGen;
 
-            if (key.depth() == 0 && key.type().available()) {
+            if (!canReorder()) {
                 return false;
             }
             if (profiles.isLocked()) {
@@ -231,7 +233,7 @@ public class PackListComputed {
 
             moveDownGenSeen = moveDownGen;
 
-            if (key.depth() == 0 && key.type().available()) {
+            if (!canReorder()) {
                 return false;
             }
             if (profiles.isLocked()) {
@@ -264,7 +266,7 @@ public class PackListComputed {
             }
 
             canDragGenSeen = canDragGen;
-            canDragCache = !profiles.isLocked() && PackListUtils.canDrag(key, pack, profiles);
+            canDragCache = !profiles.isLocked() && PackListUtils.canDrag(key, state.module(), pack, profiles);
             return canDragCache;
         }
 

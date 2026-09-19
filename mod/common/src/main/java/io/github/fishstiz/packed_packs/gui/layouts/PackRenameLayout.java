@@ -6,7 +6,7 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.fidgetz.v0.gui.state.FZMutableRef;
 import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
-import io.github.fishstiz.packed_packs.gui.model.PackListKey;
+import io.github.fishstiz.packed_packs.gui.states.PackListKey;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.Store;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
@@ -52,7 +52,7 @@ public class PackRenameLayout extends WrappedLayout {
 
         final PackResourcesService resources = store.getPackResourcesService();
         final PackNode pack = renamingPack.pack();
-        final PackListKey target = renamingPack.target();
+        final PackListKey target = renamingPack.src();
         final String previousName = sanitizeNameForEdit(pack);
         final FZMutableRef<String> nameRef = new FZMutableRef<>(previousName);
         final String suggestion = PackUtil.isZipPath(pack.path()) ? ZIP_PACK_EXTENSION : null;

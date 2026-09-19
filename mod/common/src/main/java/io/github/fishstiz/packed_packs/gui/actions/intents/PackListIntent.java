@@ -1,21 +1,19 @@
 package io.github.fishstiz.packed_packs.gui.actions.intents;
 
 import io.github.fishstiz.packed_packs.config.PackOverride;
-import io.github.fishstiz.packed_packs.gui.model.PackListKey;
-import io.github.fishstiz.packed_packs.gui.model.Query;
+import io.github.fishstiz.packed_packs.gui.components.SortOption;
+import io.github.fishstiz.packed_packs.gui.states.PackListKey;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.SequencedCollection;
 
-// everything should be id-based/or not for optimization so we dont have to keep mapping
-// should remove some payload that can be gotten from state
 public sealed interface PackListIntent extends Intent {
     record Search(PackListKey srcList, String query) implements PackListIntent {
     }
 
-    record Sort(PackListKey srcList, Query.SortOption sort) implements PackListIntent {
+    record Sort(PackListKey srcList, SortOption sort) implements PackListIntent {
     }
 
     record HideIncompatible(PackListKey srcList, boolean hide) implements PackListIntent {
@@ -48,6 +46,9 @@ public sealed interface PackListIntent extends Intent {
     }
 
     record Disable(PackListKey srcList, PackNode srcPack, SequencedCollection<PackNode> packs) implements PackListIntent {
+    }
+
+    record Recall(PackListKey srcList, PackNode.Parent parent) implements PackListIntent {
     }
 
     record Move(
@@ -93,6 +94,9 @@ public sealed interface PackListIntent extends Intent {
     }
 
     record CloseFolder(PackListKey srcList) implements PackListIntent {
+    }
+
+    record UpdateModule(PackListKey srcList, PackNode.Parent pack, boolean module) implements PackListIntent {
     }
 
     record Rename(PackListKey srcList, PackNode pack, String newName) implements PackListIntent {

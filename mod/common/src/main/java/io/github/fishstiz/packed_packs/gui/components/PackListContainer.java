@@ -7,14 +7,12 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.Justification;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
-import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.gui.ContainerEventHandlerPatch;
 import io.github.fishstiz.packed_packs.gui.FocusPathProvider;
 import io.github.fishstiz.packed_packs.gui.FocusTarget;
-import io.github.fishstiz.packed_packs.gui.model.PackListKey;
-import io.github.fishstiz.packed_packs.gui.model.PackListType;
-import io.github.fishstiz.packed_packs.util.PackListUtils;
+import io.github.fishstiz.packed_packs.gui.states.PackListKey;
+import io.github.fishstiz.packed_packs.gui.states.PackListType;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.states.PackListState;
 import io.github.fishstiz.packed_packs.gui.Store;
@@ -42,17 +40,18 @@ import net.minecraft.client.gui.navigation.ScreenDirection;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
 
 public class PackListContainer extends AbstractWidget implements FocusPathProvider, Layout, ContainerEventHandlerPatch {
-    private final PackListKey key;
     private final @Nullable PackListContainer root;
     private final Context context;
     private final PackResourcesService resources;
@@ -70,7 +69,6 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             PackListComputed state
     ) {
         super(0, 0, 0, 0, CommonComponents.EMPTY);
-        this.key = state.key();
         this.root = root;
         this.context = context;
         this.resources = resources;
@@ -79,24 +77,19 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         this.children = List.of(this.packList);
     }
 
-    private PackListContainer(
-            PackListContainer root,
-            PackResourcesService resources,
-            PackListState.Folder state,
-            PackListKey key
-    ) {
-        this(root, root.context, resources, new PackListComputed(key, state.contents(), root.state.profiles()));
+    private PackListContainer(PackListContainer root, PackResourcesService resources, PackListState state, PackListKey key) {
+        this(root, root.context, resources, new PackListComputed(key, state, root.state.profiles()));
     }
 
     public static PackListContainer createRoot(Context context, Store store, PackListType type) {
         PackListKey key = PackListKey.root(type);
-        PackListComputed computed = new PackListComputed(key, store.value().rootTargetList(type), store.value().profiles());
+        PackListComputed computed = new PackListComputed(key, store.value().getHeadList(type), store.value().profiles());
         PackListContainer root = new PackListContainer(null, context, store.getPackResourcesService(), computed);
 
         store.subscribe(
                 "PackListContainer@" + key,
                 value -> {
-                    root.onStateChanged(value.rootTargetList(type), value.profiles());
+                    root.onStateChanged(value.getHeadList(type), value.profiles(), type.available());
                     root.onStateChanged(value.dragging());
                 }
         );
@@ -119,55 +112,69 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
     }
 
-    private void onStateChanged(PackListState state, ProfileSelection profiles) {
+    private void onStateChanged(PackListState newState, ProfileSelection newProfiles, boolean folderUnlockable) {
         PackListState prev = this.state.state();
         ProfileSelection prevProfiles = this.state.profiles();
 
-        if (prev == state && profiles == prevProfiles) {
+        if (prev == newState && newProfiles == prevProfiles) {
             return;
         }
 
-        this.state.onStateChanged(state, profiles);
+        this.state.onStateChanged(newState, newProfiles);
 
-        PackListState.Folder previousFolderState = prev.folder();
-        PackListState.Folder folderState = state.folder();
+        PackListState previousFolderState = prev.folder();
+        PackListState folderState = newState.folder();
 
         if ((folderState == null) != (this.folder == null)) {
             if (folderState != null) {
-                Folder newFolder = new Folder(root == null ? this : root, resources, key.nest(), folderState);
+                Folder newFolder = new Folder(root == null ? this : root, resources, this.state.key().nest(), folderState);
                 this.folder = newFolder;
                 updateChild(newFolder);
                 ComponentPath path = newFolder.nextFocusPath(new FocusNavigationEvent.InitialFocus());
                 if (path != null) path.applyFocus(true);
             } else {
-                if (previousFolderState != null) {
+                if (previousFolderState != null && previousFolderState.parent() != null) {
                     resources.saveFolderMetadata(
-                            previousFolderState.pack(),
+                            previousFolderState.parent(),
                             new FolderPackMeta(
-                                    previousFolderState.locked(),
-                                    previousFolderState.contents().packs().stream().map(PackNode::id).toList()
+                                    previousFolderState.module(),
+                                    previousFolderState.packs().stream().map(PackNode::id).toList()
                             )
                     );
                 }
+
                 if (this.folder != null) {
-                    this.folder.pack = null;
+                    this.folder.closed = true;
                 }
+
                 this.folder = null;
                 updateChild(packList);
             }
         }
 
-        if (folderState != null) {
-            this.folder.onStateChanged(folderState, profiles);
-        } else if (prev.visiblePacks() != state.visiblePacks() || prevProfiles != profiles) {
+        if (this.folder != null && folderState != null) {
+            this.folder.onStateChanged(folderState, newProfiles, folderUnlockable && !newState.module());
+        } else if (prev.visiblePacks() != newState.visiblePacks() || prevProfiles != newProfiles) {
             packList.rebuildEntries();
         }
     }
 
-    public boolean canInteractWithDragged(ActiveAction.Dragging dragging, int mouseX, int mouseY) {
-        if (packList.isMouseOver(mouseX, mouseY)) {
-            return dragging.target() == key || PackListUtils.canInteract(dragging.target(), key);
+    public boolean extractDropCandidateRenderState(GuiGraphicsExtractor graphics, ActiveAction.Dragging dragging) {
+        PackListContainer leafContainer = this;
+
+        while (leafContainer.folder != null) {
+            leafContainer = leafContainer.folder.listContainer;
         }
+
+        if (leafContainer.packList.isHovered()) {
+            return dragging.src().equals(state.key()) || state.isDropCandidate();
+        }
+
+        if (state.key().type().available() && !state.isLocked() && state.canDrop(0)) {
+            renderDropToDisabledZone(this.root == null ? this : this.root, graphics);
+            return true;
+        }
+
         return false;
     }
 
@@ -343,7 +350,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
     @Override
     public void removeChildren() {
         if (this.folder != null) {
-            context.dispatch(new PackListIntent.CloseFolder(key));
+            context.dispatch(new PackListIntent.CloseFolder(this.state.key()));
         }
     }
 
@@ -360,28 +367,49 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         private final FZIconButton closeButton;
         private final FZIcon folderIcon;
         private final FZText folderTitle;
+        private final FZButton recallButton;
+        private final FZIconButton lockButton;
         private final FZLayout layout;
-        private PackNode.@Nullable Parent pack;
+        private PackListState folderState;
+        private PackNode.Parent parent;
         private List<GuiEventListener> children = Collections.emptyList();
         private List<Renderable> renderables = Collections.emptyList();
         private boolean childOpened;
+        private boolean closed;
 
-        Folder(PackListContainer root, PackResourcesService resources, PackListKey key, PackListState.Folder state) {
+        Folder(PackListContainer root, PackResourcesService resources, PackListKey key, PackListState state) {
             this.root = root;
-            PackNode pack = state.pack();
+            this.folderState = state;
+            this.parent = Objects.requireNonNull(state.parent(), "folder parent cannot be null");
             this.listContainer = new PackListContainer(root, resources, state, key);
             this.background = FZIcon.builder(Identifier.withDefaultNamespace("popup/background")).build();
             this.closeButton = FZIconButton.builder()
                     .size(HEADER_SIZE, HEADER_SIZE)
-                    .icon(new WidgetElements(PackedPacks.id("icon/cross"), 16, 16))
+                    .icon(new WidgetElements(key.depth() > 1 ? ARROW_UP_SPRITE : CROSS_SPRITE, 16, 16))
                     .onPress(() -> root.context.dispatch(new PackListIntent.CloseFolder(key.unnest())))
                     .focusOnInteraction(false)
                     .build();
-            this.folderIcon = FZIcon.builder(GuiUtils.lazyTexture(() -> resources.getIcon(pack), 16, 16))
+            this.folderIcon = FZIcon.builder(GuiUtils.lazyTexture(() -> resources.getIcon(this.parent), 16, 16))
                     .size(HEADER_SIZE, HEADER_SIZE)
                     .build();
-            this.folderTitle = FZText.builder(pack.title())
+            this.folderTitle = FZText.builder(parent.title())
                     .height(HEADER_SIZE)
+                    .build();
+            this.recallButton = FZButton.builder()
+                    .size(HEADER_SIZE, HEADER_SIZE)
+                    .message(Component.literal("<<"))
+                    .tooltip(Component.literal("Recall"))
+                    .onPress(() -> root.context.dispatch(new PackListIntent.Recall(key, this.parent)))
+                    .build();
+            this.lockButton = FZIconButton.builder(new WidgetRenderables(
+                            GuiUtils.lazySprite(() -> folderState.module() ? LOCK_SPRITE : UNLOCK_SPRITE),
+                            Renderables.sprite(LOCK_SPRITE_DISABLED),
+                            GuiUtils.lazySprite(() -> folderState.module() ? LOCK_SPRITE_HIGHLIGHTED : UNLOCK_SPRITE_HIGHLIGHTED)
+                    ))
+                    .size(HEADER_SIZE, HEADER_SIZE)
+                    .onPress(() -> root.context.dispatch(
+                            new PackListIntent.UpdateModule(key, this.parent, !this.folderState.module())
+                    ))
                     .build();
 
             FZFlexLayout section = FZFlexLayout.vertical(root).spacing(LAYOUT_SPACING);
@@ -392,41 +420,54 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
                     header.child(closeButton);
                     header.child(folderIcon);
                     header.child(folderTitle, header.flexChildHorizontalSettings());
+                    header.child(recallButton);
+                    header.child(lockButton);
                 }
                 section.child(listContainer, section.flexChildSettings());
             }
 
-            this.layout = FZComposedLayout.compose(section).padding(SPACING).clamp((LayoutElement) root);
+            this.layout = FZComposedLayout.compose(section).padding(SPACING).clamp(root::getRectangle);
 
             arrangeElements();
+            updateChildren();
         }
 
-        private void onStateChanged(PackListState.Folder folderState, ProfileSelection profiles) {
-            if (this.pack != folderState.pack()) { // todo lock/unlock widget
-                this.pack = folderState.pack();
-
-                if (this.pack == null) {
-                    this.children = Collections.emptyList();
-                    this.renderables = Collections.emptyList();
-                    this.childOpened = false;
-                    return;
-                }
-
-                folderIcon.setMessage(this.pack.title());
-            }
-
-            if (folderState.contents().folder() == null) {
-                this.renderables = List.of(background, folderIcon, folderTitle, closeButton, listContainer);
-                this.children = List.of(closeButton, listContainer);
+        private void updateChildren() {
+            if (folderState.folder() == null) {
+                this.renderables = List.of(
+                        background,
+                        folderIcon,
+                        folderTitle,
+                        closeButton,
+                        recallButton,
+                        lockButton,
+                        listContainer
+                );
+                this.children = List.of(closeButton, recallButton, lockButton, listContainer);
                 this.childOpened = false;
             } else {
                 this.renderables = List.of(listContainer);
                 this.children = List.of(listContainer);
                 this.childOpened = true;
             }
+        }
 
-            if (listContainer.state.state() != folderState.contents() || listContainer.state.profiles() != profiles) {
-                listContainer.onStateChanged(folderState.contents(), profiles);
+        private void onStateChanged(PackListState folderState, ProfileSelection profiles, boolean unlockable) {
+            PackListState prevFolderState = this.folderState;
+            this.folderState = folderState;
+
+            lockButton.active = unlockable;
+            recallButton.active = !folderState.module();
+
+            if (prevFolderState.parent() != folderState.parent()) { // I don't think this will ever be true, but just in case
+                this.parent = Objects.requireNonNull(folderState.parent(), "folder parent cannot be null");
+                folderIcon.setMessage(parent.title());
+            }
+            if ((prevFolderState.folder() == null) != (folderState.folder() == null)) {
+                updateChildren();
+            }
+            if (listContainer.state.state() != folderState || listContainer.state.profiles() != profiles) {
+                listContainer.onStateChanged(folderState, profiles, unlockable);
             }
         }
 
@@ -442,9 +483,9 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
         @Override
         public void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
-            PackNode.Parent pack = this.pack;
+            PackNode.Parent pack = this.parent;
 
-            if (this.childOpened || pack == null) {
+            if (this.childOpened) {
                 FZContextMenu.Source.super.fidgetz$updateContextEntries(x, y, collector);
                 return;
             }
@@ -462,18 +503,18 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
             collector.addEntry(builder -> builder
                     .message(CommonComponents.GUI_BACK.copy().append(CommonComponents.ELLIPSIS))
-                    .onPress(() -> root.context.dispatch(new PackListIntent.CloseFolder(listContainer.key.unnest()))));
+                    .onPress(() -> root.context.dispatch(new PackListIntent.CloseFolder(listContainer.state.key().unnest()))));
 
             if (!listContainer.packList.isHovered()) {
                 if (listContainer.resources.isModifiable(listContainer.state.profiles(), pack)) {
                     collector.addEntry(builder -> builder
                             .message(RENAME_FILE_TEXT)
                             .active(() -> listContainer.resources.isModifiable(listContainer.state.profiles(), pack))
-                            .onPress(() -> root.context.dispatch(new PackListIntent.OpenRenameModal(listContainer.key, pack))));
+                            .onPress(() -> root.context.dispatch(new PackListIntent.OpenRenameModal(listContainer.state.key(), pack))));
                     collector.addEntry(builder -> builder
                             .message(DELETE_FILE_TEXT)
                             .active(() -> listContainer.resources.isModifiable(listContainer.state.profiles(), pack))
-                            .onPress(() -> root.context.dispatch(new PackListIntent.Delete(listContainer.key, pack))));
+                            .onPress(() -> root.context.dispatch(new PackListIntent.Delete(listContainer.state.key(), pack))));
                 }
 
                 collector.addEntry(builder -> builder.message(OPEN_FILE_TEXT).onPress(() -> PackUtil.openPack(pack.path())));
@@ -527,7 +568,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
         @Override
         public boolean shouldTakeFocusAfterInteraction() {
-            return this.pack != null;
+            return !closed;
         }
 
         @Override
@@ -539,7 +580,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
         @Override
         public boolean mouseClicked(MouseButtonEvent mouseButtonEvent, boolean doubleClicked) {
-            return ContainerEventHandlerPatch.super.mouseClicked(mouseButtonEvent, doubleClicked) && pack != null;
+            return ContainerEventHandlerPatch.super.mouseClicked(mouseButtonEvent, doubleClicked) && !closed;
         }
 
         @Override

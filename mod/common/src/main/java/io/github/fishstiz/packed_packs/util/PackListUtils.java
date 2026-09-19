@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs.util;
 
-import io.github.fishstiz.packed_packs.gui.model.PackListKey;
+import io.github.fishstiz.packed_packs.gui.states.PackListKey;
+import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.states.PackListState;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.gui.states.ProfileSelection;
@@ -144,57 +145,70 @@ public final class PackListUtils {
         return absoluteIndex >= minDropIndex && absoluteIndex <= maxDropIndex;
     }
 
-    // todo do more than check depth
-    public static boolean canDrag(PackListKey target, PackNode pack, ProfileSelection profiles) {
-        if (target.depth() == 0 && target.type().available()) {
+    public static boolean canDrag(PackListKey src, boolean srcModule, PackNode pack, ProfileSelection profiles) {
+        if (src.type().available() || (src.depth() > 0 && !srcModule)) {
             return true;
         }
-        return !profiles.isPackFixed(pack);
+        return !profiles.isPackFixed(pack) || !profiles.isPackRequired(pack);
     }
 
-    // todo do more than check depth
-    public static boolean canTransfer(PackListKey target, PackNode pack, ProfileSelection profiles) {
-        return target.depth() == 0 && (target.type().available() || !profiles.isPackRequired(pack));
+    public static boolean canTransfer(PackListKey src, boolean srcModule, PackNode pack, ProfileSelection profiles) {
+        return !srcModule && (src.type().available() || !profiles.isPackRequired(pack));
     }
 
-    public static boolean canInteract(PackListKey target, PackListKey destination) {
-        // todo do more than check depth
-        if (target.depth() > 0 || destination.depth() > 0) {
-            return target.equals(destination);
+    public static boolean isDropCandidate(
+            ActiveAction.Dragging dragging,
+            PackListKey dest,
+            PackListState destState
+    ) {
+        PackListKey src = dragging.src();
+        boolean srcModule = dragging.srcModule();
+
+        if (srcModule || destState.module()) {
+            return src.equals(dest);
         }
-        if (target.type().available()) {
-            return destination.type().enabled();
+        if (src.type().available() && dest.depth() > 0 && destState.parent() != null) {
+            return destState.parent().children().contains(dragging.srcPack());
         }
-        return target.type().enabled();
+        if (src.type().available()) {
+            return dest.type().enabled();
+        }
+        return src.type().enabled();
     }
 
     public static boolean canDrop(
-            PackListKey target,
-            PackNode pack,
-            SequencedCollection<PackNode> payload,
-            PackListKey destination,
-            PackListState targetState,
+            ActiveAction.Dragging dragging,
+            PackListKey dest,
+            PackListState destState,
             int index,
             ProfileSelection profiles
     ) {
-        if (destination.type().available() && destination.depth() == 0) {
-            return !payload.isEmpty() && canInteract(target, destination) && canTransfer(target, pack, profiles);
+        PackListKey src = dragging.src();
+        boolean srcModule = dragging.srcModule();
+        PackNode srcPack = dragging.srcPack();
+        SequencedCollection<PackNode> payload = dragging.packs();
+
+        if (dest.type().available() && !destState.module()) {
+            return !payload.isEmpty()
+                   && isDropCandidate(dragging, dest, destState)
+                   && canTransfer(src, srcModule, srcPack, profiles);
         }
-        if (targetState.query().hasQuery() || payload.isEmpty() || !canInteract(target, destination)) {
+
+        if (destState.query().hasQuery() || payload.isEmpty() || !isDropCandidate(dragging, dest, destState)) {
             return false;
         }
-        if (targetState.packs().isEmpty()) {
+        if (destState.packs().isEmpty()) {
             return true;
         }
-        if (target.equals(destination) && profiles.isPackFixed(pack)) {
+        if (src.equals(dest) && profiles.isPackFixed(srcPack)) {
             return false;
         }
-        if (!isValidDropPosition(targetState, getAbsoluteIndex(targetState, index), profiles)) {
+        if (!isValidDropPosition(destState, getAbsoluteIndex(destState, index), profiles)) {
             return false;
         }
-        if (!target.equals(destination)) {
-            return canTransfer(target, pack, profiles);
+        if (!src.equals(dest)) {
+            return canTransfer(src, srcModule, srcPack, profiles);
         }
-        return isValidInsertPosition(targetState, index, payload);
+        return isValidInsertPosition(destState, index, payload);
     }
 }

@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 public class PackSelectionResolver {
     private static boolean canRequire(PackNodeRepository repository, PackNode pack) {
         if (pack instanceof PackNode.Parent parent) {
-            return Objects.requireNonNullElseGet(repository.getFolderMetadata(parent.id()), FolderPackMeta::new).module();
+            return repository.getFolderMetadata(parent).module();
         } else {
             return true;
         }
@@ -45,7 +45,7 @@ public class PackSelectionResolver {
 
         PackNode.Parent moduleAncestor = repository.findModuleAncestor(pack);
         if (pack instanceof PackNode.Parent parent) {
-            FolderPackMeta meta = Objects.requireNonNullElseGet(repository.getFolderMetadata(parent.id()), FolderPackMeta::new);
+            FolderPackMeta meta = repository.getFolderMetadata(parent);
             if (meta.module() && moduleAncestor == null) {
                 moduleAncestor = parent;
             }
@@ -88,7 +88,7 @@ public class PackSelectionResolver {
         PackNode.Parent ancestor = repository.findAncestor(pack);
         // a folder's contents must not leak in the disabled list
         if (ancestor != null) {
-            FolderPackMeta meta = Objects.requireNonNullElseGet(repository.getFolderMetadata(ancestor.id()), FolderPackMeta::new);
+            FolderPackMeta meta = repository.getFolderMetadata(ancestor);
             if (meta.module() && profiles.isPackRequired(ancestor)) {
                 addToEnabled(repository, profiles, enabled, enabledIds, seen, pack);
             } else if (seen.add(ancestor.id())) {

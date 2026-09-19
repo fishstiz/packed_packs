@@ -10,6 +10,10 @@ public record FolderPackMeta(boolean module, List<String> packIds) {
         packIds = List.copyOf(packIds);
     }
 
+    public FolderPackMeta withModule(boolean module) {
+        return new FolderPackMeta(module, packIds);
+    }
+
     public FolderPackMeta() {
         this(true, Collections.emptyList());
     }

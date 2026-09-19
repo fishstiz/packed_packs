@@ -1,12 +1,11 @@
 package io.github.fishstiz.packed_packs.gui.actions.mutations;
 
 import io.github.fishstiz.packed_packs.config.PackOverride;
-import io.github.fishstiz.packed_packs.gui.model.PackListKey;
-import io.github.fishstiz.packed_packs.gui.model.Query;
+import io.github.fishstiz.packed_packs.gui.components.SortOption;
+import io.github.fishstiz.packed_packs.gui.states.PackListKey;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import org.jspecify.annotations.Nullable;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.SequencedCollection;
 
@@ -15,19 +14,33 @@ public sealed interface PackListMutation extends Mutation {
     sealed interface Cross extends PackListMutation {
     }
 
+    sealed interface Transfer {
+        PackListKey srcList();
+
+        @Nullable PackNode srcPack();
+
+        SequencedCollection<PackNode> packs();
+
+        int index();
+    }
+
     record Enabled(
             PackListKey srcList,
-            PackNode srcPack,
+            @Nullable PackNode srcPack,
             SequencedCollection<PackNode> packs,
             int index
-    ) implements Cross {
+    ) implements Cross, Transfer {
     }
 
     record Disabled(
             PackListKey srcList,
-            PackNode srcPack,
+            @Nullable PackNode srcPack,
             SequencedCollection<PackNode> packs
-    ) implements Cross {
+    ) implements Cross, Transfer {
+        @Override
+        public int index() {
+            return 0;
+        }
     }
 
     record Dragged(PackListKey srcList, PackNode srcPack, SequencedCollection<PackNode> packs) implements Cross {
@@ -42,6 +55,9 @@ public sealed interface PackListMutation extends Mutation {
         public boolean pushState() {
             return targetList != null;
         }
+    }
+
+    record ModuleUpdated(PackListKey srcList, boolean module) implements Cross {
     }
 
     record RenameModalOpened(PackListKey srcList, PackNode pack) implements Cross {
@@ -103,7 +119,7 @@ public sealed interface PackListMutation extends Mutation {
     record Searched(PackListKey srcList, String search) implements Local {
     }
 
-    record Sorted(PackListKey srcList, Query.SortOption sort) implements Local {
+    record Sorted(PackListKey srcList, SortOption sort) implements Local {
     }
 
     record IncompatibleHidden(PackListKey srcList, boolean hidden) implements Local {

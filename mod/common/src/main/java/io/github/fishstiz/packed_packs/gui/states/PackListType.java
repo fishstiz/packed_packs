@@ -1,4 +1,4 @@
-package io.github.fishstiz.packed_packs.gui.model;
+package io.github.fishstiz.packed_packs.gui.states;
 
 public enum PackListType {
     AVAILABLE,

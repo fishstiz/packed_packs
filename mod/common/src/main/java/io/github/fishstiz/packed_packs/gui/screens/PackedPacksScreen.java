@@ -20,18 +20,13 @@ import io.github.fishstiz.packed_packs.config.PackConfigs;
 import io.github.fishstiz.packed_packs.config.Preferences;
 import io.github.fishstiz.packed_packs.gui.FocusTarget;
 import io.github.fishstiz.packed_packs.gui.UiEffect;
-import io.github.fishstiz.packed_packs.gui.components.PreferenceHelper;
+import io.github.fishstiz.packed_packs.gui.components.*;
 import io.github.fishstiz.packed_packs.gui.layouts.*;
-import io.github.fishstiz.packed_packs.gui.model.*;
-import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
-import io.github.fishstiz.packed_packs.gui.states.DragActionRenderer;
-import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
+import io.github.fishstiz.packed_packs.gui.states.*;
 import io.github.fishstiz.packed_packs.gui.Store;
 import io.github.fishstiz.packed_packs.gui.actions.intents.Intent;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
 import io.github.fishstiz.packed_packs.gui.actions.intents.ProfileIntent;
-import io.github.fishstiz.packed_packs.gui.components.PackList;
-import io.github.fishstiz.packed_packs.gui.components.PackListContainer;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.impl.context.Context;
 import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
@@ -98,7 +93,6 @@ public class PackedPacksScreen extends FZScreen {
                 () -> parent instanceof PackSelectionScreen packScreen ? packScreen : args.createDummy()
         );
         this.context = context;
-
 
         this.availableList = PackListContainer.createRoot(context, store, PackListType.AVAILABLE);
         this.enabledList = PackListContainer.createRoot(context, store, PackListType.ENABLED);
@@ -219,11 +213,11 @@ public class PackedPacksScreen extends FZScreen {
                     FZFlexLayout leftRibbon = ribbon.child(horizontal(), ribbon.flexChildHorizontalSettings());
 
                     this.availableSearch = leftRibbon.child(FZTextField.bind("AvailableSearchField", store
-                                    .map(s -> s.getLeafList(PackListType.AVAILABLE).query().search())
+                                    .map(s -> s.getTailList(PackListType.AVAILABLE).query().search())
                                     .map(value -> FZTextField.builder()
                                             .text(value == null ? "" : value)
                                             .onChange(e -> store.dispatch(new PackListIntent.Search(
-                                                    store.value().getLeafKey(PackListType.AVAILABLE),
+                                                    store.value().getTailKey(PackListType.AVAILABLE),
                                                     e.value()
                                             )))
                                             .hint(SEARCH_TEXT)
@@ -232,39 +226,33 @@ public class PackedPacksScreen extends FZScreen {
                     );
 
                     leftRibbon.child(FZDropdown.bind("AvailableSortDropdown", store
-                            .map(s -> s.getLeafList(PackListType.AVAILABLE).query().sort())
+                            .map(s -> s.getTailList(PackListType.AVAILABLE).query().sort())
                             .map(sort -> {
+                                boolean active = sort != null && !(sort instanceof SortOption.Locked);
+                                Component valueText = sort != null && active ? sort.text() : CommonComponents.EMPTY;
                                 Component sortText = Component.translatable("packed_packs.sort");
-                                Component valueText = sort == null ? CommonComponents.EMPTY : sort.text();
 
-                                FZDropdown.Builder dropdown = FZDropdown.builder(this)
+                                return FZDropdown.builder(this)
                                         .width(40)
                                         .minContainerWidth(175)
                                         .hideMessage(true)
                                         .message(sortText)
-                                        .active(sort != null)
-                                        .tooltip(sort == null ? sortText : CommonComponents.optionNameValue(sortText, valueText))
+                                        .active(active)
+                                        .tooltip(active ? CommonComponents.optionNameValue(sortText, valueText) : sortText)
                                         .leftIcon(sort == null ? null : padded16Sprite(sort.icon()))
-                                        .entryDivider(null);
-
-                                for (Query.SortOption option : Query.SortOption.values()) {
-                                    dropdown.entry(button -> button
-                                            .message(option.text())
-                                            .leftIcon(padded16Sprite(option.icon()))
-                                            .onPress(() -> store.dispatch(new PackListIntent.Sort(
-                                                    store.value().getLeafKey(PackListType.AVAILABLE),
-                                                    option
-                                            ))));
-                                }
-
-                                return dropdown.toProps();
+                                        .entryDivider(null)
+                                        .entries(SortOptions.menuItems(option -> store.dispatch(new PackListIntent.Sort(
+                                                store.value().getTailKey(PackListType.AVAILABLE),
+                                                option
+                                        ))))
+                                        .toProps();
                             })));
 
                     if (Preferences.INCOMPATIBLE_TOGGLE_WIDGET.get() || Config.get().isDevMode()) {
                         leftRibbon.child(PreferenceHelper.wrapNonNull(
                                 Preferences.INCOMPATIBLE_TOGGLE_WIDGET,
                                 FZIconButton.bind("AvailableIncompatibleButton", store
-                                        .map(s -> s.getLeafList(PackListType.AVAILABLE).query().hideIncompatible())
+                                        .map(s -> s.getTailList(PackListType.AVAILABLE).query().hideIncompatible())
                                         .map(value -> {
                                             Identifier icon = value
                                                     ? PackedPacks.id("icon/incompatible_hidden")
@@ -276,7 +264,7 @@ public class PackedPacksScreen extends FZScreen {
                                                     .tooltip(Component.translatable("packed_packs.hide_incompatible.info"))
                                                     .icon(new WidgetElements(icon, 16, 16))
                                                     .onPress(() -> store.dispatch(new PackListIntent.HideIncompatible(
-                                                            store.value().getLeafKey(PackListType.AVAILABLE),
+                                                            store.value().getTailKey(PackListType.AVAILABLE),
                                                             !value
                                                     )))
                                                     .toProps();
@@ -309,11 +297,11 @@ public class PackedPacksScreen extends FZScreen {
                                     .toProps())));
 
                     this.enabledSearch = rightRibbon.child(FZTextField.bind("EnabledSearchField", store
-                                    .map(s -> s.getLeafList(PackListType.ENABLED).query().search())
+                                    .map(s -> s.getTailList(PackListType.ENABLED).query().search())
                                     .map(value -> FZTextField.builder()
                                             .text(value == null ? "" : value)
                                             .onChange(e -> store.dispatch(new PackListIntent.Search(
-                                                    store.value().getLeafKey(PackListType.ENABLED),
+                                                    store.value().getTailKey(PackListType.ENABLED),
                                                     e.value()
                                             )))
                                             .hint(SEARCH_TEXT)
@@ -822,7 +810,7 @@ public class PackedPacksScreen extends FZScreen {
             } else if (enabledList.isHovered()) {
                 enabledList.onDrop(dragged, (int) mouseButtonEvent.x(), (int) mouseButtonEvent.y());
             } else {
-                store.dispatch(new PackListIntent.Drop(dragged.target(), null, 0));
+                store.dispatch(new PackListIntent.Drop(dragged.src(), null, 0));
             }
             return true;
         }
@@ -836,7 +824,7 @@ public class PackedPacksScreen extends FZScreen {
         ActiveAction.Dragging dragging = store.value().dragging();
         if (dragging != null) {
             if (!store.value().profiles().isLocked()) {
-                dragActionRenderer.render(dragging, graphics, mouseX, mouseY);
+                dragActionRenderer.render(dragging, graphics, mouseX, mouseY, partialTick);
             } else {
                 graphics.requestCursor(CursorTypes.NOT_ALLOWED);
             }

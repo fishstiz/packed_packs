@@ -1,6 +1,6 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
-import io.github.fishstiz.packed_packs.gui.model.Query;
+import io.github.fishstiz.packed_packs.gui.components.SortOption;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
@@ -9,19 +9,17 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 
 public record PackListState(
+        PackNode.@Nullable Parent parent,
+        boolean module,
         List<PackNode> packs,
         List<PackNode> visiblePacks,
         SequencedCollection<PackNode> selectedPacks,
         Query query,
-        @Nullable Folder folder
+        @Nullable PackListState folder
 ) {
-    public record Folder(PackNode.Parent pack, boolean locked, PackListState contents) {
-        public Folder withContents(PackListState contents) {
-            return new Folder(pack, locked, contents);
-        }
-    }
-
     private static final PackListState EMPTY = new PackListState(
+            null,
+            false,
             Collections.emptyList(),
             Collections.emptyList(),
             Collections.emptySortedSet(),
@@ -33,8 +31,18 @@ public record PackListState(
         return EMPTY;
     }
 
-    public PackListState(List<PackNode> packs) {
-        this(packs, List.copyOf(packs), Collections.emptyList(), Query.empty(), null);
+    public static PackListState folder(PackNode.Parent parent, boolean module, Query query) {
+        return new PackListState(
+                parent,
+                module,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                Collections.emptySortedSet(),
+                module && !(query.sort() instanceof SortOption.Locked)
+                        ? query.withSort(new SortOption.Locked(query.sort()))
+                        : query,
+                null
+        );
     }
 
     public PackListState with(
@@ -53,7 +61,15 @@ public record PackListState(
         for (PackNode pack : newSelection) {
             if (newVisiblePacks.contains(pack)) newSelectedPacks.add(pack);
         }
-        return new PackListState(newPacks, newVisiblePacks, Collections.unmodifiableSequencedSet(newSelectedPacks), query, null);
+        return new PackListState(
+                parent,
+                module,
+                newPacks,
+                newVisiblePacks,
+                Collections.unmodifiableSequencedSet(newSelectedPacks),
+                query,
+                folder
+        );
     }
 
     public PackListState with(
@@ -77,11 +93,13 @@ public record PackListState(
         SequencedSet<PackNode> newSelectedPacks = new ObjectLinkedOpenHashSet<>(newSelection);
         newSelectedPacks.retainAll(this.visiblePacks);
         return new PackListState(
-                this.packs,
-                this.visiblePacks,
+                parent,
+                module,
+                packs,
+                visiblePacks,
                 Collections.unmodifiableSequencedSet(newSelectedPacks),
-                this.query,
-                this.folder
+                query,
+                folder
         );
     }
 
@@ -104,27 +122,59 @@ public record PackListState(
         return this.withPacks(newPacks, profiles, devMode);
     }
 
-    public PackListState withFolder(PackListState.@Nullable Folder newFolder) {
-        return new PackListState(this.packs, this.visiblePacks, this.selectedPacks, this.query, newFolder);
+    public PackListState withFolder(@Nullable PackListState newFolder) {
+        return new PackListState(
+                parent,
+                module,
+                packs,
+                visiblePacks,
+                selectedPacks,
+                query,
+                newFolder
+        );
+    }
+
+    public PackListState withModule(boolean newModule, ProfileSelection profiles, boolean devMode) {
+        if (module == newModule) {
+            return this;
+        }
+        if (newModule && parent == null) {
+            throw new IllegalStateException("Module pack lists cannot have a null parent");
+        }
+
+        return resolveFolderQuery(profiles, devMode, new PackListState(
+                parent,
+                newModule,
+                packs,
+                visiblePacks,
+                selectedPacks,
+                query,
+                folder
+        ));
+    }
+
+    private static PackListState resolveFolderQuery(ProfileSelection profiles, boolean devMode, PackListState folder) {
+        Query query = folder.query;
+        Query newQuery = folder.query;
+        if (folder.module) {
+            newQuery = query.sort() instanceof SortOption.Locked ? query : query.withSort(new SortOption.Locked(query.sort()));
+        } else if (query.sort() instanceof SortOption.Locked(SortOption sort)) {
+            newQuery = query.withSort(sort);
+        }
+
+        if (newQuery != query) {
+            return folder.withQuery(newQuery, profiles, devMode);
+        }
+
+        return folder;
     }
 
     public boolean isFolderOpened() {
         return this.folder != null;
     }
 
-    public @Nullable Folder getFolder(int depth) {
-        Folder current = this.folder;
-        for (int i = 0; i < depth; i++) {
-            if (current == null || current.contents == null) {
-                return null;
-            }
-            current = current.contents.folder;
-        }
-        return current;
-    }
-
     public boolean containsRecursively(PackNode pack) {
-        return packs.contains(pack) || (folder != null && folder.contents.containsRecursively(pack));
+        return packs.contains(pack) || (folder != null && folder.containsRecursively(pack));
     }
 
     private static List<PackNode> processQuery(
@@ -147,7 +197,7 @@ public record PackListState(
 
     @Override
     public int hashCode() {
-        return Objects.hash(this.packs, this.visiblePacks, sequencedHashCode(this.selectedPacks), this.query, this.folder);
+        return Objects.hash(packs, visiblePacks, sequencedHashCode(selectedPacks), query, folder);
     }
 
     // take into account the sequence of selectedPacks for UI state management
@@ -157,11 +207,14 @@ public record PackListState(
         if (obj == this) return true;
         //noinspection DeconstructionCanBeUsed
         if (!(obj instanceof PackListState that)) return false;
-        return Objects.equals(this.query, that.query) &&
-               Objects.equals(this.folder, that.folder) &&
-               Objects.equals(this.packs, that.packs) &&
-               Objects.equals(this.visiblePacks, that.visiblePacks) &&
-               sequencedEquals(this.selectedPacks, that.selectedPacks);
+
+        return module == that.module
+               && Objects.equals(parent, that.parent)
+               && Objects.equals(query, that.query)
+               && Objects.equals(packs, that.packs)
+               && Objects.equals(visiblePacks, that.visiblePacks)
+               && sequencedEquals(selectedPacks, that.selectedPacks)
+               && Objects.equals(folder, that.folder);
     }
 
     private static <E> int sequencedHashCode(SequencedCollection<E> sequencedCollection) {

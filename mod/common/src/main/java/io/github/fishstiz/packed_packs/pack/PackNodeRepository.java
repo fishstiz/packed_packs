@@ -205,7 +205,7 @@ public class PackNodeRepository {
                 PackNode.Parent moduleAncestor = findModuleAncestor(pack);
                 // the entire module should be selected if any of its descendants are selected
                 if (moduleAncestor != null && !newSelected.contains(moduleAncestor.id())) {
-                    moduleAncestor.visitNodes(node -> newSelected.add(node.id()));
+                    moduleAncestor.visitNodes((Consumer<PackNode>) node -> newSelected.add(node.id()));
                 }
             }
         }
@@ -370,6 +370,10 @@ public class PackNodeRepository {
 
     public @Nullable FolderPackMeta getFolderMetadata(String folderId) {
         return folderMeta.get(folderId);
+    }
+
+    public FolderPackMeta getFolderMetadata(PackNode.Parent parent) {
+        return Objects.requireNonNullElseGet(folderMeta.get(parent.id()), FolderPackMeta::new);
     }
 
     public boolean setFolderMetadata(String folderId, FolderPackMeta metadata) {

@@ -39,7 +39,7 @@ class PackDevMenu {
     private static final WidgetSprites ARROW_SPRITES = new WidgetSprites(
             PackedPacks.id("icon/arrow_down"),
             PackedPacks.id("icon/arrows_vertical"),
-            PackedPacks.id("icon/arrow_up")
+            ARROW_UP_SPRITE
     );
     private static final Identifier RADIO_GLOBAL = PackedPacks.id("icon/radio_globe");
     private static final Identifier ALIAS_SPRITE = PackedPacks.id("icon/alias");

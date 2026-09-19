@@ -1,7 +1,5 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
-import io.github.fishstiz.packed_packs.gui.model.PackListKey;
-import io.github.fishstiz.packed_packs.gui.model.PackListType;
 import org.jspecify.annotations.Nullable;
 
 public record PackedPacksState(
@@ -50,7 +48,7 @@ public record PackedPacksState(
     }
 
     public PackedPacksState withAction(@Nullable ActiveAction action) {
-        return new PackedPacksState(available, enabled, profiles, action == null ? lastTarget : action.target(), action, devMode);
+        return new PackedPacksState(available, enabled, profiles, action == null ? lastTarget : action.src(), action, devMode);
     }
 
     public PackedPacksState withDevMode(boolean devMode) {
@@ -69,7 +67,7 @@ public record PackedPacksState(
         return this.action instanceof ActiveAction.Dragging dragging ? dragging : null;
     }
 
-    public PackListState rootTargetList(PackListType type) {
+    public PackListState getHeadList(PackListType type) {
         return switch (type) {
             case AVAILABLE -> this.available;
             case ENABLED -> this.enabled;
@@ -83,23 +81,23 @@ public record PackedPacksState(
         if (state.folder() == null || listKey.depth() < 0) {
             return null;
         }
-        return this.getList(state.folder().contents(), listKey, depth + 1);
+        return this.getList(state.folder(), listKey, depth + 1);
     }
 
     public @Nullable PackListState getList(PackListKey key) {
-        return this.getList(this.rootTargetList(key.type()), key, 0);
+        return this.getList(this.getHeadList(key.type()), key, 0);
     }
 
-    private PackListKey getLeafKey(PackListState state, PackListKey key) {
+    private PackListKey getTailKey(PackListState state, PackListKey key) {
         if (state.folder() == null) return key;
-        return this.getLeafKey(state.folder().contents(), key.nest());
+        return this.getTailKey(state.folder(), key.nest());
     }
 
-    public PackListKey getLeafKey(PackListType type) {
-        return this.getLeafKey(this.rootTargetList(type), PackListKey.root(type));
+    public PackListKey getTailKey(PackListType type) {
+        return this.getTailKey(this.getHeadList(type), PackListKey.root(type));
     }
 
-    public PackListState getLeafList(PackListType type) {
-        return getList(getLeafKey(type));
+    public PackListState getTailList(PackListType type) {
+        return getList(getTailKey(type));
     }
 }

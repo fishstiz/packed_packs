@@ -1,4 +1,4 @@
-package io.github.fishstiz.packed_packs.gui.model;
+package io.github.fishstiz.packed_packs.gui.states;
 
 public record PackListKey(PackListType type, int depth) {
     private static final PackListKey AVAILABLE_ROOT = new PackListKey(PackListType.AVAILABLE, 0);
@@ -28,6 +28,9 @@ public record PackListKey(PackListType type, int depth) {
     }
 
     public PackListKey unnest() {
+        int newDepth = depth - 1;
+        if (newDepth == 0) return root(type);
+
         return new PackListKey(this.type, this.depth - 1);
     }
 }

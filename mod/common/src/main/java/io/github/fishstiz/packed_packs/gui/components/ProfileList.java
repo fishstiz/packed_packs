@@ -154,14 +154,6 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
 
     final class Entry extends FZAbstractListWidget.Entry implements FZContextMenu.Source {
         private static final Identifier STAR_OUTLINE_SPRITE = PackedPacks.id("icon/star_outline");
-        private static final WidgetSprites LOCK_SPRITES = new WidgetSprites(
-                LOCK_SPRITE,
-                Identifier.withDefaultNamespace("widget/locked_button_highlighted")
-        );
-        private static final WidgetSprites UNLOCK_SPRITES = new WidgetSprites(
-                Identifier.withDefaultNamespace("widget/unlocked_button"),
-                Identifier.withDefaultNamespace("widget/unlocked_button_highlighted")
-        );
         private final List<AbstractWidget> children = new ArrayList<>();
         private final FZFlexLayout layout;
         private final Profile profile;

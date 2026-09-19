@@ -18,6 +18,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 public sealed interface PackNode {
     String id();
@@ -47,6 +49,8 @@ public sealed interface PackNode {
     void visitNodes(Consumer<PackNode> visitor);
 
     void visitPacks(Consumer<Pack> visitor);
+
+    Stream<PackNode> stream();
 
     record Parent(
             @Nullable String parentId,
@@ -122,6 +126,14 @@ public sealed interface PackNode {
         }
 
         @Override
+        public Stream<PackNode> stream() {
+            return Stream.concat(
+                    Stream.of(this),
+                    children.stream().flatMap(PackNode::stream)
+            );
+        }
+
+        @Override
         public int hashCode() {
             return location.hashCode();
         }
@@ -191,6 +203,11 @@ public sealed interface PackNode {
         @Override
         public void visitPacks(Consumer<Pack> visitor) {
             visitor.accept(pack);
+        }
+
+        @Override
+        public Stream<PackNode> stream() {
+            return Stream.of(this);
         }
 
         @Override

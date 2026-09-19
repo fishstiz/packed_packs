@@ -14,8 +14,7 @@ import io.github.fishstiz.packed_packs.config.Preferences;
 import io.github.fishstiz.packed_packs.gui.ContainerEventHandlerPatch;
 import io.github.fishstiz.packed_packs.gui.FocusPathProvider;
 import io.github.fishstiz.packed_packs.gui.FocusTarget;
-import io.github.fishstiz.packed_packs.gui.model.PackListKey;
-import io.github.fishstiz.packed_packs.util.PackListUtils;
+import io.github.fishstiz.packed_packs.gui.states.PackListKey;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
 import io.github.fishstiz.packed_packs.gui.states.PackListComputed;
@@ -66,10 +65,6 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     private final Context context;
     private final PackResourcesService resources;
     private final PackListComputed state;
-    private int dropColor;
-    private int dropRectColor;
-    private int scrollColorFrom;
-    private int scrollColorTo;
     private boolean scrolling;
     private boolean initialized;
 
@@ -77,7 +72,6 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         this.context = context;
         this.resources = resources;
         this.state = state;
-        this.applyTheme();
     }
 
     public PackListKey key() {
@@ -97,17 +91,6 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     @Override
     public double scrollRate() {
         return SCROLL_RATE;
-    }
-
-    private void applyTheme() {
-        if (state.canReorder()) {
-            this.dropColor = Colors.GREEN_500;
-            this.scrollColorFrom = Colors.alpha(dropColor, 0.75f);
-            this.scrollColorTo = Colors.alpha(dropColor, 0);
-        } else {
-            this.dropColor = Colors.RED_700;
-            this.dropRectColor = Colors.alpha(Colors.RED_700, 0.25f);
-        }
     }
 
     void initializeEntries() {
@@ -197,7 +180,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     }
 
     private boolean canDrop(ActiveAction.Dragging dragging, int mouseX, int mouseY, int index) {
-        if (this.scrolling || (dragging.target() == key() && isMouseOverSelection(dragging.packs(), mouseX, mouseY, index))) {
+        if (this.scrolling || (dragging.src() == key() && isMouseOverSelection(dragging.packs(), mouseX, mouseY, index))) {
             return false;
         }
         return state.canDrop(index);
@@ -221,11 +204,11 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
             int scrollDownY = bottom - INNER_ITEM_HEIGHT;
             if (scrollAmount < maxScrollAmount() && mouseY >= scrollDownY) {
-                graphics.fillGradient(x, scrollDownY, x + width, scrollDownY + INNER_ITEM_HEIGHT, scrollColorTo, scrollColorFrom);
+                graphics.fillGradient(x, scrollDownY, x + width, scrollDownY + INNER_ITEM_HEIGHT, DROP_ENABLED_TO_COLOR, DROP_ENABLED_FROM_COLOR);
                 scroll(scrollRate() * partialTick);
                 this.scrolling = true;
             } else if (scrollAmount > 0 && mouseY <= y + INNER_ITEM_HEIGHT) {
-                graphics.fillGradient(x, y, x + width, y + INNER_ITEM_HEIGHT, scrollColorFrom, scrollColorTo);
+                graphics.fillGradient(x, y, x + width, y + INNER_ITEM_HEIGHT, DROP_ENABLED_FROM_COLOR, DROP_ENABLED_TO_COLOR);
                 scroll(-(scrollRate() * partialTick));
                 this.scrolling = true;
             } else {
@@ -246,20 +229,17 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 int indexY = rowTop - DROP_INDEX_PADDING;
 
                 graphics.enableScissor(getX(), getY(), getRight(), getBottom());
-                graphics.fill(x, indexY, x + width, indexY + (rowTop - indexY + DROP_INDEX_PADDING), dropColor);
+                graphics.fill(x, indexY, x + width, indexY + (rowTop - indexY + DROP_INDEX_PADDING), DROP_ENABLED_COLOR);
                 graphics.disableScissor();
             }
         }
 
-        graphics.outline(x, y, width, height, dropColor);
+        graphics.outline(x, y, width, height, DROP_ENABLED_COLOR);
     }
 
     private void renderDroppableRect(GuiGraphicsExtractor graphics) {
-        if (state.canDrop(0)) {
-            if (isHovered()) {
-                graphics.fill(getX(), getY(), getRight(), getBottom(), dropRectColor);
-            }
-            graphics.outline(getX(), getY(), getWidth(), getHeight(), dropColor);
+        if (state.isDropCandidate() && state.canDrop(0)) {
+            renderDropToDisabledZone(this, graphics);
         }
     }
 
@@ -270,7 +250,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             int mouseY,
             float partialTick
     ) {
-        if (!state.isLocked() && PackListUtils.canInteract(dragging.target(), key())) {
+        if (!state.isLocked() && state.isDropCandidate()) {
             if (state.canReorder()) {
                 renderDroppableSlots(guiGraphics, dragging, mouseX, mouseY, partialTick);
             } else {
@@ -282,9 +262,9 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     public void onDrop(ActiveAction.Dragging dragging, int mouseX, int mouseY) {
         int index = getDropIndex(mouseY);
         if (canDrop(dragging, mouseX, mouseY, index)) {
-            context.dispatch(new PackListIntent.Drop(dragging.target(), key(), index));
+            context.dispatch(new PackListIntent.Drop(dragging.src(), key(), index));
         } else {
-            context.dispatch(new PackListIntent.Drop(dragging.target(), null, 0));
+            context.dispatch(new PackListIntent.Drop(dragging.src(), null, 0));
         }
     }
 
@@ -713,7 +693,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 expandFolder();
                 return true;
             }
-            if (isTransfer(keyEvent) && PackList.this.state.canReorder()) {
+            if (isTransfer(keyEvent) && state.canTransfer()) {
                 transferPack();
                 return true;
             }

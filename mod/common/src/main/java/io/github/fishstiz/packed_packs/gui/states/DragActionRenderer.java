@@ -26,13 +26,18 @@ public final class DragActionRenderer {
         this.lists = lists;
     }
 
-    public void render(ActiveAction.@Nullable Dragging dragging, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-        if (dragging == null) return;
-
+    public void render(
+            ActiveAction.Dragging dragging,
+            GuiGraphicsExtractor graphics,
+            int mouseX,
+            int mouseY,
+            float partialTick
+    ) {
         boolean validDrop = false;
-
         for (PackListContainer list : lists) {
-            validDrop |= list.canInteractWithDragged(dragging, mouseX, mouseY);
+            if (list.isHovered()) {
+                validDrop |= list.extractDropCandidateRenderState(graphics, dragging);
+            }
         }
 
         renderDragging(dragging, graphics, mouseX, mouseY);

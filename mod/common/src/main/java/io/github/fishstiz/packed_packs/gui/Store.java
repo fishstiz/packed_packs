@@ -6,9 +6,10 @@ import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.WatchEvent;
 import io.github.fishstiz.packed_packs.config.*;
-import io.github.fishstiz.packed_packs.gui.model.PackListKey;
-import io.github.fishstiz.packed_packs.gui.model.PackListType;
-import io.github.fishstiz.packed_packs.gui.model.Query;
+import io.github.fishstiz.packed_packs.gui.components.SortOptions;
+import io.github.fishstiz.packed_packs.gui.states.PackListKey;
+import io.github.fishstiz.packed_packs.gui.states.PackListType;
+import io.github.fishstiz.packed_packs.gui.states.Query;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.states.PackListState;
 import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
@@ -105,59 +106,67 @@ public class Store implements FZRef<PackedPacksState> {
         this.effectHandler = effectHandler;
     }
 
-    private PackedPacksState normalize(PackedPacksState prevState, PackedPacksState newState) {
-        PackListKey newAvailableLeafKey = newState.getLeafKey(PackListType.AVAILABLE);
-        PackListState newAvailableLeaf = Objects.requireNonNull(newState.getList(newAvailableLeafKey));
-        if (prevState.getLeafList(PackListType.AVAILABLE).packs() == newAvailableLeaf.packs()) {
+    private PackedPacksState normalize(PackedPacksState prevState, PackedPacksState newState, @Nullable Mutation mutation) {
+        boolean forceNormalize = mutation instanceof PackListMutation.ModuleUpdated;
+
+        PackListState newAvailableTail = newState.getTailList(PackListType.AVAILABLE);
+        if (!forceNormalize && prevState.getTailList(PackListType.AVAILABLE).packs() == newAvailableTail.packs()) {
             return newState;
         }
 
-        PackListKey newEnabledLeafKey = newState.getLeafKey(PackListType.ENABLED);
-        PackListState newEnabledLeaf = Objects.requireNonNull(newState.getList(newEnabledLeafKey));
-        if (prevState.getLeafList(PackListType.ENABLED).packs() == newEnabledLeaf.packs()) {
+        PackListKey newEnabledTailKey = newState.getTailKey(PackListType.ENABLED);
+        PackListState newEnabledTail = Objects.requireNonNull(newState.getList(newEnabledTailKey));
+        if (!forceNormalize && prevState.getTailList(PackListType.ENABLED).packs() == newEnabledTail.packs()) {
             return newState;
         }
 
         PackedPacksState normalized = syncStateWithRepository(newState, repository);
 
-        PackListKey normalizedEnabledLeafKey = normalized.getLeafKey(PackListType.ENABLED);
-        if (newEnabledLeafKey.depth() != normalizedEnabledLeafKey.depth()) {
+        if (!(mutation instanceof PackListMutation.Dropped)
+            && !(mutation instanceof PackListMutation.Enabled)
+            && !(mutation instanceof PackListMutation.Disabled)
+            && !((mutation instanceof PackListMutation.RequirementOverridden override) && Boolean.TRUE.equals(override.required()))) {
             return normalized;
         }
 
-        PackListState normalizedEnabledLeaf = Objects.requireNonNull(normalized.getList(normalizedEnabledLeafKey));
-        Set<PackNode> enabledLeafPacks = new ObjectOpenHashSet<>(newEnabledLeaf.packs());
-        ObjectLinkedOpenHashSet<PackNode> normalizedEnabledSelectedLeafPacks =
-                new ObjectLinkedOpenHashSet<>(newEnabledLeaf.selectedPacks());
+        PackListKey normalizedEnabledTailKey = normalized.getTailKey(PackListType.ENABLED);
+        if (newEnabledTailKey.depth() != normalizedEnabledTailKey.depth()) {
+            return normalized;
+        }
 
-        for (PackNode pack : normalizedEnabledLeaf.visiblePacks()) {
-            if (!enabledLeafPacks.contains(pack)) {
-                normalizedEnabledSelectedLeafPacks.add(pack);
+        PackListState normalizedEnabledTail = Objects.requireNonNull(normalized.getList(normalizedEnabledTailKey));
+        Set<PackNode> enabledTailPacks = new ObjectOpenHashSet<>(newEnabledTail.packs());
+        ObjectLinkedOpenHashSet<PackNode> normalizedEnabledSelectedTailPacks =
+                new ObjectLinkedOpenHashSet<>(newEnabledTail.selectedPacks());
+
+        for (PackNode pack : normalizedEnabledTail.visiblePacks()) {
+            if (!enabledTailPacks.contains(pack)) {
+                normalizedEnabledSelectedTailPacks.add(pack);
             }
         }
 
-        if (!newEnabledLeaf.selectedPacks().isEmpty()
-            && normalizedEnabledSelectedLeafPacks.remove(newEnabledLeaf.selectedPacks().getLast())) {
-            normalizedEnabledSelectedLeafPacks.add(newEnabledLeaf.selectedPacks().getLast());
+        if (!newEnabledTail.selectedPacks().isEmpty()
+            && normalizedEnabledSelectedTailPacks.remove(newEnabledTail.selectedPacks().getLast())) {
+            normalizedEnabledSelectedTailPacks.add(newEnabledTail.selectedPacks().getLast());
         }
 
         return Reducer.reduce(normalized, new PackListMutation.SelectedMultiple(
-                normalizedEnabledLeafKey,
-                normalizedEnabledSelectedLeafPacks
+                normalizedEnabledTailKey,
+                normalizedEnabledSelectedTailPacks
         ));
     }
 
     private void replaceState(PackedPacksState newState) {
         PackedPacksState prev = this.state;
         if (prev != newState) {
-            this.state = normalize(prev, newState);
+            this.state = normalize(prev, newState, null);
             subscribers.values().forEach(Runnable::run);
         }
     }
 
     private boolean dispatch(Mutation mutation) {
         PackedPacksState prevState = this.state;
-        PackedPacksState newState = normalize(prevState, Reducer.reduce(prevState, mutation));
+        PackedPacksState newState = normalize(prevState, Reducer.reduce(prevState, mutation), mutation);
         this.state = newState;
 
         if (prevState != newState) {
@@ -198,6 +207,15 @@ public class Store implements FZRef<PackedPacksState> {
                             && prevState.enabled() != state.enabled()) {
                             effectHandler.accept(new UiEffect.Focus(PackListType.AVAILABLE));
                             AbstractWidget.playButtonClickSound(minecraft.getSoundManager());
+                        }
+                    }
+                    case PackListIntent.Recall recall -> {
+                        if (state.getList(recall.srcList()) != null) {
+                            dispatch(new PackListMutation.Disabled(
+                                    PackListKey.enabled(),
+                                    recall.parent(),
+                                    recall.parent().stream().toList()
+                            ));
                         }
                     }
                     case PackListIntent.Drag drag -> {
@@ -244,10 +262,7 @@ public class Store implements FZRef<PackedPacksState> {
                         }
 
                         List<PackNode> unsortedChildren = canonical.children();
-                        FolderPackMeta metadata = Objects.requireNonNullElseGet(
-                                repository.getFolderMetadata(canonical.id()),
-                                FolderPackMeta::new
-                        );
+                        FolderPackMeta metadata = repository.getFolderMetadata(canonical);
 
                         List<PackNode> sorted;
                         if (metadata.module()) {
@@ -280,26 +295,36 @@ public class Store implements FZRef<PackedPacksState> {
                         if (aliases == null) return;
                         configs.dev().setAliases(aliases.pack().id(), newAliases);
                         if (dispatch(new PackListMutation.AliasesModalClosed())) {
-                            effectHandler.accept(new UiEffect.Focus(aliases.target().type(), aliases.pack().id()));
+                            effectHandler.accept(new UiEffect.Focus(aliases.src().type(), aliases.pack().id()));
                         }
                     }
                     case PackListIntent.CloseFolder close -> {
                         PackListState list = state.getList(close.srcList());
                         if (list == null) return;
 
-                        PackListState.Folder folder = list.folder();
+                        PackListState folder = list.folder();
                         if (folder == null) return;
 
                         if (dispatch(new PackListMutation.FolderClosed(close.srcList()))) {
                             PackListState prevListState = prevState.getList(close.srcList());
-                            if (prevListState != null && prevListState.folder() != null) {
-                                effectHandler.accept(new UiEffect.Focus(close.srcList().type(), prevListState.folder().pack().id()));
+                            if (prevListState != null && prevListState.folder() != null && prevListState.folder().parent() != null) {
+                                effectHandler.accept(new UiEffect.Focus(close.srcList().type(), prevListState.folder().parent().id()));
                             }
                         }
                     }
                     case PackListIntent.CloseRenameModal close -> {
                         if (dispatch(new PackListMutation.RenameModalClosed(close.srcList(), close.pack()))) {
                             effectHandler.accept(new UiEffect.Focus(close.srcList().type(), close.pack().id()));
+                        }
+                    }
+                    case PackListIntent.UpdateModule lock -> {
+                        if (!(repository.getPackById(lock.pack().id()) instanceof PackNode.Parent parent)) {
+                            return;
+                        }
+
+                        FolderPackMeta meta = repository.getFolderMetadata(parent);
+                        if (resources.saveFolderMetadata(lock.pack(), meta.withModule(lock.module()))) {
+                            dispatch(new PackListMutation.ModuleUpdated(lock.srcList(), lock.module()));
                         }
                     }
                     case PackListIntent.OverrideHidden override -> dispatch(new PackListMutation.VisibilityOverridden(
@@ -620,36 +645,36 @@ public class Store implements FZRef<PackedPacksState> {
         }
     }
 
-    private void saveFolderState(PackListState.@Nullable Folder folder) {
-        if (folder == null) return;
-        saveFolderState(folder.contents().folder());
+    private void saveFolderState(@Nullable PackListState folder) {
+        if (folder == null || folder.parent() == null) return;
+        saveFolderState(folder.folder());
         saveFolderMeta(
-                folder.pack(),
-                new FolderPackMeta(folder.locked(), folder.contents().packs().stream().map(PackNode::id).toList())
+                folder.parent(),
+                new FolderPackMeta(folder.module(), folder.packs().stream().map(PackNode::id).toList())
         );
     }
 
-    private static PackListState.@Nullable Folder syncFolderStateWithRepository(
+    private static @Nullable PackListState syncFolderStateWithRepository(
             PackNodeRepository repository,
             PackListType type,
             Set<String> enabledIds,
-            PackListState.@Nullable Folder folder,
+            PackListState folder,
             ProfilesState profiles,
             boolean devMode
     ) {
-        if (folder == null) {
+        if (folder == null || folder.parent() == null) {
             return null;
         }
 
-        if (type.available() == enabledIds.contains(folder.pack().id())) {
+        if (type.available() == enabledIds.contains(folder.parent().id())) {
             return null;
         }
 
-        if (!(repository.getPackById(folder.pack().id()) instanceof PackNode.Parent canonicalParent)) {
+        if (!(repository.getPackById(folder.parent().id()) instanceof PackNode.Parent canonicalParent)) {
             return null;
         }
 
-        Set<String> oldChildIds = folder.pack().children().stream()
+        Set<String> oldChildIds = folder.parent().children().stream()
                 .map(PackNode::id)
                 .collect(Collectors.toCollection(ObjectOpenHashSet::new));
 
@@ -657,31 +682,46 @@ public class Store implements FZRef<PackedPacksState> {
                 .map(PackNode::id)
                 .collect(Collectors.toCollection(ObjectOpenHashSet::new));
 
-        List<PackNode> newContents = new ObjectArrayList<>(folder.contents().packs().size());
-        Set<String> currentContentIds = new ObjectOpenHashSet<>(folder.contents().packs().size());
+        List<PackNode> newContents = new ObjectArrayList<>(folder.packs().size());
+        Set<String> currentContentIds = new ObjectOpenHashSet<>(folder.packs().size());
 
-        for (PackNode entry : folder.contents().packs()) {
-            if (canonicalChildIds.contains(entry.id()) && !enabledIds.contains(entry.id())) {
+        for (PackNode entry : folder.packs()) {
+            if (canonicalParent.children().contains(entry) && !enabledIds.contains(entry.id())) {
                 newContents.add(entry);
                 currentContentIds.add(entry.id());
             }
         }
 
         for (PackNode child : canonicalParent.children()) {
-            if (enabledIds.contains(child.id())) continue;
-            if (!oldChildIds.contains(child.id()) && currentContentIds.add(child.id())) {
+            if (!enabledIds.contains(child.id()) && currentContentIds.add(child.id())) {
                 newContents.add(child);
             }
         }
 
-        PackListState.Folder nestedFolder = folder.contents().folder();
-        PackListState.Folder newNestedFolder = nestedFolder != null && currentContentIds.contains(nestedFolder.pack().id())
-                ? syncFolderStateWithRepository(repository, type, enabledIds, nestedFolder, profiles, devMode)
-                : null;
+//        for (PackNode entry : folder.packs()) {
+//            if (canonicalChildIds.contains(entry.id()) && !enabledIds.contains(entry.id())) {
+//                newContents.add(entry);
+//                currentContentIds.add(entry.id());
+//            }
+//        }
+//
+//        for (PackNode child : canonicalParent.children()) {
+//            if (enabledIds.contains(child.id())) continue;
+//            if (!oldChildIds.contains(child.id()) && currentContentIds.add(child.id())) {
+//                newContents.add(child);
+//            }
+//        }
 
-        return new PackListState.Folder(canonicalParent, folder.locked(), folder.contents()
+        PackListState nestedFolder = folder.folder();
+        PackListState newNestedFolder = null;
+
+        if (nestedFolder != null && nestedFolder.parent() != null && currentContentIds.contains(nestedFolder.parent().id())) {
+            newNestedFolder = syncFolderStateWithRepository(repository, type, enabledIds, nestedFolder, profiles, devMode);
+        }
+
+        return PackListState.folder(canonicalParent, folder.module(), folder.query())
                 .withPacks(newContents, profiles, devMode)
-                .withFolder(newNestedFolder));
+                .withFolder(newNestedFolder);
     }
 
     private static PackedPacksState syncStateWithRepository(PackedPacksState state, PackNodeRepository repository) {
@@ -779,7 +819,7 @@ public class Store implements FZRef<PackedPacksState> {
         PackedPacksState state = this.state;
 
         Query query = state.available().query();
-        Config.get().setSort(query.sort() == null ? Query.SortOption.VANILLA : query.sort());
+        Config.get().setSort(query.sort() == null ? SortOptions.VANILLA : query.sort());
         Config.get().setHideIncompatible(query.hideIncompatible());
         Config.get().setDevMode(state.devMode());
 
@@ -835,8 +875,8 @@ public class Store implements FZRef<PackedPacksState> {
     }
 
     public boolean closeFolder(PackListType type) {
-        PackListKey leaf = this.state.getLeafKey(type);
-        PackListKey parent = leaf.unnest();
+        PackListKey tail = this.state.getTailKey(type);
+        PackListKey parent = tail.unnest();
         if (parent.depth() < 0) return false;
 
         dispatch(new PackListIntent.CloseFolder(parent));
