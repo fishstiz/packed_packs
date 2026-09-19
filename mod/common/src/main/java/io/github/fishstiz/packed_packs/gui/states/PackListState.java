@@ -109,21 +109,21 @@ public record PackListState(
             ProfileSelection profiles,
             boolean devMode
     ) {
-        if (this.packs() == newPacks) return this;
+        if (packs == newPacks) return this;
 
-        if (!this.selectedPacks().contains(selectedLast)) {
-            return this.with(newPacks, List.of(selectedLast), profiles, devMode);
-        } else if (this.selectedPacks().getLast() != selectedLast) {
-            ObjectLinkedOpenHashSet<PackNode> newSelection = new ObjectLinkedOpenHashSet<>(this.selectedPacks());
+        if (!selectedPacks.contains(selectedLast)) {
+            return with(newPacks, List.of(selectedLast), profiles, devMode);
+        } else if (selectedPacks.getLast() != selectedLast) {
+            ObjectLinkedOpenHashSet<PackNode> newSelection = new ObjectLinkedOpenHashSet<>(selectedPacks);
             newSelection.addAndMoveToLast(selectedLast);
-            return this.with(newPacks, newSelection, profiles, devMode);
+            return with(newPacks, newSelection, profiles, devMode);
         }
 
-        return this.withPacks(newPacks, profiles, devMode);
+        return withPacks(newPacks, profiles, devMode);
     }
 
-    public PackListState withFolder(@Nullable PackListState newFolder) {
-        return new PackListState(
+    public PackListState withFolder(@Nullable PackListState newFolder, ProfileSelection profiles, boolean devMode) {
+        PackListState newState = new PackListState(
                 parent,
                 module,
                 packs,
@@ -132,6 +132,21 @@ public record PackListState(
                 query,
                 newFolder
         );
+
+        if (folder == null || folder.query.equals(query)) {
+            return newState;
+        }
+
+        Query newQuery = folder.query;
+        if (query.sort() instanceof SortOption.Locked || folder.query.sort() instanceof SortOption.Locked) {
+            newQuery = newQuery.withSort(query.sort());
+        }
+
+        if (newQuery.equals(folder.query)) {
+            return newState;
+        }
+
+        return newState.withQuery(newQuery, profiles, devMode);
     }
 
     public PackListState withModule(boolean newModule, ProfileSelection profiles, boolean devMode) {

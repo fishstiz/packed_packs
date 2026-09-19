@@ -205,7 +205,7 @@ public class PackNodeRepository {
                 PackNode.Parent moduleAncestor = findModuleAncestor(pack);
                 // the entire module should be selected if any of its descendants are selected
                 if (moduleAncestor != null && !newSelected.contains(moduleAncestor.id())) {
-                    moduleAncestor.visitNodes((Consumer<PackNode>) node -> newSelected.add(node.id()));
+                    moduleAncestor.visitNodes(node -> newSelected.add(node.id()));
                 }
             }
         }

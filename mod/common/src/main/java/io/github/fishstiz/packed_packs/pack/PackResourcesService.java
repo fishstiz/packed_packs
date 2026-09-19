@@ -34,7 +34,7 @@ public class PackResourcesService {
     }
 
     public boolean saveFolderMetadata(Path folderPath, FolderPackMeta metadata) {
-        return JsonLoader.saveJson(metadata, folderPath.resolve(FolderPackMeta.FILENAME));
+        return JsonLoader.saveJson(metadata, folderPath.resolve(FolderPackMeta.FILENAME), false);
     }
 
     public boolean saveFolderMetadata(PackNode.Parent parent, FolderPackMeta metadata) {

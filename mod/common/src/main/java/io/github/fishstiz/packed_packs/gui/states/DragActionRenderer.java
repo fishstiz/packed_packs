@@ -35,9 +35,7 @@ public final class DragActionRenderer {
     ) {
         boolean validDrop = false;
         for (PackListContainer list : lists) {
-            if (list.isHovered()) {
-                validDrop |= list.extractDropCandidateRenderState(graphics, dragging);
-            }
+            validDrop |= list.extractDropCandidateRenderState(graphics, dragging, mouseX, mouseY, partialTick);
         }
 
         renderDragging(dragging, graphics, mouseX, mouseY);

@@ -273,7 +273,9 @@ public class PackedPacksScreen extends FZScreen {
                     }
 
                     leftRibbon.child(FZButton.bind("EnableAllButton", store
-                            .map(s -> s.profiles().isLocked())
+                            .map(s -> s.profiles().isLocked()
+                                      || s.getTailList(PackListType.AVAILABLE).module()
+                                      || s.getTailList(PackListType.ENABLED).module())
                             .map(locked -> FZButton.builder()
                                     .message(Component.literal(">>"))
                                     .tooltip(Component.translatable("packed_packs.transfer_all.info"))
@@ -287,7 +289,9 @@ public class PackedPacksScreen extends FZScreen {
                     FZFlexLayout rightRibbon = ribbon.child(horizontal(), ribbon.flexChildHorizontalSettings());
 
                     rightRibbon.child(FZButton.bind("DisableAllButton", store
-                            .map(s -> s.profiles().isLocked())
+                            .map(s -> s.profiles().isLocked()
+                                      || s.getTailList(PackListType.AVAILABLE).module()
+                                      || s.getTailList(PackListType.ENABLED).module())
                             .map(locked -> FZButton.builder()
                                     .message(Component.literal("<<"))
                                     .tooltip(Component.translatable("packed_packs.transfer_all.info"))

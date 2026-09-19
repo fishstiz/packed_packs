@@ -51,7 +51,7 @@ import java.util.*;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
-import static io.github.fishstiz.packed_packs.util.PackListUtils.sortByOrderOf;
+import static io.github.fishstiz.packed_packs.util.PackListComputedUtils.sortByOrderOf;
 import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
 import static io.github.fishstiz.packed_packs.util.InputUtil.*;
 
@@ -180,7 +180,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     }
 
     private boolean canDrop(ActiveAction.Dragging dragging, int mouseX, int mouseY, int index) {
-        if (this.scrolling || (dragging.src() == key() && isMouseOverSelection(dragging.packs(), mouseX, mouseY, index))) {
+        if (this.scrolling || (dragging.src().equals(key()) && isMouseOverSelection(dragging.packs(), mouseX, mouseY, index))) {
             return false;
         }
         return state.canDrop(index);
@@ -243,8 +243,8 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
     }
 
-    private void renderDroppableZone(
-            GuiGraphicsExtractor guiGraphics,
+    boolean extractDropCandidateRenderState(
+            GuiGraphicsExtractor graphics,
             ActiveAction.Dragging dragging,
             int mouseX,
             int mouseY,
@@ -252,11 +252,13 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     ) {
         if (!state.isLocked() && state.isDropCandidate()) {
             if (state.canReorder()) {
-                renderDroppableSlots(guiGraphics, dragging, mouseX, mouseY, partialTick);
+                renderDroppableSlots(graphics, dragging, mouseX, mouseY, partialTick);
             } else {
-                renderDroppableRect(guiGraphics);
+                renderDroppableRect(graphics);
             }
+            return true;
         }
+        return false;
     }
 
     public void onDrop(ActiveAction.Dragging dragging, int mouseX, int mouseY) {
@@ -423,11 +425,6 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     protected void extractEntriesRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         if (!state.isFolderOpened()) {
             super.extractEntriesRenderState(graphics, mouseX, mouseY, partialTick);
-
-            ActiveAction.Dragging dragging = state.getDragging();
-            if (dragging != null) {
-                renderDroppableZone(graphics, dragging, mouseX, mouseY, partialTick);
-            }
         }
     }
 
@@ -525,7 +522,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 buildWidgets();
             }
         }
-
+        // todo add widgets to navigation path
         @Override
         public void acceptWidget(GuiEventListener widget) {
             if (widget instanceof FZHoverableElement hoverable && widget instanceof AbstractWidget abstractWidget) {
@@ -745,7 +742,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
         private void renderWidgetSprites(GuiGraphicsExtractor graphics, int top, int left, int mouseX, int mouseY) {
             boolean hovered = isHovered() && fidgetz$getHovered() == null;
-            if (!hovered && !state.isSelectedLast()) return;
+            if ((!hovered && !state.isSelectedLast()) || PackList.this.state.isDragging()) return;
 
             int relX = mouseX - left;
             int relY = mouseY - top;

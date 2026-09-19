@@ -1,6 +1,6 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
-import io.github.fishstiz.packed_packs.util.PackListUtils;
+import io.github.fishstiz.packed_packs.util.PackListComputedUtils;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import it.unimi.dsi.fastutil.ints.Int2BooleanMap;
 import it.unimi.dsi.fastutil.ints.Int2BooleanOpenHashMap;
@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static io.github.fishstiz.packed_packs.util.PackListUtils.*;
+import static io.github.fishstiz.packed_packs.util.PackListComputedUtils.*;
 
 public class PackListComputed {
     private final PackListKey key;
@@ -117,7 +117,7 @@ public class PackListComputed {
         if (canDropCache.containsKey(index)) {
             return canDropCache.get(index);
         }
-        boolean canDrop = dragging != null && PackListUtils.canDrop(dragging, key, state, index, profiles);
+        boolean canDrop = dragging != null && PackListComputedUtils.canDrop(dragging, key, state, index, profiles);
         canDropCache.put(index, canDrop);
         return canDrop;
     }
@@ -134,13 +134,13 @@ public class PackListComputed {
         return selected;
     }
 
-    public ActiveAction.@Nullable Dragging getDragging() {
-        return dragging;
+    public boolean isDragging() {
+        return dragging != null;
     }
 
     public boolean isDropCandidate() {
         if (dropCandidateCache == TriState.DEFAULT) {
-            dropCandidateCache = TriState.from(dragging != null && PackListUtils.isDropCandidate(dragging, key, state));
+            dropCandidateCache = TriState.from(dragging != null && PackListComputedUtils.isDropCandidate(dragging, key, state));
         }
 
         return dropCandidateCache == TriState.TRUE;
@@ -194,21 +194,24 @@ public class PackListComputed {
             return canDisableCache;
         }
 
-        public boolean canMoveUp() {
+        private void computeCanMoveUpCache() {
             if (moveUpGenSeen == moveUpGen) {
-                return canMoveUpCache;
+                return;
             }
 
             moveUpGenSeen = moveUpGen;
 
             if (!canReorder()) {
-                return false;
+                canMoveUpCache = false;
+                return;
             }
             if (profiles.isLocked()) {
-                return false;
+                canMoveUpCache = false;
+                return;
             }
             if (state.query().hasQuery() || profiles.isPackFixed(pack)) {
-                return false;
+                canMoveUpCache = false;
+                return;
             }
             if (state.selectedPacks().contains(pack)) {
                 List<PackNode> selection = sortByOrderOf(state.visiblePacks(), state.selectedPacks());
@@ -216,31 +219,38 @@ public class PackListComputed {
                     int index = state.packs().indexOf(selection.getFirst());
                     int moveIndex = index > -1 ? getMoveUpIndex(state.packs(), pack, profiles) : -1;
                     canMoveUpCache = index > 0 && moveIndex > -1 && !profiles.isPackFixed(state.packs().get(moveIndex));
-                    return canMoveUpCache;
+                    return;
                 }
             }
 
             int index = state.packs().indexOf(pack);
             int moveIndex = getMoveUpIndex(state.packs(), pack, profiles);
             canMoveUpCache = index > 0 && moveIndex > -1 && !profiles.isPackFixed(state.packs().get(moveIndex));
+        }
+
+        public boolean canMoveUp() {
+            computeCanMoveUpCache();
             return canMoveUpCache;
         }
 
-        public boolean canMoveDown() {
+        private void computeCanMoveDownCache() {
             if (moveDownGenSeen == moveDownGen) {
-                return canMoveDownCache;
+                return;
             }
 
             moveDownGenSeen = moveDownGen;
 
             if (!canReorder()) {
-                return false;
+                canMoveDownCache = false;
+                return;
             }
             if (profiles.isLocked()) {
-                return false;
+                canMoveDownCache = false;
+                return;
             }
             if (state.query().hasQuery() || profiles.isPackFixed(pack)) {
-                return false;
+                canMoveDownCache = false;
+                return;
             }
 
             int size = state.packs().size();
@@ -250,13 +260,17 @@ public class PackListComputed {
                     int index = state.packs().indexOf(selection.getLast());
                     int moveIndex = index > -1 ? getMoveDownIndex(state.packs(), pack, profiles) : -1;
                     canMoveDownCache = index > -1 && index < size - 1 && moveIndex > -1 && !profiles.isPackFixed(state.packs().get(moveIndex));
-                    return canMoveDownCache;
+                    return;
                 }
             }
 
             int index = state.packs().indexOf(pack);
             int moveIndex = getMoveDownIndex(state.packs(), pack, profiles);
             canMoveDownCache = index > -1 && index < size - 1 && moveIndex > -1 && !profiles.isPackFixed(state.packs().get(moveIndex));
+        }
+
+        public boolean canMoveDown() {
+            computeCanMoveDownCache();
             return canMoveDownCache;
         }
 
@@ -266,7 +280,7 @@ public class PackListComputed {
             }
 
             canDragGenSeen = canDragGen;
-            canDragCache = !profiles.isLocked() && PackListUtils.canDrag(key, state.module(), pack, profiles);
+            canDragCache = !profiles.isLocked() && PackListComputedUtils.canDrag(key, state.module(), pack, profiles);
             return canDragCache;
         }
 

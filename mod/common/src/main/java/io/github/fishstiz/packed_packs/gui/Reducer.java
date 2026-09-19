@@ -6,7 +6,7 @@ import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.gui.actions.mutations.Mutation;
 import io.github.fishstiz.packed_packs.gui.states.PackListKey;
 import io.github.fishstiz.packed_packs.gui.states.PackListType;
-import io.github.fishstiz.packed_packs.util.PackListUtils;
+import io.github.fishstiz.packed_packs.util.PackListComputedUtils;
 import io.github.fishstiz.packed_packs.gui.states.Query;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.states.PackListState;
@@ -25,7 +25,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 
-import static io.github.fishstiz.packed_packs.util.PackListUtils.*;
+import static io.github.fishstiz.packed_packs.util.PackListComputedUtils.*;
 
 public final class Reducer {
     public static PackedPacksState reduce(PackedPacksState state, Mutation mutation) {
@@ -92,7 +92,7 @@ public final class Reducer {
             return state;
         }
         PackListState newFolder = reduceList(state.folder(), depth + 1, mutation, profiles, devMode);
-        return newFolder == state.folder() ? state : state.withFolder(newFolder);
+        return newFolder == state.folder() ? state : state.withFolder(newFolder, profiles, devMode);
     }
 
     private static PackListState reduceList(
@@ -190,11 +190,13 @@ public final class Reducer {
 
                 yield state.withPacksAndSelectedLast(newPacks, moved.srcPack(), profiles, devMode);
             }
-            case PackListMutation.FolderOpened opened ->
-                    state.withFolder(PackListState.folder(opened.pack(), opened.locked(), state.query())
-                            .withPacks(opened.children(), profiles, devMode)
-                    );
-            case PackListMutation.FolderClosed ignored -> state.withFolder(null);
+            case PackListMutation.FolderOpened opened -> state.withFolder(
+                    PackListState.folder(opened.pack(), opened.locked(), state.query())
+                            .withPacks(opened.children(), profiles, devMode),
+                    profiles,
+                    devMode
+            );
+            case PackListMutation.FolderClosed ignored -> state.withFolder(null, profiles, devMode);
         };
     }
 
@@ -212,10 +214,10 @@ public final class Reducer {
 
         if (up) {
             sorted = sortByOrderOf(state.visiblePacks(), payload);
-            indexFn = PackListUtils::getMoveUpIndex;
+            indexFn = PackListComputedUtils::getMoveUpIndex;
         } else {
             sorted = sortByOrderOf(state.visiblePacks(), payload).reversed();
-            indexFn = PackListUtils::getMoveDownIndex;
+            indexFn = PackListComputedUtils::getMoveDownIndex;
         }
 
         for (int i = 0; i < sorted.size(); i++) {
@@ -233,14 +235,24 @@ public final class Reducer {
         return newPacks;
     }
 
-    private static PackListState updateHeadList(PackListState headList, int depth, PackListState state) {
+    private static PackListState updateHeadList(
+            PackListState headList,
+            int depth,
+            PackListState state,
+            ProfileSelection profiles,
+            boolean devMode
+    ) {
         if (depth == 0) {
             return state;
         }
         if (headList.folder() == null) {
             return headList;
         }
-        return headList.withFolder(updateHeadList(headList.folder(), depth - 1, state));
+        return headList.withFolder(
+                updateHeadList(headList.folder(), depth - 1, state, profiles, devMode),
+                profiles,
+                devMode
+        );
     }
 
     private static PackedPacksState updateHeadList(
@@ -289,14 +301,18 @@ public final class Reducer {
         PackListState newSrcState = srcState == PackListState.empty() ? srcHeadList : updateHeadList(
                 srcHeadList,
                 transfer.srcList().depth(),
-                srcState.with(newSrcPacks, newSrcSelection, state.profiles(), state.devMode())
+                srcState.with(newSrcPacks, newSrcSelection, state.profiles(), state.devMode()),
+                state.profiles(),
+                state.devMode()
         );
 
         PackListState destHeadList = state.getHeadList(destKey.type());
         PackListState newDestState = destState == PackListState.empty() ? destHeadList : updateHeadList(
                 destHeadList,
                 destKey.depth(),
-                destState.with(newDestPacks, newDestSelection, state.profiles(), state.devMode())
+                destState.with(newDestPacks, newDestSelection, state.profiles(), state.devMode()),
+                state.profiles(),
+                state.devMode()
         );
 
         PackListState disabled;
@@ -325,12 +341,16 @@ public final class Reducer {
                     yield newState;
                 }
 
-                yield newState.withEnabled(newState.enabled().withFolder(null), newState.lastTarget());
+                yield newState.withEnabled(
+                        newState.enabled().withFolder(null, state.profiles(), state.devMode()),
+                        newState.lastTarget()
+                );
             }
             case PackListMutation.Disabled disabled -> transfer(
-                    state.enabled().folder() == null
-                            ? state 
-                            : state.withEnabled(state.enabled().withFolder(null), state.lastTarget()),
+                    state.enabled().folder() == null ? state : state.withEnabled(
+                            state.enabled().withFolder(null, state.profiles(), state.devMode()),
+                            state.lastTarget()
+                    ),
                     disabled.srcList().type().enabled()
                             ? disabled
                             : new PackListMutation.Disabled(PackListKey.enabled(), null, disabled.packs())
@@ -355,7 +375,9 @@ public final class Reducer {
                 PackListState newEnabledState = updateHeadList(
                         state.enabled(),
                         enabledTailKey.depth(),
-                        enabledListState.withQuery(Query.empty(), state.profiles(), state.devMode())
+                        enabledListState.withQuery(Query.empty(), state.profiles(), state.devMode()),
+                        state.profiles(),
+                        state.devMode()
                 );
 
                 yield state.withEnabled(newEnabledState, draggingAction.src()).withAction(draggingAction);
@@ -395,9 +417,9 @@ public final class Reducer {
 
                     if (!packs.isEmpty()) {
                         yield reduceList(newState, switch (dest.type()) {
-                            case AVAILABLE -> new PackListMutation.Disabled(dest, dragging.srcPack(), packs.reversed());
+                            case AVAILABLE -> new PackListMutation.Disabled(srcList, dragging.srcPack(), packs.reversed());
                             case ENABLED ->
-                                    new PackListMutation.Enabled(dest, dragging.srcPack(), packs.reversed(), position);
+                                    new PackListMutation.Enabled(srcList, dragging.srcPack(), packs.reversed(), position);
                         });
                     }
                 }
@@ -416,7 +438,13 @@ public final class Reducer {
                 PackListState newSrcState = srcState.withModule(updated.module(), state.profiles(), state.devMode());
                 PackedPacksState newState = updateHeadList(
                         state,
-                        updateHeadList(state.getHeadList(updated.srcList().type()), updated.srcList().depth(), newSrcState),
+                        updateHeadList(
+                                state.getHeadList(updated.srcList().type()),
+                                updated.srcList().depth(),
+                                newSrcState,
+                                state.profiles(),
+                                state.devMode()
+                        ),
                         updated.srcList().type(),
                         updated.srcList()
                 );
@@ -447,7 +475,9 @@ public final class Reducer {
                                 updateHeadList(
                                         newState.getHeadList(updated.srcList().type()),
                                         updated.srcList().depth(),
-                                        newSrcState.withPacks(List.copyOf(newChildren), state.profiles(), state.devMode())
+                                        newSrcState.withPacks(List.copyOf(newChildren), state.profiles(), state.devMode()),
+                                        newState.profiles(),
+                                        newState.devMode()
                                 ),
                                 updated.srcList().type(),
                                 updated.srcList()
@@ -533,11 +563,14 @@ public final class Reducer {
             case ProfileMutation.Selected selected -> {
                 ProfilesState profiles = state.profiles();
                 PackSelection packs = selected.packs();
-                yield state.withProfiles(profiles.withSelected(selected.profile()))
-                        .withPackLists(
-                                state.available().withPacks(packs.disabled(), profiles, state.devMode()),
-                                state.enabled().withPacks(packs.enabled(), profiles, state.devMode())
-                        );
+                PackedPacksState newState = state.withProfiles(profiles.withSelected(selected.profile()));
+
+                yield newState.withPackLists(
+                        state.available().withPacks(packs.disabled(), profiles, state.devMode())
+                                .withFolder(null, newState.profiles(), newState.devMode()),
+                        state.enabled().withPacks(packs.enabled(), profiles, state.devMode())
+                                .withFolder(null, newState.profiles(), newState.devMode())
+                );
             }
             case ProfileMutation.Deleted delete -> {
                 List<Profile> newProfileList = new ObjectArrayList<>(state.profiles().profiles());
@@ -550,8 +583,10 @@ public final class Reducer {
 
                 ProfilesState newProfiles = state.profiles().withProfiles(newProfileList).withSelected(null);
                 yield state.withProfiles(newProfiles).withPackLists(
-                        state.available().withPacks(delete.packs().disabled(), newProfiles, state.devMode()),
+                        state.available().withPacks(delete.packs().disabled(), newProfiles, state.devMode())
+                                .withFolder(null, newProfiles, state.devMode()),
                         state.enabled().withPacks(delete.packs().enabled(), newProfiles, state.devMode())
+                                .withFolder(null, newProfiles, state.devMode())
                 );
             }
             case ProfileMutation.Added added -> {
@@ -591,7 +626,7 @@ public final class Reducer {
             selectedProfile = newProfile;
         }
 
-        Profile defaultProfile = state.selectedProfile();
+        Profile defaultProfile = state.defaultProfile();
         if (defaultProfile != null && newProfile.getId().equals(defaultProfile.getId())) {
             defaultProfile = newProfile;
         }

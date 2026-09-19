@@ -10,8 +10,8 @@ import net.minecraft.server.packs.repository.Pack;
 
 import java.util.*;
 
-public final class PackListUtils {
-    private PackListUtils() {
+public final class PackListComputedUtils {
+    private PackListComputedUtils() {
     }
 
     public static boolean hasGap(int[] arr, boolean sorted) {
@@ -167,7 +167,7 @@ public final class PackListUtils {
         if (srcModule || destState.module()) {
             return src.equals(dest);
         }
-        if (src.type().available() && dest.depth() > 0 && destState.parent() != null) {
+        if (src.type().enabled() && dest.type().available() && dest.depth() > 0 && destState.parent() != null) {
             return destState.parent().children().contains(dragging.srcPack());
         }
         if (src.type().available()) {

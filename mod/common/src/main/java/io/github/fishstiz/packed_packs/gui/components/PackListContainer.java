@@ -122,7 +122,6 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
         this.state.onStateChanged(newState, newProfiles);
 
-        PackListState previousFolderState = prev.folder();
         PackListState folderState = newState.folder();
 
         if ((folderState == null) != (this.folder == null)) {
@@ -133,20 +132,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
                 ComponentPath path = newFolder.nextFocusPath(new FocusNavigationEvent.InitialFocus());
                 if (path != null) path.applyFocus(true);
             } else {
-                if (previousFolderState != null && previousFolderState.parent() != null) {
-                    resources.saveFolderMetadata(
-                            previousFolderState.parent(),
-                            new FolderPackMeta(
-                                    previousFolderState.module(),
-                                    previousFolderState.packs().stream().map(PackNode::id).toList()
-                            )
-                    );
-                }
-
-                if (this.folder != null) {
-                    this.folder.closed = true;
-                }
-
+                this.folder.onClose();
                 this.folder = null;
                 updateChild(packList);
             }
@@ -159,20 +145,28 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
     }
 
-    public boolean extractDropCandidateRenderState(GuiGraphicsExtractor graphics, ActiveAction.Dragging dragging) {
+    public boolean extractDropCandidateRenderState(
+            GuiGraphicsExtractor graphics,
+            ActiveAction.Dragging dragging,
+            int mouseX,
+            int mouseY,
+            float partialTick
+    ) {
         PackListContainer leafContainer = this;
 
         while (leafContainer.folder != null) {
             leafContainer = leafContainer.folder.listContainer;
         }
 
-        if (leafContainer.packList.isHovered()) {
-            return dragging.src().equals(state.key()) || state.isDropCandidate();
+        if (leafContainer.packList.extractDropCandidateRenderState(graphics, dragging, mouseX, mouseY, partialTick)
+            || dragging.src().equals(leafContainer.state.key())) {
+            return leafContainer.packList.isHovered();
         }
 
+        PackListContainer root = this.root == null ? this : this.root;
         if (state.key().type().available() && !state.isLocked() && state.canDrop(0)) {
-            renderDropToDisabledZone(this.root == null ? this : this.root, graphics);
-            return true;
+            renderDropToDisabledZone(root, graphics);
+            return root.isHovered();
         }
 
         return false;
@@ -210,6 +204,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
     }
 
+    // todo if root hovered
     public void onDrop(ActiveAction.Dragging dragging, int mouseX, int mouseY) {
         this.visitLeafList(list -> list.onDrop(dragging, mouseX, mouseY));
     }
@@ -399,6 +394,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
                     .size(HEADER_SIZE, HEADER_SIZE)
                     .message(Component.literal("<<"))
                     .tooltip(Component.literal("Recall"))
+                    .visible(key.type().available())
                     .onPress(() -> root.context.dispatch(new PackListIntent.Recall(key, this.parent)))
                     .build();
             this.lockButton = FZIconButton.builder(new WidgetRenderables(
@@ -456,8 +452,8 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             PackListState prevFolderState = this.folderState;
             this.folderState = folderState;
 
-            lockButton.active = unlockable;
-            recallButton.active = !folderState.module();
+            lockButton.active = unlockable && !profiles.isLocked();
+            recallButton.active = !folderState.module() && !profiles.isLocked();
 
             if (prevFolderState.parent() != folderState.parent()) { // I don't think this will ever be true, but just in case
                 this.parent = Objects.requireNonNull(folderState.parent(), "folder parent cannot be null");
@@ -468,6 +464,19 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             }
             if (listContainer.state.state() != folderState || listContainer.state.profiles() != profiles) {
                 listContainer.onStateChanged(folderState, profiles, unlockable);
+            }
+        }
+
+        private void onClose() {
+            this.closed = true;
+
+            listContainer.resources.saveFolderMetadata(this.parent, new FolderPackMeta(
+                    folderState.module(),
+                    folderState.packs().stream().map(PackNode::id).toList()
+            ));
+
+            if (listContainer.folder != null) {
+                listContainer.folder.onClose();
             }
         }
 
@@ -528,7 +537,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             layout.setPosition(root.getX(), root.getY());
             background.setPosition(root.getX(), root.getY());
         }
-
+// todo toggling dev mode somehow expands bounds
         void arrangeElements() {
             if (layout.getWidth() != root.getWidth() || layout.getHeight() != root.getHeight()) {
                 layout.arrangeElements();
