@@ -188,10 +188,6 @@ public record PackListState(
         return this.folder != null;
     }
 
-    public boolean containsRecursively(PackNode pack) {
-        return packs.contains(pack) || (folder != null && folder.containsRecursively(pack));
-    }
-
     private static List<PackNode> processQuery(
             List<PackNode> sourcePacks,
             Query query,

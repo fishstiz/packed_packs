@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 public class PackNodeRepository {
     private final PackRepository repository;
@@ -128,6 +129,18 @@ public class PackNodeRepository {
             case PackNode.Parent parent ->
                     collectDescendantLeaves(parent, TriState.FALSE, node -> node.visitPacks(collector));
         }
+    }
+
+    public Stream<PackNode> flattenNodes(PackNode pack) {
+        Stream.Builder<PackNode> builder = Stream.builder();
+        collectNodes(pack, builder::add);
+        return builder.build();
+    }
+
+    public Stream<Pack> flattenPacks(PackNode pack) {
+        Stream.Builder<Pack> builder = Stream.builder();
+        collectPacks(pack, builder::add);
+        return builder.build();
     }
 
     public PackNode.@Nullable Parent findAncestor(PackNode pack) {
@@ -378,8 +391,8 @@ public class PackNodeRepository {
 
     public boolean setFolderMetadata(String folderId, FolderPackMeta metadata) {
         if (folderMeta.containsKey(folderId)) {
-            folderMeta.put(folderId, metadata);
-            return true;
+            FolderPackMeta old = folderMeta.put(folderId, metadata);
+            return !Objects.equals(old, metadata);
         } else {
             PackedPacks.LOGGER.warn("[packed_packs] Tried to update folder metadata from non-existing folder '{}'", folderId);
             return false;

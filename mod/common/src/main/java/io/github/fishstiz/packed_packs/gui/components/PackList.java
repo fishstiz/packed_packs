@@ -74,8 +74,12 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         this.state = state;
     }
 
-    public PackListKey key() {
+    PackListKey key() {
         return state.key();
+    }
+
+    boolean module() {
+        return state.state().module();
     }
 
     @Override
@@ -475,6 +479,10 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
         protected PackListKey key() {
             return PackList.this.state.key();
+        }
+
+        protected boolean moduleParent() {
+            return module();
         }
 
         protected boolean isIncompatibleWarningsHidden() {
@@ -1046,7 +1054,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         @Override
         @Deprecated
         public boolean isSelected() {
-            return state.isSelected();
+            return key().type().enabled();
         }
 
         @Override

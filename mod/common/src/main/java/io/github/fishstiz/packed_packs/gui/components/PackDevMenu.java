@@ -170,7 +170,7 @@ class PackDevMenu {
                 .closeOnInteraction(false)
                 .active(() -> !profiles.isLocked() &&
                               hasOverride(Profile::overridesRequired) != ProfileScope.GLOBAL &&
-                              entry.pack.parentId() == null)  // todo take a look at condition
+                              (!entry.moduleParent() || entry.pack.parentId() == null))
                 .child(child -> buildDevEntry(child)
                         .message(CommonComponents.OPTION_OFF)
                         .icon(GuiUtils.toggleRect(() -> !profile.overridesRequired(packId())))

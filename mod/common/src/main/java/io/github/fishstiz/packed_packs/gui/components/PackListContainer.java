@@ -158,9 +158,10 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             leafContainer = leafContainer.folder.listContainer;
         }
 
-        if (leafContainer.packList.extractDropCandidateRenderState(graphics, dragging, mouseX, mouseY, partialTick)
-            || dragging.src().equals(leafContainer.state.key())) {
-            return leafContainer.packList.isHovered();
+        if ((leafContainer.packList.extractDropCandidateRenderState(graphics, dragging, mouseX, mouseY, partialTick)
+             || dragging.src().equals(leafContainer.state.key()))
+            && leafContainer.packList.isHovered()) {
+            return true;
         }
 
         PackListContainer root = this.root == null ? this : this.root;
@@ -204,9 +205,28 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
     }
 
-    // todo if root hovered
     public void onDrop(ActiveAction.Dragging dragging, int mouseX, int mouseY) {
-        this.visitLeafList(list -> list.onDrop(dragging, mouseX, mouseY));
+        if (state.isLocked()) {
+            context.dispatch(new PackListIntent.Drop(dragging.src()));
+            return;
+        }
+
+        if (state.key().type().enabled()) {
+            visitLeafList(list -> list.onDrop(dragging, mouseX, mouseY));
+            return;
+        }
+
+        PackListContainer leafContainer = this;
+        while (leafContainer.folder != null) {
+            leafContainer = leafContainer.folder.listContainer;
+        }
+
+        if (leafContainer.packList.isHovered() && (leafContainer.state.isDropCandidate() || dragging.src().equals(leafContainer.state.key()))) {
+            leafContainer.packList.onDrop(dragging, mouseX, mouseY);
+            return;
+        }
+
+        context.dispatch(new PackListIntent.Drop(dragging.src(), state.key(), 0));
     }
 
     @Override
@@ -268,12 +288,18 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
     public void setHeight(int height) {
         super.setHeight(height);
         packList.setHeight(height);
+        if (folder != null) {
+            folder.arrangeElements();
+        }
     }
 
     @Override
     public void setWidth(int width) {
         super.setWidth(width);
         packList.setWidth(width);
+        if (folder != null) {
+            folder.arrangeElements();
+        }
     }
 
     @Override
@@ -537,10 +563,10 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             layout.setPosition(root.getX(), root.getY());
             background.setPosition(root.getX(), root.getY());
         }
-// todo toggling dev mode somehow expands bounds
+
         void arrangeElements() {
-            if (layout.getWidth() != root.getWidth() || layout.getHeight() != root.getHeight()) {
-                layout.arrangeElements();
+            if ((root.getWidth() != 0 && layout.getWidth() != root.getWidth())
+                || (root.getHeight() != 0 && layout.getHeight() != root.getHeight())) {
                 layout.fidgetz$setSize(root.getWidth(), root.getHeight());
                 background.setSize(root.getWidth(), root.getHeight());
                 repositionElements();

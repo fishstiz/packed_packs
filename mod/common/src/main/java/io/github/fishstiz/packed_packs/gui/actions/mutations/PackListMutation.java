@@ -10,8 +10,7 @@ import java.util.List;
 import java.util.SequencedCollection;
 
 public sealed interface PackListMutation extends Mutation {
-    // state mutations that cross beyond pack list state
-    sealed interface Cross extends PackListMutation {
+    sealed interface Cross extends PackListMutation { // state mutations that cross beyond pack list state
     }
 
     sealed interface Transfer {
@@ -111,8 +110,7 @@ public sealed interface PackListMutation extends Mutation {
     record AliasesModalClosed() implements Cross {
     }
 
-    // state mutations local to srcList
-    sealed interface Local extends PackListMutation {
+    sealed interface Local extends PackListMutation { // state mutations local to srcList
         PackListKey srcList();
     }
 

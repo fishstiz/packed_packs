@@ -5,7 +5,6 @@ import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.platform.Services;
-import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.transform.mixin.UtilAccess;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -13,9 +12,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.util.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackResources;
-import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackDetector;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.world.level.validation.ForbiddenSymlinkInfo;
@@ -62,16 +59,6 @@ public class PackUtil {
 
     public static String generatePackId(Path path) {
         return generatePackId(generatePackName(path));
-    }
-
-    public static PackLocationInfo replicateLocationInfo(PackLocationInfo info, String id) {
-        return new PackLocationInfo(id, info.title(), info.source(), info.knownPackInfo());
-    }
-
-
-
-    public static List<String> extractPackIds(Collection<Pack> packs) {
-        return CollectionUtils.map(packs, Pack::getId);
     }
 
     public static String joinPackNames(Collection<Path> paths) {
@@ -134,13 +121,6 @@ public class PackUtil {
         }
     }
 
-    public static void openParent(Pack pack) {
-        var path = ((FilePack) pack).packed_packs$getPath();
-        if (path != null) {
-            PackUtil.openParent(path);
-        }
-    }
-
     public static void openParent(@Nullable Path path) {
         if (path == null) return;
 
@@ -197,8 +177,6 @@ public class PackUtil {
 
     public static String getNewIdOnRename(String newName) {
         return generatePackId(newName);
-        // no more modifying nested pack id
-//        return filePack.packed_packs$nestedPack() ? generateNestedPackId(path, newName) : generatePackId(newName);
     }
 
     public static PathValidationResults validatePaths(List<Path> packs) {

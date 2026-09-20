@@ -49,7 +49,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static io.github.fishstiz.packed_packs.util.PackUtil.mapValidDirectories;
 
@@ -184,10 +183,10 @@ public class Store implements FZRef<PackedPacksState> {
         this.state = newState;
 
         if (prevState != newState) {
-            if (mutation.pushState()) {
-                history.push(newState);
-            } else if (mutation.resetHistory()) {
+            if (mutation.resetHistory()) {
                 history.reset(newState);
+            } else if (mutation.pushState()) {
+                history.push(newState);
             }
 
             subscribers.values().forEach(Runnable::run);
@@ -198,12 +197,28 @@ public class Store implements FZRef<PackedPacksState> {
         return false;
     }
 
+    private List<PackNode> flatten(PackListType type, Collection<PackNode> packs) {
+        if (type.available()) {
+            Set<PackNode> enabledPacks = state.enabled().packs().stream()
+                    .flatMap(repository::flattenNodes)
+                    .collect(Collectors.toCollection(ObjectOpenHashSet::new));
+
+            return packs.stream()
+                    .flatMap(repository::flattenNodes)
+                    .filter(pack -> !enabledPacks.contains(pack))
+                    .toList();
+        }
+
+        return packs.stream().flatMap(repository::flattenNodes).toList();
+    }
+
     public void dispatch(Intent intent) {
         PackedPacksState prevState = this.state;
         switch (intent) {
             case Intent.ToggleDevMode() -> {
-                replaceState(prevState.withDevMode(!prevState.devMode()));
-                ToastUtil.onDevModeToggleToast(state.devMode());
+                if (dispatch(new Mutation.DevModeToggled())) {
+                    ToastUtil.onDevModeToggleToast(state.devMode());
+                }
             }
             case Intent.Reset(@Nullable Profile profile) ->
                     dispatch(new Mutation.Reset(profile == null ? getCurrentPacks() : getPacks(profile)));
@@ -289,8 +304,12 @@ public class Store implements FZRef<PackedPacksState> {
                             }
 
                             List<PackNode> filtered = new ObjectArrayList<>(unsortedChildren.size());
+                            Set<PackNode> enabledPacks = state.enabled().packs().stream()
+                                    .flatMap(repository::flattenNodes)
+                                    .collect(Collectors.toCollection(ObjectOpenHashSet::new));
+
                             for (PackNode pack : unsortedChildren) {
-                                if (open.srcList().type().enabled() || !state.enabled().containsRecursively(pack)) {
+                                if (open.srcList().type().enabled() || !enabledPacks.contains(pack)) {
                                     filtered.add(pack);
                                 }
                             }
@@ -344,26 +363,26 @@ public class Store implements FZRef<PackedPacksState> {
                     case PackListIntent.OverrideHidden override -> dispatch(new PackListMutation.VisibilityOverridden(
                             override.srcList(),
                             override.srcPack(),
-                            override.packs(),
+                            flatten(override.srcList().type(), override.packs()),
                             override.hidden()
                     ));
                     case PackListIntent.OverridePosition override -> dispatch(new PackListMutation.PositionOverridden(
                             override.srcList(),
                             override.srcPack(),
-                            override.packs(),
+                            flatten(override.srcList().type(), override.packs()),
                             override.position()
                     ));
                     case PackListIntent.OverrideRequirement override ->
                             dispatch(new PackListMutation.RequirementOverridden(
                                     override.srcList(),
                                     override.srcPack(),
-                                    override.packs(),
+                                    flatten(override.srcList().type(), override.packs()),
                                     override.required()
                             ));
                     case PackListIntent.RemoveOverrides remove -> dispatch(new PackListMutation.OverridesRemoved(
                             remove.srcList(),
                             remove.srcPack(),
-                            remove.packs()
+                            flatten(remove.srcList().type(), remove.packs())
                     ));
                     case PackListIntent.Rename rename -> {
                         dispatch(new Mutation.PackRenaming(true));
@@ -530,15 +549,19 @@ public class Store implements FZRef<PackedPacksState> {
     }
 
     public List<Pack> getDisabledPacks() {
-        List<Pack> disabled = new ObjectArrayList<>(state.available().packs().size());
-        state.available().packs().forEach(pack -> repository.collectPacks(pack, disabled::add));
-        return disabled;
+        Set<Pack> enabledPacks = state.enabled().packs().stream()
+                .flatMap(repository::flattenPacks)
+                .collect(Collectors.toCollection(ObjectOpenHashSet::new));
+
+        return state.available().packs()
+                .stream()
+                .flatMap(repository::flattenPacks)
+                .filter(pack -> !enabledPacks.contains(pack))
+                .toList();
     }
 
     public List<Pack> getEnabledPacks() {
-        List<Pack> enabled = new ObjectArrayList<>(state.enabled().packs().size());
-        state.enabled().packs().forEach(pack -> repository.collectPacks(pack, enabled::add));
-        return enabled;
+        return state.enabled().packs().stream().flatMap(repository::flattenPacks).toList();
     }
 
     private PackSelection getCurrentPacks() {
@@ -739,11 +762,7 @@ public class Store implements FZRef<PackedPacksState> {
             enabledIds = Collections.emptySet();
         } else {
             enabledIds = validated.enabled().stream()
-                    .flatMap(pack -> {
-                        Stream.Builder<PackNode> builder = Stream.builder();
-                        repository.collectNodes(pack, builder::add);
-                        return builder.build();
-                    })
+                    .flatMap(repository::flattenNodes)
                     .map(PackNode::id)
                     .collect(Collectors.toCollection(ObjectOpenHashSet::new));
         }

@@ -17,7 +17,6 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.layouts.LayoutElement;
@@ -60,7 +59,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         this.state = newState.profiles();
         this.devMode = newState.devMode();
 
-        if (prev.profiles() != this.state.profiles()) {
+        if (prev.profiles() != this.state.profiles() || prev.defaultProfile() != this.state.defaultProfile()) {
             rebuildEntries();
         } else {
             for (Entry entry : children()) {

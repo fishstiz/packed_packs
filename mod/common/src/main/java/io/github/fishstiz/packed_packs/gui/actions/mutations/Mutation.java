@@ -5,6 +5,7 @@ import io.github.fishstiz.packed_packs.pack.PackSelection;
 public sealed interface Mutation permits
         Mutation.PackRenaming,
         Mutation.Reset,
+        Mutation.DevModeToggled,
         PackListMutation,
         ProfileMutation {
 
@@ -22,6 +23,13 @@ public sealed interface Mutation permits
             return false;
         }
 
+        @Override
+        public boolean resetHistory() {
+            return true;
+        }
+    }
+
+    record DevModeToggled() implements Mutation {
         @Override
         public boolean resetHistory() {
             return true;

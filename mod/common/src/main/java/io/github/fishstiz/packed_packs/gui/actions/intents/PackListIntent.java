@@ -82,6 +82,9 @@ public sealed interface PackListIntent extends Intent {
     }
 
     record Drop(PackListKey srcList, @Nullable PackListKey targetList, int index) implements PackListIntent {
+        public Drop(PackListKey srcList) {
+            this(srcList, null, 0);
+        }
     }
 
     record OpenRenameModal(PackListKey srcList, PackNode pack) implements PackListIntent {

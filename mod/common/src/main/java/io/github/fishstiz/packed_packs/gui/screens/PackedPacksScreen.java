@@ -402,7 +402,6 @@ public class PackedPacksScreen extends FZScreen {
             super.repositionElements();
         } else {
             layout.fidgetz$setSize(width, height);
-            layout.arrangeElements();
         }
 
         dialogManager.remove(GLOBAL_CONTEXT_MENU_ID);
@@ -649,7 +648,7 @@ public class PackedPacksScreen extends FZScreen {
             return true;
         }
         dialogManager.remove(GLOBAL_CONTEXT_MENU_ID);
-        if (event.isEscape()) {
+        if (event.isEscape() && dialogManager.dialogs().stream().noneMatch(FZDialog::isOpen)) {
             PackListType type = getClosestListType();
             if (store.closeFolder(type) ||
                 store.closeFolder(type.other()) ||

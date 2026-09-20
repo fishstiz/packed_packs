@@ -54,6 +54,14 @@ public final class Reducer {
                         state.devMode()
                 );
             }
+            case Mutation.DevModeToggled() -> {
+                PackedPacksState newState = state.withDevMode(!state.devMode());
+
+                yield newState.withPackLists(
+                        refreshList(newState.available(), newState.profiles(), newState.devMode()),
+                        refreshList(newState.enabled(), newState.profiles(), newState.devMode())
+                );
+            }
             case Mutation.PackRenaming renaming -> {
                 ActiveAction.RenamingPack renamingState = state.renamingPack();
                 if (renamingState != null) {
@@ -76,6 +84,26 @@ public final class Reducer {
             };
             case ProfileMutation profileMutation -> reduceProfile(state, profileMutation);
         };
+    }
+
+    private static PackListState refreshList(PackListState state, ProfileSelection profiles, boolean devMode) {
+        state = state.withQuery(state.query(), profiles, devMode);
+
+        PackListState currentParent = state;
+        PackListState currentFolder = state.folder();
+        for (boolean head = true; currentFolder != null; head = false) {
+            currentParent = currentParent.withFolder(
+                    currentFolder.withQuery(currentFolder.query(), profiles, devMode),
+                    profiles,
+                    devMode
+            );
+
+            if (head) state = currentParent;
+            currentParent = currentParent.folder();
+            currentFolder = currentParent == null ? null : currentParent.folder();
+        }
+
+        return state;
     }
 
     private static PackListState reduceList(
@@ -417,7 +445,8 @@ public final class Reducer {
 
                     if (!packs.isEmpty()) {
                         yield reduceList(newState, switch (dest.type()) {
-                            case AVAILABLE -> new PackListMutation.Disabled(srcList, dragging.srcPack(), packs.reversed());
+                            case AVAILABLE ->
+                                    new PackListMutation.Disabled(srcList, dragging.srcPack(), packs.reversed());
                             case ENABLED ->
                                     new PackListMutation.Enabled(srcList, dragging.srcPack(), packs.reversed(), position);
                         });
@@ -602,13 +631,17 @@ public final class Reducer {
                 );
             }
             case ProfileMutation.DefaultRemoved() -> state.withProfiles(state.profiles().withDefault(null));
-            case ProfileMutation.DefaultChanged(Profile profile, @Nullable PackSelection packs) ->
-                    Objects.equals(profile, state.profiles().selectedProfile()) || packs == null
-                            ? state.withProfiles(state.profiles().withDefault(profile))
-                            : reduceProfile(
-                            state.withProfiles(state.profiles().withDefault(profile)),
-                            new ProfileMutation.Selected(profile, packs)
-                    );
+            case ProfileMutation.DefaultChanged(Profile profile, @Nullable PackSelection packs) -> {
+                PackedPacksState newState = state.withProfiles(
+                        updateProfileState(state.profiles().withDefault(profile), profile)
+                );
+
+                if (Objects.equals(profile, state.profiles().selectedProfile()) || packs == null) {
+                    yield newState;
+                }
+
+                yield reduceProfile(newState, new ProfileMutation.Selected(profile, packs));
+            }
             case ProfileMutation.LockToggled(Profile profile) ->
                     state.withProfiles(updateProfileState(state.profiles(), profile.withLocked(!profile.isLocked())));
             case ProfileMutation.Renamed(Profile profile, String name) ->
@@ -622,12 +655,12 @@ public final class Reducer {
     // just pretend profile is immutable, at some point it will be (maybe)
     private static ProfilesState updateProfileState(ProfilesState state, Profile newProfile) {
         Profile selectedProfile = state.selectedProfile();
-        if (selectedProfile != null && newProfile.getId().equals(selectedProfile.getId())) {
+        if (selectedProfile != null && (selectedProfile == newProfile || newProfile.getId().equals(selectedProfile.getId()))) {
             selectedProfile = newProfile;
         }
 
         Profile defaultProfile = state.defaultProfile();
-        if (defaultProfile != null && newProfile.getId().equals(defaultProfile.getId())) {
+        if (defaultProfile != null && (defaultProfile == newProfile || newProfile.getId().equals(defaultProfile.getId()))) {
             defaultProfile = newProfile;
         }
 

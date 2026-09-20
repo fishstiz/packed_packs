@@ -8,7 +8,7 @@ TODO
         - Cannot be sorted
     - An unlocked folder's children can be transferred outside the folder.
       ([#47](https://github.com/fishstiz/packed_packs/issues/47))
-        - Cannot itself be enabled, instead it will be flattened.
+        - Cannot itself be enabled, will instead be flattened.
         - Can be sorted
         - Folders cannot be unlocked from the enabled list.
     - TODO add config option to change default folder state
