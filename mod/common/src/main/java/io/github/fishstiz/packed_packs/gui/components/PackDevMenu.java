@@ -7,7 +7,7 @@ import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.PackOverride;
 import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
-import io.github.fishstiz.packed_packs.impl.context.Context;
+import io.github.fishstiz.packed_packs.gui.screens.PackedPacksContext;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.gui.states.ProfileSelection;
 import io.github.fishstiz.packed_packs.gui.states.ProfileScope;
@@ -50,11 +50,11 @@ class PackDevMenu {
     private static final Component FIXED_BOTTOM = overrideText("fixed.bottom");
     private static final Component REMOVE_OVERRIDES = overrideText("remove");
     private static final Tooltip REQUIRED_NO_DISABLED_INFO = Tooltip.create(overrideText("required.no.disabled.info"));
-    private final Context context;
+    private final PackedPacksContext context;
     private final ProfileSelection profiles;
     private final PackList.Entry entry;
 
-    PackDevMenu(Context context, ProfileSelection profiles, PackList.Entry entry) {
+    PackDevMenu(PackedPacksContext context, ProfileSelection profiles, PackList.Entry entry) {
         this.context = context;
         this.profiles = profiles;
         this.entry = entry;

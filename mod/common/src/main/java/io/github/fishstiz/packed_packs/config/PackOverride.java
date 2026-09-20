@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs.config;
 
 import com.google.gson.*;
+import com.google.gson.annotations.JsonAdapter;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import net.minecraft.server.packs.repository.Pack;
 import org.jspecify.annotations.Nullable;
@@ -8,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 import java.lang.reflect.Type;
 import java.util.Objects;
 
+@JsonAdapter(PackOverride.Adapter.class)
 public final class PackOverride {
     private static final String HIDDEN_SERIALIZED_NAME = "hidden";
     private static final String REQUIRED_SERIALIZED_NAME = "required";

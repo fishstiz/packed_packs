@@ -5,24 +5,27 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.fidgetz.v0.gui.state.FZMutableRef;
+import io.github.fishstiz.fidgetz.v0.gui.state.FZRef;
 import io.github.fishstiz.fidgetz.v0.gui.text.TextStyleMatcher;
 import io.github.fishstiz.fidgetz.v0.gui.text.TextStyleRegexMatcher;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
 import io.github.fishstiz.packed_packs.config.DevConfig;
+import io.github.fishstiz.packed_packs.gui.actions.intents.Intent;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
-import io.github.fishstiz.packed_packs.gui.Store;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
-import io.github.fishstiz.packed_packs.pack.PackResourcesService;
+import io.github.fishstiz.packed_packs.pack.PackIconCache;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.gui.text.GroupCloseStyleMatcher;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import org.apache.commons.lang3.mutable.MutableObject;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -49,13 +52,16 @@ public class PackAliasLayout extends WrappedLayout {
         closeHandler.run();
     }
 
-    public static PackAliasLayout create(Store store) {
-        ActiveAction.EditingAliases editingAliases = store.value().editingAliases();
+    public static PackAliasLayout create(
+            FZRef<ActiveAction.@Nullable EditingAliases> state,
+            Consumer<? super Intent> dispatcher,
+            PackIconCache iconCache
+    ) {
+        ActiveAction.EditingAliases editingAliases = state.value();
         if (editingAliases == null) {
             return new PackAliasLayout(error(Component.literal("editingAliases is null")));
         }
 
-        PackResourcesService resources = store.getPackResourcesService();
         List<TextStyleMatcher> styles = styleMatchers();
         PackNode pack = editingAliases.pack();
         final FZMutableRef<List<MutableObject<String>>> aliasesRef = new FZMutableRef<>(editingAliases
@@ -63,7 +69,7 @@ public class PackAliasLayout extends WrappedLayout {
                 .stream()
                 .map(MutableObject::new)
                 .collect(Collectors.toCollection(ArrayList::new)));
-        final Runnable closeHandler = () -> store.dispatch(new PackListIntent.CloseAliases(aliasesRef
+        final Runnable closeHandler = () -> dispatcher.accept(new PackListIntent.CloseAliases(aliasesRef
                 .value()
                 .stream()
                 .map(MutableObject::get)
@@ -76,7 +82,7 @@ public class PackAliasLayout extends WrappedLayout {
             root.child(FZFlexLayout.horizontal(), root.flexChildHorizontalSettings()).also(header -> {
                 header.maxWidth(WIDTH).spacing(SPACING).defaultChildSettings().alignVerticallyMiddle();
 
-                header.child(FZIcon.builder(Renderables.texture(resources.getIcon(pack), 32, 32)).build());
+                header.child(FZIcon.builder(Renderables.texture(iconCache.get(pack), 32, 32)).build());
                 header.child(FZText.builder(pack.title())
                         .build(), header.flexChildHorizontalSettings());
                 header.child(FZButton.builder()

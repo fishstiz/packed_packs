@@ -3,11 +3,10 @@ package io.github.fishstiz.packed_packs.gui.states;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import io.github.fishstiz.fidgetz.v0.utils.GuiGraphicsUtils;
 import io.github.fishstiz.packed_packs.gui.components.PackListContainer;
-import io.github.fishstiz.packed_packs.pack.PackResourcesService;
+import io.github.fishstiz.packed_packs.pack.PackIconCache;
 import io.github.fishstiz.packed_packs.util.Colors;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import org.jspecify.annotations.Nullable;
 
 public final class DragActionRenderer {
     private static final int OFFSET_Y = 4;
@@ -16,12 +15,12 @@ public final class DragActionRenderer {
     private static final int ICON_OFFSET_X = ICON_SIZE / 2;
     private static final int ICON_OFFSET_Y = ICON_SIZE - OFFSET_Y;
     private static final int NUM_OFFSET_Y = NUM_SIZE - OFFSET_Y + (ICON_SIZE - NUM_SIZE) / 2;
-    private final PackResourcesService resources;
+    private final PackIconCache iconCache;
     private final Font font;
     private final PackListContainer[] lists;
 
-    public DragActionRenderer(PackResourcesService resources, Font font, PackListContainer... lists) {
-        this.resources = resources;
+    public DragActionRenderer(PackIconCache iconCache, Font font, PackListContainer... lists) {
+        this.iconCache = iconCache;
         this.font = font;
         this.lists = lists;
     }
@@ -55,7 +54,7 @@ public final class DragActionRenderer {
         int iconBottom = iconY + ICON_SIZE;
 
         graphics.fill(iconX, iconY, iconRight, iconBottom, Colors.GRAY_800);
-        GuiGraphicsUtils.texture(graphics, resources.getIcon(dragging.srcPack()), iconX, iconY, ICON_SIZE, ICON_SIZE);
+        GuiGraphicsUtils.texture(graphics, iconCache.get(dragging.srcPack()), iconX, iconY, ICON_SIZE, ICON_SIZE);
         graphics.fill(iconX, iconY, iconRight, iconBottom, Colors.alpha(Colors.BLACK, 0.5f));
 
         int numRight = numX + numWidth;

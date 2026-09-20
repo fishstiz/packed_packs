@@ -12,15 +12,15 @@ public record PackListKey(PackListType type, int depth) {
         return ENABLED_ROOT;
     }
 
-    public static PackListKey root(PackListType type) {
+    public static PackListKey head(PackListType type) {
         return switch (type) {
             case AVAILABLE -> available();
             case ENABLED -> enabled();
         };
     }
 
-    public PackListKey root() {
-        return root(this.type);
+    public PackListKey head() {
+        return head(this.type);
     }
 
     public PackListKey nest() {
@@ -29,7 +29,7 @@ public record PackListKey(PackListType type, int depth) {
 
     public PackListKey unnest() {
         int newDepth = depth - 1;
-        if (newDepth == 0) return root(type);
+        if (newDepth == 0) return head(type);
 
         return new PackListKey(this.type, this.depth - 1);
     }

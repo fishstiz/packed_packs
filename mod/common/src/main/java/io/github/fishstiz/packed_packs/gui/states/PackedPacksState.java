@@ -94,7 +94,7 @@ public record PackedPacksState(
     }
 
     public PackListKey getTailKey(PackListType type) {
-        return this.getTailKey(this.getHeadList(type), PackListKey.root(type));
+        return this.getTailKey(this.getHeadList(type), PackListKey.head(type));
     }
 
     public PackListState getTailList(PackListType type) {

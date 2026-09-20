@@ -98,6 +98,7 @@ public final class Config {
         private boolean replaceOriginal = true;
         private boolean hideIncompatibleWarnings = false;
         private final List<String> additionalFolders = new ObjectArrayList<>();
+        private boolean foldersModuleByDefault = false;
         private boolean rememberLastViewedProfile = false;
         private @Nullable String lastViewedProfile = null;
         private List<String> profileOrder = new ObjectArrayList<>();
@@ -146,6 +147,14 @@ public final class Config {
 
         public List<String> getAdditionalFolders() {
             return List.copyOf(this.additionalFolders);
+        }
+
+        public boolean areFoldersModuleByDefault() {
+            return this.foldersModuleByDefault;
+        }
+
+        public void setFoldersModuleByDefault(boolean foldersModuleByDefault) {
+            this.foldersModuleByDefault = foldersModuleByDefault;
         }
     }
 

@@ -3,15 +3,15 @@ package io.github.fishstiz.packed_packs.gui.components;
 import io.github.fishstiz.fidgetz.v0.gui.components.*;
 import io.github.fishstiz.fidgetz.v0.gui.components.events.FZHoverableElement;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
+import io.github.fishstiz.fidgetz.v0.gui.state.FZRef;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.DevConfig;
 import io.github.fishstiz.packed_packs.config.DevConfig.ResourcePacks.LoadDefaultCondition;
 import io.github.fishstiz.packed_packs.config.Profile;
+import io.github.fishstiz.packed_packs.gui.actions.intents.Intent;
 import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
 import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
-import io.github.fishstiz.packed_packs.gui.Store;
 import io.github.fishstiz.packed_packs.gui.actions.intents.ProfileIntent;
-import io.github.fishstiz.packed_packs.impl.context.Context;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -22,6 +22,7 @@ import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.PackType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,14 +34,16 @@ import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
 
 public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> implements Layout {
     private static final Component EMPTY_TEXT = Component.translatable("packed_packs.profile.empty");
-    private final Context context;
-    private boolean devMode;
+    private final Consumer<? super Intent> dispatcher;
+    private final PackType packType;
     private ProfilesState state = ProfilesState.empty();
+    private boolean devMode;
 
-    public ProfileList(Context context, Store store) {
-        this.context = context;
-        onStateChanged(store.value());
-        store.subscribe("ProfileList", this::onStateChanged);
+    public ProfileList(FZRef<PackedPacksState> state, Consumer<? super Intent> dispatcher, PackType packType) {
+        this.dispatcher = dispatcher;
+        this.packType = packType;
+        onStateChanged(state.value());
+        state.subscribe("ProfileList", this::onStateChanged);
     }
 
     @Override
@@ -151,7 +154,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         clearEntries();
     }
 
-    final class Entry extends FZAbstractListWidget.Entry implements FZContextMenu.Source {
+    protected final class Entry extends FZAbstractListWidget.Entry implements FZContextMenu.Source {
         private static final Identifier STAR_OUTLINE_SPRITE = PackedPacks.id("icon/star_outline");
         private final List<AbstractWidget> children = new ArrayList<>();
         private final FZFlexLayout layout;
@@ -188,14 +191,14 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
                     .message(Component.translatable("packed_packs.profile.delete"))
                     .tooltip(deleteActive ? Component.translatable("packed_packs.profile.delete.info") : null)
                     .icon(getDeleteIcon(isDefault, isLocked))
-                    .onPress(() -> context.dispatch(new ProfileIntent.Delete(profile)))
+                    .onPress(() -> dispatcher.accept(new ProfileIntent.Delete(profile)))
                     .active(deleteActive)
                     .build()));
 
             this.selectButton = addChild(layout.child(FZButton.builder()
                     .id("SelectButton")
                     .message(Component.literal(profile.getName()))
-                    .onPress(() -> context.dispatch(new ProfileIntent.Select(profile)))
+                    .onPress(() -> dispatcher.accept(new ProfileIntent.Select(profile)))
                     .active(state.selectedProfile() != profile)
                     .build(), layout.flexChildHorizontalSettings()));
 
@@ -273,11 +276,11 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         }
 
         private void toggleDefault() {
-            context.dispatch(new ProfileIntent.SetDefault(isDefault() ? null : profile));
+            dispatcher.accept(new ProfileIntent.SetDefault(isDefault() ? null : profile));
         }
 
         private void toggleLock() {
-            context.dispatch(new ProfileIntent.ToggleLock(profile));
+            dispatcher.accept(new ProfileIntent.ToggleLock(profile));
         }
 
         private static WidgetElements getDeleteIcon(boolean isDefault, boolean isLocked) {
@@ -317,7 +320,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
                     .icon(createIcon(() -> state.isLocked() ? LOCK_SPRITE_SMALL : UNLOCK_SPRITE_SMALL))
                     .onPress(this::toggleLock)));
 
-            if (!isDefault() || context.isServerData()) {
+            if (!isDefault() || packType == PackType.SERVER_DATA) {
                 return;
             }
 

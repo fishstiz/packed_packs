@@ -4,26 +4,15 @@ import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.config.JsonLoader;
 import io.github.fishstiz.packed_packs.gui.states.ProfileSelection;
 import io.github.fishstiz.packed_packs.util.PackUtil;
-import net.minecraft.resources.Identifier;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class PackResourcesService {
     private final PackNodeRepository repository;
-    private final PackIconCache iconCache;
 
-    public PackResourcesService(PackNodeRepository repository, PackIconCache iconCache) {
+    public PackResourcesService(PackNodeRepository repository) {
         this.repository = repository;
-        this.iconCache = iconCache;
-    }
-
-    public Identifier getIcon(PackNode pack) {
-        return iconCache.get(pack);
-    }
-
-    public void clearIcons() {
-        iconCache.clear();
     }
 
     public boolean isModifiable(ProfileSelection profiles, PackNode pack) {

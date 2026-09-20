@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
+import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.config.JsonLoader;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
@@ -33,6 +34,7 @@ import java.util.stream.Stream;
 
 public class PackNodeRepository {
     private final PackRepository repository;
+    private final Config.Packs config;
     private final Path packDir;
 
     // folder meta is decoupled from folder entries to prevent overwriting unsaved state when refreshing packs
@@ -42,9 +44,10 @@ public class PackNodeRepository {
     private volatile Map<String, PackNode> packs = Collections.emptyMap();
     private volatile Set<String> selectedPackIds = Collections.emptySet();
 
-    public PackNodeRepository(PackRepository repository, Path packDir) {
+    public PackNodeRepository(PackRepository repository, Config.Packs config, Path packDir) {
         this.repository = repository;
         this.packDir = packDir;
+        this.config = config;
         this.refreshSelectionModel();
     }
 
@@ -62,6 +65,10 @@ public class PackNodeRepository {
         ((PackSelectionModelAccessor) this.selectionModel).packed_packs$filterHidden(false);
     }
 
+    private FolderPackMeta createFolderMeta() {
+        return new FolderPackMeta(config.areFoldersModuleByDefault());
+    }
+
     private void loadFolderMetadata(PackNode entry) {
         // load metadata on first discover only to prevent overwriting unsaved state
         if (!(entry instanceof PackNode.Parent parent) || folderMeta.containsKey(entry.id())) {
@@ -75,7 +82,7 @@ public class PackNodeRepository {
                     folderMeta.put(entry.id(), JsonLoader.loadOrDefault(
                             stream,
                             FolderPackMeta.class,
-                            FolderPackMeta::new
+                            this::createFolderMeta
                     ));
                     return;
                 } catch (Exception e) {
@@ -83,7 +90,9 @@ public class PackNodeRepository {
                 }
             }
 
-            folderMeta.put(entry.id(), new FolderPackMeta());
+            FolderPackMeta meta = createFolderMeta();
+            folderMeta.put(entry.id(), meta);
+            JsonLoader.saveJson(meta, parent.path().resolve(FolderPackMeta.FILENAME), false);
         }
     }
 
@@ -95,7 +104,7 @@ public class PackNodeRepository {
      *                       </ul>
      */
     public void collectDescendantLeaves(PackNode.Parent current, TriState includeModules, Consumer<PackNode> collector) {
-        FolderPackMeta meta = Objects.requireNonNullElseGet(folderMeta.get(current.id()), FolderPackMeta::new);
+        FolderPackMeta meta = Objects.requireNonNullElseGet(folderMeta.get(current.id()), this::createFolderMeta);
         if (meta.module()) {
             if (includeModules == TriState.DEFAULT) {
                 collector.accept(current);
@@ -164,7 +173,7 @@ public class PackNodeRepository {
         PackNode.Parent moduleAncestor = null;
 
         while (current instanceof PackNode.Parent parent) {
-            FolderPackMeta meta = Objects.requireNonNullElseGet(folderMeta.get(current.id()), FolderPackMeta::new);
+            FolderPackMeta meta = Objects.requireNonNullElseGet(folderMeta.get(current.id()), this::createFolderMeta);
 
             if (meta.module()) {
                 moduleAncestor = parent;
@@ -179,7 +188,7 @@ public class PackNodeRepository {
         Map<String, PackNode> packs = this.packs;
         List<PackNode> children = parent.children();
 
-        FolderPackMeta meta = Objects.requireNonNullElseGet(folderMeta.get(parent.id()), FolderPackMeta::new);
+        FolderPackMeta meta = Objects.requireNonNullElseGet(folderMeta.get(parent.id()), this::createFolderMeta);
 
         List<String> orderedIds = meta.packIds();
         Set<String> seen = new ObjectOpenHashSet<>();
@@ -364,6 +373,10 @@ public class PackNodeRepository {
         return List.copyOf(this.packs.values());
     }
 
+    public Set<String> getPackIds() {
+        return Set.copyOf(this.packs.keySet());
+    }
+
     public @Nullable PackNode getPackById(String id) {
         return this.packs.get(id);
     }
@@ -386,7 +399,7 @@ public class PackNodeRepository {
     }
 
     public FolderPackMeta getFolderMetadata(PackNode.Parent parent) {
-        return Objects.requireNonNullElseGet(folderMeta.get(parent.id()), FolderPackMeta::new);
+        return Objects.requireNonNullElseGet(folderMeta.get(parent.id()), this::createFolderMeta);
     }
 
     public boolean setFolderMetadata(String folderId, FolderPackMeta metadata) {
@@ -422,12 +435,8 @@ public class PackNodeRepository {
         }
     }
 
-    public Path baseDirectorySource() {
-        return packDir;
-    }
-
     public List<Path> otherDirectorySources() {
-        Path normalizedBaseDir = baseDirectorySource().toAbsolutePath().normalize();
+        Path normalizedBaseDir = packDir.toAbsolutePath().normalize();
 
         return ((PackRepositoryAccessor) this.repository).packed_packs$getSources().stream()
                 .filter(FolderRepositorySourceAccessor.class::isInstance)

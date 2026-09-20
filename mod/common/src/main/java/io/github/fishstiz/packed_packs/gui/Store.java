@@ -37,7 +37,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.locale.Language;
 import net.minecraft.server.packs.repository.Pack;
-import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.util.Util;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.jspecify.annotations.Nullable;
@@ -50,37 +49,34 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static io.github.fishstiz.packed_packs.util.PackUtil.mapValidDirectories;
-
 public class Store implements FZRef<PackedPacksState> {
     private final Minecraft minecraft;
     private final PackConfigs configs;
     private final PackNodeRepository repository;
-    private final Consumer<PackRepository> onCommit;
+    private final PackIconCache iconCache;
     private final PackResourcesService resources;
     private final HistoryManager<PackedPacksState> history;
     private final ConcurrentHashMap<String, Runnable> subscribers = new ConcurrentHashMap<>();
     private Consumer<UiEffect> effectHandler = FunctionUtils.nopConsumer();
     private PackedPacksState state = PackedPacksState.empty();
-    private volatile @Nullable List<Path> otherDirectorySources;
-    private volatile @Nullable PackWatcher watcher;
     private @Nullable CompletableFuture<Void> refreshFuture;
     private @Nullable CompletableFuture<Void> initialStateFuture;
+    private @Nullable PackWatcher watcher;
 
     public Store(
             Minecraft minecraft,
             PackConfigs configs,
-            Path baseDir,
-            PackRepository repository,
-            Consumer<PackRepository> onCommit
+            PackIconCache iconCache,
+            PackResourcesService resources,
+            PackNodeRepository repository
     ) {
         this.minecraft = minecraft;
         this.configs = configs;
         this.history = new HistoryManager<>(state);
-        this.repository = new PackNodeRepository(repository, baseDir);
-        this.initialStateFuture = CompletableFuture.runAsync(this.repository::refreshSources, Util.backgroundExecutor());
-        this.resources = new PackResourcesService(this.repository, new PackIconCache(minecraft, minecraft.getTextureManager()));
-        this.onCommit = onCommit;
+        this.repository = repository;
+        this.initialStateFuture = CompletableFuture.runAsync(repository::refreshSources, Util.backgroundExecutor());
+        this.iconCache = iconCache;
+        this.resources = resources;
     }
 
     @Override
@@ -169,10 +165,10 @@ public class Store implements FZRef<PackedPacksState> {
         return normalized;
     }
 
-    private void replaceState(PackedPacksState newState) {
+    private void replaceState(PackedPacksState newState, boolean normalize) {
         PackedPacksState prev = this.state;
         if (prev != newState) {
-            this.state = normalize(prev, newState, null);
+            this.state = normalize ? normalize(prev, newState, null) : newState;
             subscribers.values().forEach(Runnable::run);
         }
     }
@@ -446,10 +442,7 @@ public class Store implements FZRef<PackedPacksState> {
                                     Language.getInstance().getOrDefault("packed_packs.profile.unnamed")
                             );
                         } else {
-                            configs.profiles().save(selectedProfile);
-                            Set<String> enabled = new ObjectLinkedOpenHashSet<>(state.enabled().packs().size());
-                            state.enabled().packs().forEach(pack -> repository.collectNodes(pack, node -> enabled.add(node.id())));
-                            selectedProfile.setPacks(enabled);
+                            saveProfileState(selectedProfile);
                             copiedProfile = configs.profiles().copy(selectedProfile);
                         }
 
@@ -518,16 +511,13 @@ public class Store implements FZRef<PackedPacksState> {
             saveFolderState(prev.available().folder());
             saveFolderState(prev.enabled().folder());
             if (previousProfile != null && current.profiles().profiles().contains(previousProfile)) {
-                Set<String> packIds = new ObjectLinkedOpenHashSet<>(state.enabled().packs().size());
-                prev.enabled().packs().forEach(pack -> repository.collectNodes(pack, node -> packIds.add(node.id())));
-                previousProfile.setPacks(packIds);
-                configs.profiles().save(previousProfile);
+                saveProfileState(previousProfile);
             }
         }
     }
 
     private void onPopHistory(PackedPacksState popped) {
-        replaceState(popped);
+        replaceState(popped, true);
         effectHandler.accept(new UiEffect.Focus(popped.lastTarget().type(), true));
         effectHandler.accept(new UiEffect.ScrollToLastSelected(popped.lastTarget().type().other()));
     }
@@ -542,10 +532,6 @@ public class Store implements FZRef<PackedPacksState> {
         if (!state.profiles().isLocked()) {
             history.redo().ifPresent(this::onPopHistory);
         }
-    }
-
-    public PackResourcesService getPackResourcesService() {
-        return resources;
     }
 
     public List<Pack> getDisabledPacks() {
@@ -582,25 +568,8 @@ public class Store implements FZRef<PackedPacksState> {
         );
     }
 
-    public Path getBaseDirectorySource() {
-        return repository.baseDirectorySource();
-    }
-
-    public List<Path> getOtherDirectorySources() {
-        if (this.otherDirectorySources == null) {
-            Set<Path> additionalFolders = new LinkedHashSet<>(mapValidDirectories(configs.user().getAdditionalFolders()));
-            additionalFolders.addAll(repository.otherDirectorySources());
-            this.otherDirectorySources = List.copyOf(additionalFolders);
-        }
-        return this.otherDirectorySources;
-    }
-
-    public void startWatcher(ScreenContext context) {
+    public void startWatcher(ScreenContext context, List<Path> directories) {
         if (this.watcher == null) {
-            List<Path> otherSources = getOtherDirectorySources();
-            List<Path> directories = new ArrayList<>(otherSources.size() + 1);
-            directories.add(repository.baseDirectorySource());
-            directories.addAll(otherSources);
             PackWatcher watcher = new PackWatcher(directories, path -> {
                 if (!PackedPacksApiImpl.getInstance().eventBus().post(new WatchEvent(context, path)).isCanceled()) {
                     refreshRepository();
@@ -660,7 +629,7 @@ public class Store implements FZRef<PackedPacksState> {
         cancelRefresh();
         CompletableFuture<Void> future = CompletableFuture.runAsync(repository::refreshSources, Util.backgroundExecutor())
                 .thenRunAsync(() -> {
-                    replaceState(syncStateWithRepository(state, repository));
+                    replaceState(syncStateWithRepository(state, repository), false);
                     history.reset(state);
                 }, minecraft);
 
@@ -671,8 +640,8 @@ public class Store implements FZRef<PackedPacksState> {
     public void refreshRepositoryBlocking() {
         cancelRefresh();
         repository.refreshSources();
-        resources.clearIcons();
-        replaceState(syncStateWithRepository(state, repository));
+        iconCache.clear();
+        replaceState(syncStateWithRepository(state, repository), false);
         history.reset(state);
     }
 
@@ -806,40 +775,35 @@ public class Store implements FZRef<PackedPacksState> {
         return newState;
     }
 
-    private void syncSelectedProfile() {
-        Profile selectedProfile = this.state.profiles().selectedProfile();
-        if (selectedProfile != null) {
-            ObjectLinkedOpenHashSet<String> enabledIds = new ObjectLinkedOpenHashSet<>(state.enabled().packs().size());
-            state.enabled().packs().forEach(pack -> repository.collectNodes(pack, node -> enabledIds.add(node.id())));
-
-            selectedProfile.syncPacks(
-                    repository.getPacks().stream()
+    private void saveProfileState(@Nullable Profile profile) {
+        if (profile != null) {
+            profile.syncPacks(
+                    repository.getPackIds(),
+                    state.enabled().packs().stream()
+                            .flatMap(repository::flattenNodes)
                             .map(PackNode::id)
-                            .collect(Collectors.toSet()),
-                    enabledIds
+                            .collect(Collectors.toCollection(ObjectLinkedOpenHashSet::new))
             );
+            configs.profiles().save(profile);
         }
     }
 
     public void saveSelectedProfile() {
-        Profile selectedProfile = this.state.profiles().selectedProfile();
-        if (selectedProfile != null) {
-            saveFolderState(this.state.enabled().folder());
-            selectedProfile.setPacks(this.state.enabled().packs().stream().map(PackNode::id).toList());
-            configs.profiles().save(selectedProfile);
-        }
+        saveProfileState(state.profiles().selectedProfile());
     }
 
-    public void commit() {
+    public void savePacksToRepository() {
         saveFolderState(state.available().folder());
         saveFolderState(state.enabled().folder());
-        syncSelectedProfile();
+        saveSelectedProfile();
         repository.setEnabledPacks(state.enabled().packs());
-        onCommit.accept(repository.getRepository());
-        replaceState(state.withPackLists(
-                state.available(),
-                state.enabled().withQuery(Query.empty(), state.profiles(), state.devMode())
-        ));
+        replaceState(
+                state.withPackLists(
+                        state.available(),
+                        state.enabled().withQuery(Query.empty(), state.profiles(), state.devMode())
+                ),
+                true
+        );
     }
 
     public void saveState() {
@@ -853,15 +817,16 @@ public class Store implements FZRef<PackedPacksState> {
         Config.get().setHideIncompatible(query.hideIncompatible());
         Config.get().setDevMode(state.devMode());
 
-        syncSelectedProfile();
-        configs.profiles().setLastViewed(state.profiles().selectedProfile());
+        Profile selectedProfile = state.profiles().selectedProfile();
+        saveProfileState(selectedProfile);
+
+        configs.profiles().setLastViewed(selectedProfile);
         configs.profiles().setDefault(state.profiles().defaultProfile());
         configs.profiles().setOrder(state.profiles().profiles());
 
-        Profile selectedProfile = state.profiles().selectedProfile();
-        Runnable profileSaver = selectedProfile != null
-                ? () -> configs.profiles().save(selectedProfile)
-                : FunctionUtils.nop();
+        Runnable profileSaver = selectedProfile == null
+                ? FunctionUtils.nop()
+                : () -> configs.profiles().save(selectedProfile);
 
         PackedPacks.runInParallel(profileSaver, Config.get()::save, DevConfig.get()::save, Preferences::save);
     }
@@ -900,21 +865,6 @@ public class Store implements FZRef<PackedPacksState> {
         } else {
             history.reset(state);
         }
-
-        this.otherDirectorySources = null;
     }
 
-    public boolean closeFolder(PackListType type) {
-        PackListKey tail = this.state.getTailKey(type);
-        PackListKey parent = tail.unnest();
-        if (parent.depth() < 0) return false;
-
-        dispatch(new PackListIntent.CloseFolder(parent));
-        return true;
-    }
-
-    public boolean closeFolder() {
-        PackListType targetType = this.state.lastTarget().type();
-        return closeFolder(targetType) || closeFolder(targetType.other());
-    }
 }

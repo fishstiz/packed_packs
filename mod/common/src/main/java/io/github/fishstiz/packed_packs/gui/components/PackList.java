@@ -18,9 +18,8 @@ import io.github.fishstiz.packed_packs.gui.states.PackListKey;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
 import io.github.fishstiz.packed_packs.gui.states.PackListComputed;
-import io.github.fishstiz.packed_packs.impl.context.Context;
+import io.github.fishstiz.packed_packs.gui.screens.PackedPacksContext;
 import io.github.fishstiz.packed_packs.pack.PackNode;
-import io.github.fishstiz.packed_packs.pack.PackResourcesService;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
 import io.github.fishstiz.packed_packs.util.Colors;
@@ -62,15 +61,13 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     private static final int DROP_INDEX_PADDING = 3;
     private static final double SCROLL_RATE = (double) ITEM_HEIGHT / 2;
     private final Map<String, Entry> entries = new Object2ObjectOpenHashMap<>();
-    private final Context context;
-    private final PackResourcesService resources;
+    private final PackedPacksContext context;
     private final PackListComputed state;
     private boolean scrolling;
     private boolean initialized;
 
-    public PackList(Context context, PackResourcesService resources, PackListComputed state) {
+    public PackList(PackedPacksContext context, PackListComputed state) {
         this.context = context;
-        this.resources = resources;
         this.state = state;
     }
 
@@ -490,11 +487,11 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
 
         protected boolean isFileModifiable() {
-            return resources.isModifiable(PackList.this.state.profiles(), pack);
+            return context.resources().isModifiable(PackList.this.state.profiles(), pack);
         }
 
         protected Identifier getPackIcon() {
-            return resources.getIcon(pack);
+            return context.iconCache().get(pack);
         }
 
         protected void buildWidgets() {
@@ -718,11 +715,11 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 PackUtil.openParent(pack.path());
                 return true;
             }
-            if (isDelete(keyEvent) && resources.isModifiable(PackList.this.state.profiles(), pack)) {
+            if (isDelete(keyEvent) && context.resources().isModifiable(PackList.this.state.profiles(), pack)) {
                 deletePack();
                 return true;
             }
-            if (isRename(keyEvent) && resources.isModifiable(PackList.this.state.profiles(), pack)) {
+            if (isRename(keyEvent) && context.resources().isModifiable(PackList.this.state.profiles(), pack)) {
                 openRenameModal();
                 return true;
             }

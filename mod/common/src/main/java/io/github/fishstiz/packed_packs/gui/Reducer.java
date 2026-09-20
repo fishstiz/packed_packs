@@ -49,7 +49,7 @@ public final class Reducer {
                                 state.devMode()
                         ),
                         state.profiles(),
-                        state.lastTarget().root(),
+                        state.lastTarget().head(),
                         null,
                         state.devMode()
                 );
@@ -354,7 +354,7 @@ public final class Reducer {
             enabled = newSrcState;
         }
 
-        return state.withPackLists(disabled, enabled, transfer.srcList().root());
+        return state.withPackLists(disabled, enabled, transfer.srcList().head());
     }
 
     private static PackedPacksState reduceList(PackedPacksState state, PackListMutation.Cross mutation) {

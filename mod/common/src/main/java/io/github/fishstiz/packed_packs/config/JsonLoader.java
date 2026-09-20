@@ -13,10 +13,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.function.Supplier;
 
 public final class JsonLoader {
-    private static final Gson GSON = new GsonBuilder()
-            .setPrettyPrinting()
-            .registerTypeAdapter(PackOverride.class, new PackOverride.Adapter())
-            .create();
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private JsonLoader() {
     }

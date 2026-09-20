@@ -5,19 +5,22 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.fidgetz.v0.gui.state.FZMutableRef;
+import io.github.fishstiz.fidgetz.v0.gui.state.FZRef;
 import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
+import io.github.fishstiz.packed_packs.gui.actions.intents.Intent;
 import io.github.fishstiz.packed_packs.gui.states.PackListKey;
 import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
-import io.github.fishstiz.packed_packs.gui.Store;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
-import io.github.fishstiz.packed_packs.pack.PackResourcesService;
+import io.github.fishstiz.packed_packs.pack.PackIconCache;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import org.apache.commons.io.FilenameUtils;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import static io.github.fishstiz.packed_packs.util.PackUtil.ZIP_PACK_EXTENSION;
@@ -44,22 +47,25 @@ public class PackRenameLayout extends WrappedLayout {
         closeHandler.run();
     }
 
-    public static PackRenameLayout create(Store store) {
-        ActiveAction.RenamingPack renamingPack = store.value().renamingPack();
+    public static PackRenameLayout create(
+            FZRef<ActiveAction.@Nullable RenamingPack> state,
+            Consumer<? super Intent> dispatcher,
+            PackIconCache iconCache
+    ) {
+        ActiveAction.RenamingPack renamingPack = state.value();
         if (renamingPack == null) {
             return new PackRenameLayout(error(Component.literal("renamingPack is null")));
         }
 
-        final PackResourcesService resources = store.getPackResourcesService();
         final PackNode pack = renamingPack.pack();
         final PackListKey target = renamingPack.src();
         final String previousName = sanitizeNameForEdit(pack);
         final FZMutableRef<String> nameRef = new FZMutableRef<>(previousName);
         final String suggestion = PackUtil.isZipPath(pack.path()) ? ZIP_PACK_EXTENSION : null;
         final Runnable closeHandler = () -> {
-            ActiveAction.RenamingPack renaming = store.value().renamingPack();
+            ActiveAction.RenamingPack renaming = state.value();
             if (renaming == null || !renaming.loading()) {
-                store.dispatch(new PackListIntent.CloseRenameModal(target, pack));
+                dispatcher.accept(new PackListIntent.CloseRenameModal(target, pack));
             }
         };
 
@@ -67,7 +73,7 @@ public class PackRenameLayout extends WrappedLayout {
             root.child(FZFlexLayout.horizontal(), root.flexChildHorizontalSettings()).also(header -> {
                 header.maxWidth(WIDTH).spacing(SPACING).defaultChildSettings().alignVerticallyMiddle();
 
-                header.child(FZIcon.builder(Renderables.texture(resources.getIcon(pack), 32, 32))
+                header.child(FZIcon.builder(Renderables.texture(iconCache.get(pack), 32, 32))
                         .size(16, 16)
                         .build());
                 header.child(FZText.builder(pack.title())
@@ -90,7 +96,7 @@ public class PackRenameLayout extends WrappedLayout {
                     .focusOnInteraction(false)
                     .onPress(() -> {
                         if (canSave(previousName, value)) {
-                            store.dispatch(new PackListIntent.Rename(target, pack, sanitizeNameForSave(pack, value)));
+                            dispatcher.accept(new PackListIntent.Rename(target, pack, sanitizeNameForSave(pack, value)));
                         }
                     })
                     .toProps()));
@@ -107,8 +113,8 @@ public class PackRenameLayout extends WrappedLayout {
                     .onConfirm(e -> {
                         String newValue = e.target().getValue();
                         if (canSave(previousName, newValue)) {
-                            store.dispatch(new PackListIntent.Rename(target, pack, sanitizeNameForSave(pack, newValue)));
-                            ActiveAction.RenamingPack result = store.value().renamingPack();
+                            dispatcher.accept(new PackListIntent.Rename(target, pack, sanitizeNameForSave(pack, newValue)));
+                            ActiveAction.RenamingPack result = state.value();
                             if (result != null && result.loading()) {
                                 e.target().active = false;
                                 closeButton.active = false;
