@@ -1,6 +1,5 @@
 package io.github.fishstiz.packed_packs.util;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -32,16 +31,17 @@ public class InputUtil {
     }
 
     public static boolean isUndo(KeyEvent keyEvent) {
-        return keyEvent.key() == KEY_Z && keyEvent.hasControlDown() && keyEvent.modifiers() == MOD_CONTROL;
+        return keyEvent.key() == KEY_Z && keyEvent.hasControlDown() && (keyEvent.modifiers() & MOD_CONTROL) != 0;
     }
 
     public static boolean isRedo(KeyEvent keyEvent) {
         if (keyEvent.key() == KEY_Z) {
-            return keyEvent.hasControlDown() && keyEvent.hasShiftDown() && keyEvent.modifiers() == MOD_CONTROL + MOD_SHIFT;
+            return keyEvent.hasControlDown() && keyEvent.hasShiftDown()
+                   && (keyEvent.modifiers() & MOD_CONTROL) != 0
+                   && (keyEvent.modifiers() & MOD_SHIFT) != 0;
         } else if (keyEvent.key() == KEY_Y) {
-            return keyEvent.hasControlDown() && keyEvent.modifiers() == MOD_CONTROL;
+            return keyEvent.hasControlDown() && (keyEvent.modifiers() & MOD_CONTROL) != 0;
         }
-
         return false;
     }
 
@@ -91,7 +91,7 @@ public class InputUtil {
 
     public static boolean isRename(KeyEvent keyEvent) {
         return (noModifiers(keyEvent.modifiers()) && keyEvent.key() == KEY_F2) ||
-               (keyEvent.modifiers() == MOD_CONTROL && keyEvent.key() == KEY_R);
+               ((keyEvent.modifiers() & MOD_CONTROL) != 0 && keyEvent.key() == KEY_R);
     }
 
     public static boolean isRefresh(KeyEvent keyEvent) {
@@ -99,20 +99,22 @@ public class InputUtil {
     }
 
     public static boolean isOpenFile(KeyEvent keyEvent) {
-        return keyEvent.modifiers() == MOD_CONTROL && keyEvent.key() == KEY_RETURN;
+        return (keyEvent.modifiers() & MOD_CONTROL) != 0 && keyEvent.key() == KEY_RETURN;
     }
 
     public static boolean isOpenFolder(KeyEvent keyEvent) {
-        return keyEvent.modifiers() == MOD_ALT + MOD_SHIFT && keyEvent.key() == KEY_R;
+        return (keyEvent.modifiers() & MOD_ALT) != 0 && (keyEvent.modifiers() & MOD_SHIFT) != 0 && keyEvent.key() == KEY_R;
     }
 
     public static boolean isDeveloperMode(KeyEvent keyEvent) {
-        return noModifiers(keyEvent.modifiers()) && keyEvent.key() == KEY_F12 ||
-               keyEvent.modifiers() == MOD_CONTROL + MOD_SHIFT && keyEvent.key() == KEY_I;
+        return (noModifiers(keyEvent.modifiers()) && keyEvent.key() == KEY_F12)
+               || ((keyEvent.modifiers() & MOD_CONTROL) != 0
+                   && (keyEvent.modifiers() & MOD_SHIFT) != 0
+                   && keyEvent.key() == KEY_I);
     }
 
     public static boolean isSelectAll(KeyEvent keyEvent) {
-        return keyEvent.modifiers() == MOD_CONTROL && keyEvent.key() == KEY_A;
+        return (keyEvent.modifiers() & MOD_CONTROL) != 0 && keyEvent.key() == KEY_A;
     }
 
     public static boolean isSwitchDefaultProfile(KeyEvent keyEvent) {
@@ -120,7 +122,7 @@ public class InputUtil {
     }
 
     public static boolean isOpenProfiles(KeyEvent keyEvent) {
-        return keyEvent.modifiers() == MOD_CONTROL && keyEvent.key() == KEY_GRAVE;
+        return (keyEvent.modifiers() & MOD_CONTROL) != 0 && keyEvent.key() == KEY_GRAVE;
     }
 
     public static boolean noModifiers(int modifiers) {
@@ -128,7 +130,7 @@ public class InputUtil {
     }
 
     public static boolean moveModifiers(int modifiers) {
-        return modifiers == MOD_CONTROL || modifiers == MOD_ALT;
+        return (modifiers & (MOD_CONTROL | MOD_ALT)) != 0;
     }
 
     public static boolean shiftOnly(int modifiers) {
