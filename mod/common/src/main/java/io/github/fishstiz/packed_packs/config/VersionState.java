@@ -1,6 +1,8 @@
 package io.github.fishstiz.packed_packs.config;
 
-import io.github.fishstiz.packed_packs.PackedPacks;
+import io.github.fishstiz.packed_packs.platform.Services;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 
@@ -20,6 +22,13 @@ public final class VersionState {
         INSTANCE.previousVersion = INSTANCE.version;
         INSTANCE.version = CURRENT_VERSION;
 
+        if (INSTANCE.previousVersion == 1 && INSTANCE.migrateLegacyFolders == null) {
+            LoggerFactory.getLogger("packed_packs").info(
+                    "[packed_packs] Detecting an update from legacy folder packs. Enabling auto migration..."
+            );
+            INSTANCE.migrateLegacyFolders = true;
+        }
+
         if (INSTANCE.previousVersion != CURRENT_VERSION) {
             JsonLoader.saveJson(INSTANCE, getPath());
         }
@@ -27,9 +36,11 @@ public final class VersionState {
 
     private int version;
     private transient int previousVersion;
+    private @Nullable Boolean migrateLegacyFolders;
 
     private static Path getPath() {
-        return PackedPacks.getConfigDir().resolve(FILENAME);
+        // avoid loading PackedPacks
+        return Services.PLATFORM.getConfigDir().resolve("packed_packs").resolve(FILENAME);
     }
 
     public static int getPreviousVersion() {
@@ -38,6 +49,10 @@ public final class VersionState {
 
     public static int getVersion() {
         return INSTANCE.version;
+    }
+
+    public static boolean shouldMigrateLegacyFolders() {
+        return Boolean.TRUE.equals(INSTANCE.migrateLegacyFolders);
     }
 
     private VersionState() {

@@ -7,10 +7,13 @@ import com.llamalad7.mixinextras.sugar.Share;
 import com.llamalad7.mixinextras.sugar.ref.LocalBooleanRef;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
+import io.github.fishstiz.packed_packs.config.VersionState;
+import io.github.fishstiz.packed_packs.config.migrations.LegacyFolders;
 import io.github.fishstiz.packed_packs.pack.FolderLocationInfo;
+import io.github.fishstiz.packed_packs.config.migrations.LegacyFoldersHelper;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.util.PackUtil;
-import net.minecraft.server.packs.PackResources;
+import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.FolderRepositorySource;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackDetector;
@@ -33,16 +36,24 @@ import java.util.function.Consumer;
 
 @Mixin(FolderRepositorySource.class)
 public abstract class FolderRepositorySourceMixin {
+    @Unique
+    private static final ThreadLocal<@Nullable FolderLocationInfo> PARENT_CONTEXT = new ThreadLocal<>();
+
     @Shadow
     @Final
     private static Logger LOGGER;
 
-    @Unique
-    private static final ThreadLocal<@Nullable FolderLocationInfo> PARENT_CONTEXT = new ThreadLocal<>();
+    @Shadow
+    @Final
+    private PackType packType;
 
     @Inject(method = "loadPacks", at = @At("RETURN"))
-    private void ensureRemoveThreadLocals(Consumer<Pack> result, CallbackInfo ci) {
+    private void onFinalize(Consumer<Pack> result, CallbackInfo ci) {
         PARENT_CONTEXT.remove();
+
+        if (VersionState.shouldMigrateLegacyFolders()) {
+            LegacyFolders.save();
+        }
     }
 
     @WrapOperation(method = "discoverPacks", at = @At(
@@ -71,8 +82,7 @@ public abstract class FolderRepositorySourceMixin {
             FolderLocationInfo parent = PARENT_CONTEXT.get();
 
             try {
-                FolderLocationInfo parentInfo = FolderLocationInfo.fromPath(path.toAbsolutePath().normalize(), parent);
-                PARENT_CONTEXT.set(parentInfo);
+                PARENT_CONTEXT.set(FolderLocationInfo.fromPath(path.toAbsolutePath().normalize(), parent));
                 discoverPacks(path, validator, output);
             } catch (IOException e) {
                 PackedPacks.LOGGER.warn("[packed_packs] Failed to list packs in {}", path, e);
@@ -107,8 +117,6 @@ public abstract class FolderRepositorySourceMixin {
         suppressLogRef.set(false);
     }
 
-    // todo migrate folder pack ids using VersionState
-
     @ModifyArg(method = "lambda$loadPacks$0", at = @At(
             value = "INVOKE",
             target = "Ljava/util/function/Consumer;accept(Ljava/lang/Object;)V"
@@ -119,6 +127,9 @@ public abstract class FolderRepositorySourceMixin {
             FolderLocationInfo parent = PARENT_CONTEXT.get();
             if (parent != null) {
                 pack.packed_packs$setParent(parent);
+                if (parent.parent() == null && VersionState.shouldMigrateLegacyFolders()) {
+                    LegacyFoldersHelper.addLegacyPack(packType, parent, ((Pack) pack).getId());
+                }
             }
         }
         return arg;

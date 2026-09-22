@@ -35,13 +35,13 @@ public final class PackedPacksApiImpl implements PackedPacksApi {
         static {
             PackedPacksApiImpl api = new PackedPacksApiImpl();
 
-            for (PackedPacksInitializer extension : Services.PLATFORM.getModExtensions()) {
+            for (PackedPacksInitializer ext : Services.PLATFORM.getServices(PackedPacks.MOD_ID, PackedPacksInitializer.class)) {
                 try {
-                    extension.onInitialize(api);
+                    ext.onInitialize(api);
                 } catch (Throwable e) {
                     PackedPacks.LOGGER.error(
                             "[packed_packs] An error occurred while initializing PackedPacksInitializer implementation '{}'",
-                            extension.getClass().getName(), e
+                            ext.getClass().getName(), e
                     );
                 }
             }

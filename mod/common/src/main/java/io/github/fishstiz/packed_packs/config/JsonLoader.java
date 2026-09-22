@@ -2,7 +2,8 @@ package io.github.fishstiz.packed_packs.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import io.github.fishstiz.packed_packs.PackedPacks;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -13,6 +14,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.function.Supplier;
 
 public final class JsonLoader {
+    private static final Logger LOGGER = LoggerFactory.getLogger("packed_packs"); // avoid loading PackedPacks
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     private JsonLoader() {
@@ -22,7 +24,7 @@ public final class JsonLoader {
         try (InputStreamReader reader = new InputStreamReader(inputStream)) {
             return GSON.fromJson(reader, clazz);
         } catch (Exception e) {
-            PackedPacks.LOGGER.error("[packed_packs] Failed to read object with type '{}'", clazz.getName(), e);
+            LOGGER.error("[packed_packs] Failed to read object with type '{}'", clazz.getName(), e);
             return defaultFactory.get();
         }
     }
@@ -33,7 +35,7 @@ public final class JsonLoader {
             return GSON.fromJson(new String(bytes, StandardCharsets.UTF_8), clazz);
         } catch (NoSuchFileException ignored) {
         } catch (Exception e) {
-            PackedPacks.LOGGER.error("[packed_packs] Failed to load file at '{}'. ", path, e);
+            LOGGER.error("[packed_packs] Failed to load file at '{}'. ", path, e);
         }
         return defaultFactory.get();
     }
@@ -45,11 +47,11 @@ public final class JsonLoader {
             return GSON.fromJson(json, clazz);
         } catch (NoSuchFileException e) {
             T serializable = defaultFactory.get();
-            PackedPacks.LOGGER.info("[packed_packs] Creating file at '{}'.", path);
+            LOGGER.info("[packed_packs] Creating file at '{}'.", path);
             saveJson(serializable, path);
             return serializable;
         } catch (Exception e) {
-            PackedPacks.LOGGER.error("[packed_packs] Failed to load file at '{}'. ", path, e);
+            LOGGER.error("[packed_packs] Failed to load file at '{}'. ", path, e);
             return defaultFactory.get();
         }
     }
@@ -63,7 +65,7 @@ public final class JsonLoader {
             Files.writeString(path, json, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             return true;
         } catch (Exception e) {
-            PackedPacks.LOGGER.info("[packed_packs] Failed to save file at '{}'.", path, e);
+            LOGGER.info("[packed_packs] Failed to save file at '{}'.", path, e);
             return false;
         }
     }

@@ -9,6 +9,7 @@ import net.minecraft.server.packs.repository.PackSource;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.function.Predicate;
 
 public class FabricPlatformHelper implements PlatformHelper {
     @Override
@@ -32,12 +33,12 @@ public class FabricPlatformHelper implements PlatformHelper {
     }
 
     @Override
-    public List<PackedPacksInitializer> getModExtensions() {
-        return FabricLoader.getInstance().getEntrypoints(PackedPacks.MOD_ID, PackedPacksInitializer.class);
+    public <T> List<T> getServices(String key, Class<T> type) {
+        return FabricLoader.getInstance().getEntrypoints(key, type);
     }
 
     @Override
-    public boolean isBuiltInPack(PackSource packSource) {
-        return packSource == ModResourcePackCreator.RESOURCE_PACK_SOURCE;
+    public <T> Predicate<T> getPredicate(Class<T> type) {
+        return obj -> obj instanceof PackSource packSource && packSource == ModResourcePackCreator.RESOURCE_PACK_SOURCE;
     }
 }

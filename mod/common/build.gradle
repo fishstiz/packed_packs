@@ -28,6 +28,8 @@ repositories {
 }
 
 dependencies {
+    compileOnly "org.ow2.asm:asm-tree:9.6"
+
     compileOnlyApi project(path: ":api:common")
     compileOnlyApi libs.fidgetz.common
 

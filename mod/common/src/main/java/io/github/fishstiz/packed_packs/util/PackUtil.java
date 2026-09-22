@@ -38,10 +38,7 @@ public class PackUtil {
                     name,
                     Component.literal(PackedPacks.MOD_NAME).withStyle(ChatFormatting.YELLOW)
             ).withStyle(ChatFormatting.GRAY), false);
-
-    // Changing these fields would be breaking changes
     private static final String FILE_PREFIX = "file/";
-    private static final String DELIMITER = "/";
 
     private PackUtil() {
     }
@@ -75,7 +72,7 @@ public class PackUtil {
     }
 
     public static boolean isBuiltIn(PackSource packSource) {
-        return packSource == PackSource.BUILT_IN || Services.PLATFORM.isBuiltInPack(packSource);
+        return packSource == PackSource.BUILT_IN || Services.PLATFORM.getPredicate(PackSource.class).test(packSource);
     }
 
     public static boolean isEssential(String packId) {
