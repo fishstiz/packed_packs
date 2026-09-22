@@ -16,12 +16,12 @@ public record FolderPackMeta(boolean module, List<String> packIds) {
         packIds = List.copyOf(packIds);
     }
 
-    public FolderPackMeta withModule(boolean module) {
-        return new FolderPackMeta(module, packIds);
-    }
-
     public FolderPackMeta(boolean module) {
         this(module, Collections.emptyList());
+    }
+
+    public FolderPackMeta withModule(boolean module) {
+        return new FolderPackMeta(module, packIds);
     }
 
     static class Deserializer implements JsonDeserializer<FolderPackMeta> {

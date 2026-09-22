@@ -21,6 +21,7 @@ import io.github.fishstiz.packed_packs.pack.PackIconCache;
 import io.github.fishstiz.packed_packs.gui.screens.PackedPacksContext;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.gui.states.ProfileSelection;
+import io.github.fishstiz.packed_packs.pack.PackResourcesService;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
 import io.github.fishstiz.packed_packs.util.PackUtil;
@@ -65,7 +66,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         this.head = head;
         this.context = context;
         this.state = state;
-        this.packList = new PackList(context,  state);
+        this.packList = new PackList(context, state);
         this.children = List.of(this.packList);
     }
 
@@ -496,7 +497,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
             listContainer.context.resources().saveFolderMetadata(this.parent, new FolderPackMeta(
                     folderState.module(),
-                    folderState.packs().stream().map(PackNode::id).toList()
+                    PackResourcesService.replaceDirsWithRelative(folderState.packs())
             ));
 
             if (listContainer.folder != null) {

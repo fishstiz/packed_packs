@@ -39,31 +39,15 @@ public class PackUtil {
                     Component.literal(PackedPacks.MOD_NAME).withStyle(ChatFormatting.YELLOW)
             ).withStyle(ChatFormatting.GRAY), false);
 
-    // Changing these fields would be breaking changes
-    private static final String FILE_PREFIX = "file/";
-    private static final String DELIMITER = "/";
-
     private PackUtil() {
     }
 
-    public static String fileName(Path path) {
-        return path.getFileName().toString();
-    }
-
-    public static String generatePackName(Path path) {
-        return fileName(path);
-    }
-
-    public static String generatePackId(String name) {
-        return FILE_PREFIX + name;
-    }
-
-    public static String generatePackId(Path path) {
-        return generatePackId(generatePackName(path));
+    public static String replaceDirsWithRelative(String packId) {
+        return packId.replaceFirst("^file/.*(?=/[^/]+$)", "relative");
     }
 
     public static String joinPackNames(Collection<Path> paths) {
-        return String.join(", ", CollectionUtils.map(paths, PackUtil::generatePackName));
+        return String.join(", ", CollectionUtils.map(paths, path -> path.getFileName().toString()));
     }
 
     public static boolean hasMcmeta(Path path) {
@@ -91,7 +75,7 @@ public class PackUtil {
     }
 
     public static boolean isZipPath(@Nullable Path path) {
-        return path != null && Files.isRegularFile(path) && PackUtil.fileName(path).endsWith(ZIP_PACK_EXTENSION);
+        return path != null && Files.isRegularFile(path) && path.getFileName().toString().endsWith(ZIP_PACK_EXTENSION);
     }
 
     public static List<Path> mapValidDirectories(Collection<String> paths) {
@@ -176,8 +160,8 @@ public class PackUtil {
         return UtilAccess.packed_packs$createRenamer(path, newName).getAsBoolean();
     }
 
-    public static String getNewIdOnRename(String newName) {
-        return generatePackId(newName);
+    public static String getNewIdOnRename(String previousId, String newName) {
+        return previousId.replaceFirst("([^/]+?)(?=\\.[^./]+$|$)", newName);
     }
 
     public static PathValidationResults validatePaths(List<Path> packs) {
