@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class PackNodeRepository {
@@ -115,14 +116,14 @@ public class PackNodeRepository {
             }
         }
 
-        for (PackNode child : getSortedChildren(current)) {
+        collectSortedChildren(current, child -> {
             if (child instanceof PackNode.Leaf leaf) {
                 collector.accept(leaf);
             }
             if (child instanceof PackNode.Parent inner) {
                 collectDescendantLeaves(inner, includeModules, collector);
             }
-        }
+        });
     }
 
     public void collectNodes(PackNode pack, Consumer<PackNode> collector) {
@@ -186,7 +187,9 @@ public class PackNodeRepository {
 
     public void collectSortedChildren(PackNode.Parent parent, Consumer<PackNode> collector) {
         Map<String, PackNode> packs = this.packs;
-        List<PackNode> children = parent.children();
+        Set<String> children = parent.children().stream()
+                .map(PackNode::id)
+                .collect(Collectors.toCollection(ObjectLinkedOpenHashSet::new));
 
         FolderPackMeta meta = Objects.requireNonNullElseGet(folderMeta.get(parent.id()), this::createFolderMeta);
 
@@ -194,14 +197,15 @@ public class PackNodeRepository {
         Set<String> seen = new ObjectOpenHashSet<>();
 
         for (String id : orderedIds) {
-            PackNode pack = packs.get(id);
-            if (pack != null && seen.add(pack.id())) {
+            PackNode pack = packs.get(id.startsWith("relative/") ? id.replaceFirst("^relative", parent.id()) : id);
+            if (pack != null && children.contains(pack.id()) && seen.add(pack.id())) {
                 collector.accept(pack);
             }
         }
 
-        for (PackNode pack : children) {
-            if (seen.add(pack.id())) {
+        for (String id : children) {
+            PackNode pack = packs.get(id);
+            if (pack != null && seen.add(pack.id())) {
                 collector.accept(pack);
             }
         }

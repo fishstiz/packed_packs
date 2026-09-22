@@ -36,19 +36,21 @@ public class ProfileTitleLayout {
 
         FZTextField nameField = FZTextField.bind(
                 "ProfileNameField",
-                state.map(ProfilesState::selectedProfile).map(profile -> FZTextField.builder()
-                        .height(20)
-                        .visible(profile != null)
-                        .active(profile != null)
-                        .hint(profile == null ? NO_PROFILE_TEXT : ProfileManager.getDefaultNameComponent())
-                        .maxLength(ProfileManager.getNameMaxLength())
-                        .text(profile == null ? "" : profile.getName())
-                        .onChange(e -> {
-                            if (profile == null) return;
-                            dispatcher.accept(new ProfileIntent.Rename(profile, e.value()));
-                        })
-                        .toProps()
-                )
+                state.map(s -> {
+                    Profile profile = s.selectedProfile();
+                    return FZTextField.builder()
+                            .height(20)
+                            .visible(profile != null)
+                            .active(profile != null)
+                            .hint(profile == null ? NO_PROFILE_TEXT : ProfileManager.getDefaultNameComponent())
+                            .maxLength(ProfileManager.getNameMaxLength())
+                            .text(profile == null ? "" : profile.getName())
+                            .onChange(e -> {
+                                if (profile == null) return;
+                                dispatcher.accept(new ProfileIntent.Rename(profile, e.value()));
+                            })
+                            .toProps();
+                })
         );
 
         FZFlexLayout title = FZFlexLayout.horizontal().spacing(SPACING);
