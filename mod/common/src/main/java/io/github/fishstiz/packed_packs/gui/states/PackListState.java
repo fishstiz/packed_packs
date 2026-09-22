@@ -164,7 +164,7 @@ public record PackListState(
                 visiblePacks,
                 selectedPacks,
                 query,
-                folder
+                newModule ? null : folder
         ));
     }
 
