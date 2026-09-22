@@ -69,7 +69,7 @@ public final class PackedPacksContext implements ScreenContext {
         this.packRepository = args.repository();
         this.configs = PackConfigs.get(packType);
         this.nodeRepository = new PackNodeRepository(packRepository, configs.user(), packDir);
-        this.resources = new PackResourcesService(nodeRepository);
+        this.resources = new PackResourcesService(packType, nodeRepository);
         this.iconCache = new PackIconCache(minecraft, minecraft.getTextureManager());
         this.store = new Store(minecraft, configs, iconCache, resources(), nodeRepository);
     }

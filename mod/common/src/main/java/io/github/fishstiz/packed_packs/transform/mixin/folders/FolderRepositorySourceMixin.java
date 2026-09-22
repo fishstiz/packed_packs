@@ -10,7 +10,7 @@ import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.pack.FolderLocationInfo;
 import io.github.fishstiz.packed_packs.transform.interfaces.FilePack;
 import io.github.fishstiz.packed_packs.util.PackUtil;
-import net.minecraft.server.packs.PackResources;
+import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.repository.FolderRepositorySource;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackDetector;
@@ -39,6 +39,10 @@ public abstract class FolderRepositorySourceMixin {
 
     @Unique
     private static final ThreadLocal<@Nullable FolderLocationInfo> PARENT_CONTEXT = new ThreadLocal<>();
+
+    @Shadow
+    @Final
+    private Path folder;
 
     @Inject(method = "loadPacks", at = @At("RETURN"))
     private void ensureRemoveThreadLocals(Consumer<Pack> result, CallbackInfo ci) {
@@ -107,7 +111,19 @@ public abstract class FolderRepositorySourceMixin {
         suppressLogRef.set(false);
     }
 
-    // todo migrate folder pack ids using VersionState
+    @ModifyArg(method = "lambda$loadPacks$0", at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/server/packs/repository/Pack;readMetaAndCreate(Lnet/minecraft/server/packs/PackLocationInfo;Lnet/minecraft/server/packs/repository/Pack$ResourcesSupplier;Lnet/minecraft/server/packs/PackType;Lnet/minecraft/server/packs/PackSelectionConfig;)Lnet/minecraft/server/packs/repository/Pack;"
+    ))
+    private PackLocationInfo relativizePackId(PackLocationInfo location, @Local(argsOnly = true) Path path) {
+        FolderLocationInfo parent = PARENT_CONTEXT.get();
+        if (parent == null) return location;
+
+        String relativePath = this.folder.relativize(path).toString().replace('\\', '/');
+        String newId = "file/" + relativePath;
+
+        return new PackLocationInfo(newId, location.title(), location.source(), location.knownPackInfo());
+    }
 
     @ModifyArg(method = "lambda$loadPacks$0", at = @At(
             value = "INVOKE",
@@ -127,5 +143,10 @@ public abstract class FolderRepositorySourceMixin {
     @Shadow
     public static void discoverPacks(Path folder, DirectoryValidator validator, BiConsumer<Path, Pack.ResourcesSupplier> output) throws IOException {
         throw new AssertionError();
+    }
+
+    @Shadow
+    private static String nameFromPath(Path content) {
+        throw new UnsupportedOperationException("Implemented via mixin");
     }
 }
