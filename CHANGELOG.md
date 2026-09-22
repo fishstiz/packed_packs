@@ -1,5 +1,3 @@
-TODO
-
 - Folder Packs are now discoverable recursively
 - Folder Packs can now be locked/unlocked
     - Can be toggled from the folder view or from the metadata under the `module` flag.
