@@ -347,14 +347,14 @@ public class PackNodeRepository {
             packIds.add(pack.getId());
         };
 
-        for (PackNode pack : packs.reversed()) {
+        for (PackNode pack : packs) {
             switch (pack) {
                 case PackNode.Leaf leaf -> collector.accept(leaf.pack());
                 case PackNode.Parent parent -> collectPacks(parent, collector);
             }
         }
 
-        this.repository.setSelected(ImmutableList.copyOf(packIds));
+        this.repository.setSelected(ImmutableList.copyOf(packIds.reversed()));
 
         OptionInstance<Boolean> highContrastOption = Minecraft.getInstance().options.highContrast();
         if (highContrastOption.get() != highContrast.booleanValue()) {
