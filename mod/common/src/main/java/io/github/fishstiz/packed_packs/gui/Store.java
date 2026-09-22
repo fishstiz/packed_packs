@@ -282,9 +282,15 @@ public class Store implements FZRef<PackedPacksState> {
                         dispatch(new PackListMutation.AliasesModalOpened(open.srcList(), open.pack(), aliases));
                     }
                     case PackListIntent.OpenFolder open -> {
+                        PackListState srcList = state.getList(open.srcList());
+                        if (srcList == null) {
+                            return;
+                        }
+
                         if (!(repository.getPackById(open.pack().id()) instanceof PackNode.Parent canonical)) {
                             return;
                         }
+
 
                         List<PackNode> unsortedChildren = canonical.children();
                         FolderPackMeta metadata = repository.getFolderMetadata(canonical);
@@ -313,7 +319,7 @@ public class Store implements FZRef<PackedPacksState> {
                             sorted = filtered;
                         }
 
-                        if (dispatch(new PackListMutation.FolderOpened(open.srcList(), canonical, metadata.module(), sorted))) {
+                        if (dispatch(new PackListMutation.FolderOpened(open.srcList(), canonical, srcList.module() || metadata.module(), sorted))) {
                             effectHandler.accept(new UiEffect.FocusList(open.srcList().type()));
                         }
                     }
