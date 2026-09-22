@@ -5,13 +5,7 @@ import io.github.fishstiz.packed_packs.PackedPacks;
 import java.nio.file.Path;
 
 public final class VersionState {
-    /**
-     * <ol>
-     *     <li>1 - Added version state file.</li>
-     *     <li>2 - Added FolderPackMeta#module and removed folder id prefix in nested regular packs.</li>
-     * </ol>
-     */
-    private static final int CURRENT_VERSION = 2;
+    private static final int CURRENT_VERSION = 1;
     private static final String FILENAME = "__version.json";
     private static final VersionState INSTANCE;
 

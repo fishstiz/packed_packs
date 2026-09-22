@@ -12,15 +12,10 @@ TODO
         - Can be sorted
         - Folders cannot be unlocked from the enabled list.
     - Folders are unlocked by default. Can be changed from the options menu.
-      - Existing folder packs prior to updating will be locked to preserve behavior.
-- IDs of nested regular (non-folder) packs no longer inherit the parent's ID. This means you can no longer have multiple
-  packs with the same names under different folders.
-    - Nested folders will still inherit parent IDs
-    - **Note**: This change was made so nested regular packs do not suddenly move or be disabled when
-      folders are moved/renamed or when Packed Packs is uninstalled.
-    - TODO add auto migration (use temporary tracking file)
+    - Existing folder packs prior to updating will be locked to preserve behavior.
 - Folder pack metadata files are no longer watched and are loaded immediately with the folder pack upon entering the
   screen.
+- Renaming a pack from the Packed Packs screen now also updates all profiles and folders that contain that pack.
 - Fixed search not working for folders.
 - Fixed being unable to drag non-required fixed position packs from the enabled list.
 

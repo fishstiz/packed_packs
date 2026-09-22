@@ -394,7 +394,7 @@ public class Store implements FZRef<PackedPacksState> {
                                     dispatch(new PackListMutation.RenameModalClosed(rename.srcList(), rename.pack()));
                                     effectHandler.accept(new UiEffect.Focus(
                                             rename.srcList().type(),
-                                            PackUtil.getNewIdOnRename(rename.newName()),
+                                            PackUtil.getNewIdOnRename(rename.pack().id(), rename.newName()),
                                             true
                                     ));
                                 }, minecraft);
@@ -442,7 +442,7 @@ public class Store implements FZRef<PackedPacksState> {
                                     Language.getInstance().getOrDefault("packed_packs.profile.unnamed")
                             );
                         } else {
-                            saveProfileState(selectedProfile);
+                            saveProfileState(selectedProfile, state.enabled().packs());
                             copiedProfile = configs.profiles().copy(selectedProfile);
                         }
 
@@ -511,7 +511,7 @@ public class Store implements FZRef<PackedPacksState> {
             saveFolderState(prev.available().folder());
             saveFolderState(prev.enabled().folder());
             if (previousProfile != null && current.profiles().profiles().contains(previousProfile)) {
-                saveProfileState(previousProfile);
+                saveProfileState(previousProfile, prev.enabled().packs());
             }
         }
     }
@@ -645,18 +645,12 @@ public class Store implements FZRef<PackedPacksState> {
         history.reset(state);
     }
 
-    private void saveFolderMeta(PackNode.Parent parent, FolderPackMeta metadata) {
-        if (repository.setFolderMetadata(parent.id(), metadata)) {
-            resources.saveFolderMetadata(parent.path(), metadata);
-        }
-    }
-
     private void saveFolderState(@Nullable PackListState folder) {
         if (folder == null || folder.parent() == null) return;
         saveFolderState(folder.folder());
-        saveFolderMeta(
+        resources.saveFolderMetadata(
                 folder.parent(),
-                new FolderPackMeta(folder.module(), folder.packs().stream().map(PackNode::id).toList())
+                new FolderPackMeta(folder.module(), PackResourcesService.replaceDirsWithRelative(folder.packs()))
         );
     }
 
@@ -775,11 +769,11 @@ public class Store implements FZRef<PackedPacksState> {
         return newState;
     }
 
-    private void saveProfileState(@Nullable Profile profile) {
+    private void saveProfileState(@Nullable Profile profile, List<PackNode> packs) {
         if (profile != null) {
             profile.syncPacks(
                     repository.getPackIds(),
-                    state.enabled().packs().stream()
+                    packs.stream()
                             .flatMap(repository::flattenNodes)
                             .map(PackNode::id)
                             .collect(Collectors.toCollection(ObjectLinkedOpenHashSet::new))
@@ -789,7 +783,7 @@ public class Store implements FZRef<PackedPacksState> {
     }
 
     public void saveSelectedProfile() {
-        saveProfileState(state.profiles().selectedProfile());
+        saveProfileState(state.profiles().selectedProfile(), state.enabled().packs());
     }
 
     public void savePacksToRepository() {
@@ -818,7 +812,7 @@ public class Store implements FZRef<PackedPacksState> {
         Config.get().setDevMode(state.devMode());
 
         Profile selectedProfile = state.profiles().selectedProfile();
-        saveProfileState(selectedProfile);
+        saveProfileState(selectedProfile, state.enabled().packs());
 
         configs.profiles().setLastViewed(selectedProfile);
         configs.profiles().setDefault(state.profiles().defaultProfile());
