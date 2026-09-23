@@ -501,6 +501,7 @@ public class PackedPacksScreen extends FZScreen {
 
     @Override
     public void onFilesDrop(List<Path> files) {
+        Minecraft minecraft = this.minecraft;
         if (minecraft == null) return;
         minecraft.setScreen(new ConfirmScreen(
                 confirmed -> {
@@ -515,7 +516,7 @@ public class PackedPacksScreen extends FZScreen {
                     }
                     if (!results.valid().isEmpty()) {
                         PackSelectionScreenAccessor.packed_packs$copyPacks(minecraft, results.valid(), context.packDir());
-                        context.rebuild(); // fix reload
+                        context.reload();
                     }
                     if (!results.rejected().isEmpty()) {
                         String rejectedNames = PackUtil.joinPackNames(results.rejected());
