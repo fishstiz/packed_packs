@@ -509,7 +509,7 @@ public class PackedPacksScreen extends FZScreen {
                     }
                     if (!results.valid().isEmpty()) {
                         PackSelectionScreenAccessor.packed_packs$copyPacks(minecraft, results.valid(), context.packDir());
-                        context.rebuild();
+                        context.reload();
                     }
                     if (!results.rejected().isEmpty()) {
                         String rejectedNames = PackUtil.joinPackNames(results.rejected());
