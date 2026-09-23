@@ -273,7 +273,7 @@ public class Store implements FZRef<PackedPacksState> {
                                 moveOnce.packs(),
                                 moveOnce.upwards()
                         ))) {
-                            effectHandler.accept(new UiEffect.Focus(PackListType.ENABLED, moveOnce.srcPack().id(), true));
+                            effectHandler.accept(new UiEffect.Focus(moveOnce.srcList().type(), moveOnce.srcPack().id(), true));
                             GuiUtils.playButtonClickSound(minecraft.getSoundManager());
                         }
                     }
