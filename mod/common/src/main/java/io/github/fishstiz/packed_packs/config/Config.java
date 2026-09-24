@@ -76,13 +76,18 @@ public final class Config {
     }
 
     public void setSort(SortOption sort) {
+        if (sort == SortOptions.NONE) {
+            return;
+        }
+
         if (sort instanceof SortOption.Locked(SortOption locked)) {
             if (locked != null) {
                 this.sort = locked.name();
             }
-        } else {
-            this.sort = sort.name();
+            return;
         }
+
+        this.sort = sort.name();
     }
 
     public ResourcePacks getResourcepacks() {

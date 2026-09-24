@@ -1,5 +1,6 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
+import io.github.fishstiz.packed_packs.gui.components.SortOption;
 import io.github.fishstiz.packed_packs.util.PackListComputedUtils;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import it.unimi.dsi.fastutil.ints.Int2BooleanMap;
@@ -29,14 +30,17 @@ public class PackListComputed {
     private int moveUpGen = 0;
     private int moveDownGen = 0;
     private int canDragGen = 0;
-    private final Int2BooleanMap canDropCache;
+    private boolean canReorderCache;
     private TriState dropCandidateCache = TriState.DEFAULT;
+    private TriState draggingChildCache = TriState.DEFAULT;
+    private final Int2BooleanMap canDropCache;
 
     public PackListComputed(PackListKey key, PackListState initialState, ProfileSelection initialProfiles) {
         this.key = key;
         this.state = initialState;
         this.profiles = initialProfiles;
         this.selected = initialState.selectedPacks().isEmpty() ? null : initialState.selectedPacks().getLast();
+        this.canReorderCache = key.type().enabled() || initialState.query().sort() == null || !initialState.query().sort().canSort();
         int dropCacheExpectedSize = key.type().available() && key.depth() == 0 ? 2 : 8;
         this.canDropCache = new Int2BooleanOpenHashMap(dropCacheExpectedSize, 0.99f);
     }
@@ -67,6 +71,11 @@ public class PackListComputed {
 
         if (packsChanged) {
             entriesDirty = true;
+            draggingChildCache = TriState.DEFAULT;
+        }
+        if (prev.query().sort() != newState.query().sort()) {
+            SortOption newSort = state.query().sort();
+            canReorderCache = key.type().enabled() || newSort == null || !newSort.canSort();
         }
         if (selectionChanged) {
             selectionGen++;
@@ -92,6 +101,7 @@ public class PackListComputed {
         if (this.dragging != dragging) {
             this.dragging = dragging;
             this.canDropCache.clear();
+            this.draggingChildCache = TriState.DEFAULT;
             this.dropCandidateCache = TriState.DEFAULT;
         }
     }
@@ -110,7 +120,7 @@ public class PackListComputed {
     }
 
     public boolean canReorder() {
-        return state.module() || (key.depth() == 0 && key.type().enabled());
+        return canReorderCache;
     }
 
     public boolean canDrop(int index) {
@@ -136,6 +146,16 @@ public class PackListComputed {
 
     public boolean isDragging() {
         return dragging != null;
+    }
+
+    public boolean isDraggingChild() {
+        if (draggingChildCache == TriState.DEFAULT) {
+            draggingChildCache = TriState.from(dragging != null && (
+                    dragging.src().equals(key) || (state.parent() != null && state.parent().children().contains(dragging.srcPack()))
+            ));
+        }
+
+        return draggingChildCache == TriState.TRUE;
     }
 
     public boolean isDropCandidate() {

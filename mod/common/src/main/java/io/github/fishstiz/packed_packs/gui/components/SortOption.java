@@ -17,7 +17,13 @@ public interface SortOption {
 
     Component text();
 
-    Comparator<PackNode> comparator(SequencedCollection<PackNode> packs);
+    default @Nullable Comparator<PackNode> comparator(SequencedCollection<PackNode> packs) {
+        return null;
+    }
+
+    default boolean canSort() {
+        return true;
+    }
 
     record Locked(@Nullable SortOption sort) implements SortOption {
         @Override
@@ -36,8 +42,8 @@ public interface SortOption {
         }
 
         @Override
-        public Comparator<PackNode> comparator(SequencedCollection<PackNode> packs) {
-            return (ignoredA, ignoredB) -> 0;
+        public boolean canSort() {
+            return false;
         }
     }
 }

@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
 import io.github.fishstiz.packed_packs.gui.components.SortOption;
+import io.github.fishstiz.packed_packs.gui.components.SortOptions;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
@@ -138,7 +139,9 @@ public record PackListState(
         }
 
         Query newQuery = folder.query;
-        if (query.sort() instanceof SortOption.Locked || folder.query.sort() instanceof SortOption.Locked) {
+        if (query.sort() instanceof SortOption.Locked
+            || folder.query.sort() instanceof SortOption.Locked
+            || folder.query.sort() == SortOptions.NONE) {
             newQuery = newQuery.withSort(query.sort());
         }
 
@@ -201,7 +204,10 @@ public record PackListState(
             }
         }
         if (query.sort() != null) {
-            filtered.sort(query.sort().comparator(filtered));
+            Comparator<PackNode> comparator = query.sort().comparator(filtered);
+            if (comparator != null) {
+                filtered.sort(comparator);
+            }
         }
         return List.copyOf(filtered);
     }

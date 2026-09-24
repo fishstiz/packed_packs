@@ -68,7 +68,7 @@ public final class Query implements Predicate<PackNode> {
     public boolean hasQuery() {
         return this.hideIncompatible
                || (this.search != null && !this.search.isEmpty())
-               || (this.sort != null && !(this.sort instanceof SortOption.Locked));
+               || (this.sort != null && this.sort.canSort());
     }
 
     public boolean hideIncompatible() {
