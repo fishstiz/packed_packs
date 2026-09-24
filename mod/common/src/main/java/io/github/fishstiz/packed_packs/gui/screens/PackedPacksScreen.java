@@ -254,6 +254,7 @@ public class PackedPacksScreen extends FZScreen {
                                 boolean active = sort != null && !(sort instanceof SortOption.Locked);
                                 Component valueText = sort != null && active ? sort.text() : CommonComponents.EMPTY;
                                 Component sortText = Component.translatable("packed_packs.sort");
+                                PackListKey key = state().value().getTailKey(PackListType.AVAILABLE);
 
                                 return FZDropdown.builder(this)
                                         .width(40)
@@ -264,10 +265,10 @@ public class PackedPacksScreen extends FZScreen {
                                         .tooltip(active ? CommonComponents.optionNameValue(sortText, valueText) : sortText)
                                         .leftIcon(sort == null ? null : padded16Sprite(sort.icon()))
                                         .entryDivider(null)
-                                        .entries(SortOptions.menuItems(option -> context.dispatch(new PackListIntent.Sort(
-                                                state().value().getTailKey(PackListType.AVAILABLE),
-                                                option
-                                        ))))
+                                        .entries(SortOptions.menuItems(
+                                                key.depth() > 0 && !state().value().getTailList(key.type()).module(),
+                                                option -> context.dispatch(new PackListIntent.Sort(key, option))
+                                        ))
                                         .toProps();
                             })));
 
@@ -489,8 +490,6 @@ public class PackedPacksScreen extends FZScreen {
         context.saveState();
         this.initialized = false;
         init();
-        availableList.rebuildEntries();
-        enabledList.rebuildEntries();
         dialogManager.refreshDialogs();
     }
 

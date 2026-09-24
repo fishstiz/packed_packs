@@ -167,7 +167,10 @@ public final class PackListComputedUtils {
         if (srcModule || destState.module()) {
             return src.equals(dest);
         }
-        if (src.type().enabled() && dest.type().available() && dest.depth() > 0 && destState.parent() != null) {
+        if (src.depth() > 0 && src.equals(dest)) {
+            return destState.query().sort() == null || !destState.query().sort().canSort();
+        }
+        if (src.type().enabled() && dest.type().available() && destState.parent() != null) {
             return destState.parent().children().contains(dragging.srcPack());
         }
         if (src.type().available()) {
