@@ -178,7 +178,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
         return state.canDrop(index);
     }
-
+    // todo fix folders showing droppable to own index on non-module lists
     private void renderDroppableSlots(
             GuiGraphics graphics,
             ActiveAction.Dragging dragging,
@@ -230,12 +230,6 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         graphics.renderOutline(x, y, width, height, DROP_ENABLED_COLOR);
     }
 
-    private void renderDroppableRect(GuiGraphics graphics) {
-        if (state.isDropCandidate() && state.canDrop(0)) {
-            renderDropToDisabledZone(this, graphics);
-        }
-    }
-
     boolean extractDropCandidateRenderState(
             GuiGraphics graphics,
             ActiveAction.Dragging dragging,
@@ -244,10 +238,10 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             float partialTick
     ) {
         if (!state.isLocked() && state.isDropCandidate()) {
-            if (state.canReorder()) {
+            if (state.canReorder() && (key().type().enabled() || state.state().module() || state.isDraggingChild())) {
                 renderDroppableSlots(graphics, dragging, mouseX, mouseY, partialTick);
-            } else {
-                renderDroppableRect(graphics);
+            } else if (state.canDrop(0)) {
+                renderDropToDisabledZone(this, graphics);
             }
             return true;
         }
@@ -418,6 +412,10 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 Renderables.sprite(ResourceLocation.withDefaultNamespace("transferable_list/select")),
                 Renderables.sprite(ResourceLocation.withDefaultNamespace("transferable_list/select_highlighted"))
         );
+        private static final WidgetRenderables SELECT_MOVABLE_SPRITES = new WidgetRenderables(
+                Renderables.sprite(ResourceLocation.withDefaultNamespace("server_list/join")),
+                Renderables.sprite(ResourceLocation.withDefaultNamespace("server_list/join_highlighted"))
+        );
         private static final WidgetRenderables UNSELECT_SPRITES = new WidgetRenderables(
                 Renderables.sprite(ResourceLocation.withDefaultNamespace("transferable_list/unselect")),
                 Renderables.sprite(ResourceLocation.withDefaultNamespace("transferable_list/unselect_highlighted"))
@@ -429,6 +427,14 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         private static final WidgetRenderables MOVE_DOWN_SPRITES = new WidgetRenderables(
                 Renderables.sprite(ResourceLocation.withDefaultNamespace("transferable_list/move_down")),
                 Renderables.sprite(ResourceLocation.withDefaultNamespace("transferable_list/move_down_highlighted"))
+        );
+        private static final WidgetRenderables MOVE_UP_SELECTABLE_SPRITES = new WidgetRenderables(
+                Renderables.sprite(ResourceLocation.withDefaultNamespace("server_list/move_up")),
+                Renderables.sprite(ResourceLocation.withDefaultNamespace("server_list/move_up_highlighted"))
+        );
+        private static final WidgetRenderables MOVE_DOWN_SELECTABLE_SPRITES = new WidgetRenderables(
+                Renderables.sprite(ResourceLocation.withDefaultNamespace("server_list/move_down")),
+                Renderables.sprite(ResourceLocation.withDefaultNamespace("server_list/move_down_highlighted"))
         );
         private final int index;
         protected final PackNode pack;
@@ -508,6 +514,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 buildWidgets();
             }
         }
+
         // todo add widgets to navigation path
         @Override
         public void acceptWidget(GuiEventListener widget) {
@@ -636,7 +643,9 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 int relativeX = (int) mouseX - (getX() + INNER_ITEM_PADDING);
                 int relativeY = (int) mouseY - (getY() + INNER_ITEM_PADDING);
 
-                if (state.canEnable() && mouseOverIcon(relativeX, relativeY, ICON_SIZE)) {
+                if (state.canEnable() && (PackList.this.state.canReorder()
+                        ? mouseOverRightHalf(relativeX, relativeY, ICON_SIZE)
+                        : mouseOverIcon(relativeX, relativeY, ICON_SIZE))) {
                     transferPack();
                     return false;
                 }
@@ -644,11 +653,15 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                     transferPack();
                     return false;
                 }
-                if (state.canMoveUp() && mouseOverTopRightQuarter(relativeX, relativeY, ICON_SIZE)) {
+                if (state.canMoveUp() && (state.canEnable()
+                        ? mouseOverTopLeftQuarter(relativeX, relativeY, ICON_SIZE)
+                        : mouseOverTopRightQuarter(relativeX, relativeY, ICON_SIZE))) {
                     movePack(true);
                     return false;
                 }
-                if (state.canMoveDown() && mouseOverBottomRightQuarter(relativeX, relativeY, ICON_SIZE)) {
+                if (state.canMoveDown() && (state.canEnable()
+                        ? mouseOverBottomLeftQuarter(relativeX, relativeY, ICON_SIZE)
+                        : mouseOverBottomRightQuarter(relativeX, relativeY, ICON_SIZE))) {
                     movePack(false);
                     return false;
                 }
@@ -736,16 +749,29 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             WHITE_OVERLAY.extractRenderState(graphics, left, top, ICON_SIZE, ICON_SIZE, 0, 0, 0);
 
             if (state.canEnable()) {
-                renderWidgetSprites(graphics, SELECT_SPRITES, left, top, hovered && mouseOverIcon(relX, relY, ICON_SIZE));
+                if (PackList.this.state.canReorder()) {
+                    renderWidgetSprites(graphics, SELECT_MOVABLE_SPRITES, left, top, hovered && mouseOverRightHalf(relX, relY, ICON_SIZE));
+                } else {
+                    renderWidgetSprites(graphics, SELECT_SPRITES, left, top, hovered && mouseOverIcon(relX, relY, ICON_SIZE));
+                }
             }
             if (state.canDisable()) {
                 renderWidgetSprites(graphics, UNSELECT_SPRITES, left, top, hovered && mouseOverLeftHalf(relX, relY, ICON_SIZE));
             }
             if (state.canMoveUp()) {
-                renderWidgetSprites(graphics, MOVE_UP_SPRITES, left, top, hovered && mouseOverTopRightQuarter(relX, relY, ICON_SIZE));
+                if (state.canEnable()) {
+                    renderWidgetSprites(graphics, MOVE_UP_SELECTABLE_SPRITES, left, top, hovered && mouseOverTopLeftQuarter(relX, relY, ICON_SIZE));
+                } else {
+                    renderWidgetSprites(graphics, MOVE_UP_SPRITES, left, top, hovered && mouseOverTopRightQuarter(relX, relY, ICON_SIZE));
+                }
+
             }
             if (state.canMoveDown()) {
-                renderWidgetSprites(graphics, MOVE_DOWN_SPRITES, left, top, hovered && mouseOverBottomRightQuarter(relX, relY, ICON_SIZE));
+                if (state.canEnable()) {
+                    renderWidgetSprites(graphics, MOVE_DOWN_SELECTABLE_SPRITES, left, top, hovered && mouseOverBottomLeftQuarter(relX, relY, ICON_SIZE));
+                } else {
+                    renderWidgetSprites(graphics, MOVE_DOWN_SPRITES, left, top, hovered && mouseOverBottomRightQuarter(relX, relY, ICON_SIZE));
+                }
             }
         }
 

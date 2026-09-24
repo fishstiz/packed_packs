@@ -20,6 +20,12 @@ import java.util.function.Consumer;
 import static io.github.fishstiz.packed_packs.util.GuiUtils.padded16Sprite;
 
 public enum SortOptions implements SortOption {
+    NONE("packed_packs.sort.none", "icon/cross") { // todo create icon
+        @Override
+        public boolean canSort() {
+            return false;
+        }
+    },
     VANILLA("packed_packs.sort.vanilla", "icon/sort_vanilla") {
         @Override
         public Comparator<PackNode> comparator(SequencedCollection<PackNode> packs) {
@@ -78,8 +84,6 @@ public enum SortOptions implements SortOption {
         this.spritePath = icon;
     }
 
-    public abstract Comparator<PackNode> comparator(SequencedCollection<PackNode> packs);
-
     public ResourceLocation icon() {
         return PackedPacks.id(spritePath);
     }
@@ -93,7 +97,7 @@ public enum SortOptions implements SortOption {
     }
 
     public static SortOption getOrDefault(@Nullable String name) {
-        if (name == null) {
+        if (name == null || name.equals(NONE.name())) {
             return VANILLA;
         }
 
@@ -104,17 +108,17 @@ public enum SortOptions implements SortOption {
         }
     }
 
-    public static List<FZPopoverMenuItem> menuItems(Consumer<SortOptions> clickHandler) {
-        List<FZPopoverMenuItem> items = new ArrayList<>();
-
-        for (SortOptions option : SortOptions.values()) {
+    public static List<FZPopoverMenuItem> menuItems(boolean includeNone, Consumer<SortOption> clickHandler) {
+        SortOption[] options = SortOptions.values();
+        List<FZPopoverMenuItem> items = new ArrayList<>(options.length);
+        for (int i = includeNone ? 0 : 1; i < options.length; i++) {
+            SortOption option = options[i];
             items.add(FZPopoverMenuItem.builder()
                     .message(option.text())
                     .icon(padded16Sprite(option.icon()))
                     .onPress(() -> clickHandler.accept(option))
                     .build());
         }
-
         return items;
     }
 

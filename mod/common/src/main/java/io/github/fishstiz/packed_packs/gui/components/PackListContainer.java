@@ -206,22 +206,23 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             return;
         }
 
-        if (state.key().type().enabled()) {
-            visitLeafList(list -> list.onDrop(dragging, mouseX, mouseY));
-            return;
-        }
-
         PackListContainer leafContainer = this;
         while (leafContainer.folder != null) {
             leafContainer = leafContainer.folder.listContainer;
         }
 
-        if (leafContainer.packList.isHovered() && (leafContainer.state.isDropCandidate() || dragging.src().equals(leafContainer.state.key()))) {
+        if (state.key().type().enabled()) {
             leafContainer.packList.onDrop(dragging, mouseX, mouseY);
             return;
         }
 
-        context.dispatch(new PackListIntent.Drop(dragging.src(), state.key(), 0));
+        boolean dropCandidate = leafContainer.state.isDropCandidate() || dragging.src().equals(leafContainer.state.key());
+        if (leafContainer.packList.isHovered() && dropCandidate) {
+            leafContainer.packList.onDrop(dragging, mouseX, mouseY);
+            return;
+        }
+
+        context.dispatch(new PackListIntent.Drop(dragging.src(), dropCandidate ? leafContainer.state.key() : state.key(), 0));
     }
 
     @Override
@@ -361,10 +362,6 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
     private void repositionFolder() {
         if (this.folder != null) this.folder.repositionElements();
-    }
-
-    public void rebuildEntries() {
-        visitLists(PackList::rebuildEntries);
     }
 
     static class Folder extends AbstractContainerEventHandler implements FocusPathProvider, FZContextMenu.Source, ContainerEventHandlerPatch, Renderable, FZComponent {

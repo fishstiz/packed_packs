@@ -4,6 +4,7 @@ import com.google.common.primitives.Ints;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.gui.actions.mutations.Mutation;
+import io.github.fishstiz.packed_packs.gui.components.SortOptions;
 import io.github.fishstiz.packed_packs.gui.states.PackListKey;
 import io.github.fishstiz.packed_packs.gui.states.PackListType;
 import io.github.fishstiz.packed_packs.util.PackListComputedUtils;
@@ -219,7 +220,7 @@ public final class Reducer {
                 yield state.withPacksAndSelectedLast(newPacks, moved.srcPack(), profiles, devMode);
             }
             case PackListMutation.FolderOpened opened -> state.withFolder(
-                    PackListState.folder(opened.pack(), opened.locked(), state.query())
+                    PackListState.folder(opened.pack(), opened.locked(), state.query().withSort(SortOptions.NONE))
                             .withPacks(opened.children(), profiles, devMode),
                     profiles,
                     devMode
@@ -294,7 +295,7 @@ public final class Reducer {
             case ENABLED -> state.withEnabled(head, actionSrc);
         };
     }
-
+    // todo flatten payload when enabling so order of non-modules aren't changed
     private static PackedPacksState transfer(PackedPacksState state, PackListMutation.Transfer transfer) {
         PackListKey destKey = transfer.srcList().type().available()
                 ? PackListKey.enabled()
@@ -446,7 +447,7 @@ public final class Reducer {
                     if (!packs.isEmpty()) {
                         yield reduceList(newState, switch (dest.type()) {
                             case AVAILABLE ->
-                                    new PackListMutation.Disabled(srcList, dragging.srcPack(), packs.reversed());
+                                    new PackListMutation.Disabled(srcList, dragging.srcPack(), packs.reversed(), position);
                             case ENABLED ->
                                     new PackListMutation.Enabled(srcList, dragging.srcPack(), packs.reversed(), position);
                         });
