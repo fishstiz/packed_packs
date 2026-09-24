@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs.gui;
 
 import io.github.fishstiz.fidgetz.v0.gui.state.FZRef;
+import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
@@ -283,43 +284,27 @@ public class Store implements FZRef<PackedPacksState> {
                     }
                     case PackListIntent.OpenFolder open -> {
                         PackListState srcList = state.getList(open.srcList());
-                        if (srcList == null) {
-                            return;
-                        }
+                        if (srcList == null) return;
 
                         if (!(repository.getPackById(open.pack().id()) instanceof PackNode.Parent canonical)) {
                             return;
                         }
 
-
-                        List<PackNode> unsortedChildren = canonical.children();
                         FolderPackMeta metadata = repository.getFolderMetadata(canonical);
+                        List<PackNode> children = repository.getSortedChildren(canonical);
 
-                        List<PackNode> sorted;
-                        if (metadata.module()) {
-                            sorted = repository.getSortedChildren(canonical);
-                        } else {
-                            if (open.srcList().type().enabled()) {
-                                PackedPacks.LOGGER.warn(
-                                        "[packed_packs] Opening a non-module folder pack from the enabled list, which should not happen"
-                                );
-                            }
-
-                            List<PackNode> filtered = new ObjectArrayList<>(unsortedChildren.size());
+                        if (open.srcList().type().enabled()) {
+                            PackedPacks.LOGGER.warn(
+                                    "[packed_packs] Opening a non-module folder pack from the enabled list, which should not happen"
+                            );
+                        } else if (!metadata.module()) {
                             Set<PackNode> enabledPacks = state.enabled().packs().stream()
                                     .flatMap(repository::flattenNodes)
                                     .collect(Collectors.toCollection(ObjectOpenHashSet::new));
-
-                            for (PackNode pack : unsortedChildren) {
-                                if (open.srcList().type().enabled() || !enabledPacks.contains(pack)) {
-                                    filtered.add(pack);
-                                }
-                            }
-
-                            sorted = filtered;
+                            children = CollectionUtils.filter(children, pack -> !enabledPacks.contains(pack));
                         }
 
-                        if (dispatch(new PackListMutation.FolderOpened(open.srcList(), canonical, srcList.module() || metadata.module(), sorted))) {
+                        if (dispatch(new PackListMutation.FolderOpened(open.srcList(), canonical, srcList.module() || metadata.module(), children))) {
                             effectHandler.accept(new UiEffect.FocusList(open.srcList().type()));
                         }
                     }

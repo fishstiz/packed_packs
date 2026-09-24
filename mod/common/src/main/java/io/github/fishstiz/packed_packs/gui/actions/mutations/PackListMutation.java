@@ -34,11 +34,11 @@ public sealed interface PackListMutation extends Mutation {
     record Disabled(
             PackListKey srcList,
             @Nullable PackNode srcPack,
-            SequencedCollection<PackNode> packs
+            SequencedCollection<PackNode> packs,
+            int index
     ) implements Cross, Transfer {
-        @Override
-        public int index() {
-            return 0;
+        public Disabled(PackListKey srcList, @Nullable PackNode srcPack, SequencedCollection<PackNode> packs) {
+            this(srcList, srcPack, packs, 0);
         }
     }
 
