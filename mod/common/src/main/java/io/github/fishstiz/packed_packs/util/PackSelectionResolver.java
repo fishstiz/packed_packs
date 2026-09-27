@@ -51,7 +51,7 @@ public class PackSelectionResolver {
             }
             if (!meta.module() && moduleAncestor == null) {
                 // flatten non-module folders in enabled list
-                repository.collectDescendantLeaves(parent, TriState.DEFAULT, leaf -> {
+                repository.collectDescendantLeaves(parent, PackNodeRepository.INCLUDE_MODULES, leaf -> {
                     leaf = repository.getPackById(leaf.id()); // canonical
                     // preserve order from enabled ids, do no eagerly add
                     if (leaf != null && !enabledIds.contains(leaf.id()) && seen.add(leaf.id())) {
