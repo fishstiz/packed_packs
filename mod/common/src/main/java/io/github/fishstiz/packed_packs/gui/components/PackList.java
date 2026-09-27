@@ -186,7 +186,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
         return state.canDrop(index);
     }
-    // todo fix folders showing droppable to own index on non-module lists
+
     private void renderDroppableSlots(
             GuiGraphicsExtractor graphics,
             ActiveAction.Dragging dragging,
