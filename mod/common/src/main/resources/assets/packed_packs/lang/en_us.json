@@ -45,6 +45,7 @@
   "packed_packs.toggle_actionbar.info": "Toggle Action Bar",
   "packed_packs.search": "Search",
   "packed_packs.sort": "Sort",
+  "packed_packs.sort.none": "None",
   "packed_packs.sort.vanilla": "Vanilla Sort",
   "packed_packs.sort.a_z": "A-Z",
   "packed_packs.sort.z_a": "Z-A",

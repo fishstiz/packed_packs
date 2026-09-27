@@ -24,6 +24,10 @@ public record FolderPackMeta(boolean module, List<String> packIds) {
         return new FolderPackMeta(module, packIds);
     }
 
+    public FolderPackMeta withPackIds(List<String> packIds) {
+        return new FolderPackMeta(module, packIds);
+    }
+
     static class Deserializer implements JsonDeserializer<FolderPackMeta> {
         @Override
         public FolderPackMeta deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {

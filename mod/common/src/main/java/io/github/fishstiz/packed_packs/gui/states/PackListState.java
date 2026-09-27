@@ -145,7 +145,7 @@ public record PackListState(
             newQuery = newQuery.withSort(query.sort());
         }
 
-        if (newQuery.equals(folder.query)) {
+        if (newQuery.equals(query)) {
             return newState;
         }
 
@@ -189,6 +189,22 @@ public record PackListState(
 
     public boolean isFolderOpened() {
         return this.folder != null;
+    }
+
+    public PackListState withTail(PackListState tail, ProfileSelection profiles, boolean devMode) {
+        return folder == null ? withFolder(tail, profiles, devMode) : updateTail(this, tail, profiles, devMode);
+    }
+
+    private static PackListState updateTail(
+            @Nullable PackListState current,
+            @Nullable PackListState tail,
+            ProfileSelection profiles,
+            boolean devMode
+    ) {
+        if (current == null || current.folder == null) {
+            return tail;
+        }
+        return current.withFolder(updateTail(current.folder, tail, profiles, devMode), profiles, devMode);
     }
 
     private static List<PackNode> processQuery(

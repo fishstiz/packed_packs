@@ -10,12 +10,12 @@ import java.util.List;
 import java.util.SequencedCollection;
 
 public sealed interface PackListMutation extends Mutation {
+    PackListKey srcList();
+
     sealed interface Cross extends PackListMutation { // state mutations that cross beyond pack list state
     }
 
-    sealed interface Transfer {
-        PackListKey srcList();
-
+    sealed interface Transfer extends PackListMutation {
         @Nullable PackNode srcPack();
 
         SequencedCollection<PackNode> packs();
@@ -49,7 +49,12 @@ public sealed interface PackListMutation extends Mutation {
         }
     }
 
-    record Dropped(PackListKey srcList, @Nullable PackListKey targetList, int index) implements Cross {
+    record Dropped(
+            PackListKey srcList,
+            SequencedCollection<PackNode> packs,
+            @Nullable PackListKey targetList,
+            int index
+    ) implements Cross {
         @Override
         public boolean pushState() {
             return targetList != null;
@@ -107,11 +112,10 @@ public sealed interface PackListMutation extends Mutation {
     ) implements Cross {
     }
 
-    record AliasesModalClosed() implements Cross {
+    record AliasesModalClosed(PackListKey srcList) implements Cross {
     }
 
     sealed interface Local extends PackListMutation { // state mutations local to srcList
-        PackListKey srcList();
     }
 
     record Searched(PackListKey srcList, String search) implements Local {
@@ -166,5 +170,39 @@ public sealed interface PackListMutation extends Mutation {
     }
 
     record FolderClosed(PackListKey srcList) implements Local {
+    }
+
+    static boolean isEnableAction(Mutation mutation) {
+        return mutation instanceof PackListMutation.Enabled
+               || (mutation instanceof PackListMutation.Dropped dropped
+                   && dropped.targetList != null && dropped.targetList.type().enabled() && dropped.srcList.type().available())
+               || (mutation instanceof PackListMutation.RequirementOverridden override
+                   && Boolean.TRUE.equals(override.required()));
+    }
+
+    static boolean isDisableAction(Mutation mutation) {
+        return mutation instanceof PackListMutation.Disabled
+               || (mutation instanceof PackListMutation.Dropped dropped
+                   && dropped.targetList != null && dropped.targetList.type().available() && dropped.srcList.type().enabled());
+    }
+
+    static boolean isMoveAction(Mutation mutation) {
+        return mutation instanceof PackListMutation.Moved
+               || mutation instanceof PackListMutation.MovedOnce
+               || (mutation instanceof PackListMutation.Dropped dropped && dropped.targetList != null
+                   && (dropped.targetList.equals(dropped.srcList) || dropped.targetList.depth() > 0));
+    }
+
+    static @Nullable PackListKey getTarget(Mutation mutation) {
+        if (!(mutation instanceof PackListMutation listMutation)) {
+            return null;
+        }
+        if (mutation instanceof Transfer transfer) {
+            return PackListKey.head(transfer.srcList().type().other());
+        }
+        if (mutation instanceof Dropped dropped) {
+            return dropped.targetList;
+        }
+        return listMutation.srcList();
     }
 }

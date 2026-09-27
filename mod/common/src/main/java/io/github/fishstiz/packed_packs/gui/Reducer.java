@@ -25,6 +25,7 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static io.github.fishstiz.packed_packs.util.PackListComputedUtils.*;
 
@@ -295,7 +296,7 @@ public final class Reducer {
             case ENABLED -> state.withEnabled(head, actionSrc);
         };
     }
-    // todo flatten payload when enabling so order of non-modules aren't changed
+
     private static PackedPacksState transfer(PackedPacksState state, PackListMutation.Transfer transfer) {
         PackListKey destKey = transfer.srcList().type().available()
                 ? PackListKey.enabled()
@@ -304,15 +305,19 @@ public final class Reducer {
         PackListState destState = Objects.requireNonNullElse(state.getList(destKey), PackListState.empty());
         List<PackNode> newDestPacks = new ObjectArrayList<>(destState.packs());
         List<PackNode> newDestSelection = new ObjectArrayList<>(transfer.packs().size());
+        Set<String> newDestIds = newDestPacks.stream()
+                .map(PackNode::id)
+                .collect(Collectors.toCollection(ObjectOpenHashSet::new));
 
         PackNode srcPack = transfer.srcPack();
         PackListState srcState = Objects.requireNonNullElse(state.getList(transfer.srcList()), PackListState.empty());
-        List<PackNode> newSrcPacks = new ObjectArrayList<>(srcState.packs());
+        SequencedSet<PackNode> newSrcPacks = new ObjectLinkedOpenHashSet<>(srcState.packs());
 
         for (PackNode pack : transfer.packs()) {
-            if (newSrcPacks.remove(pack)) {
+            newSrcPacks.remove(pack); // do not validate on add using remove as the payload may contain nested packs
+            if (newDestIds.add(pack.id())) {
                 newDestPacks.add(transfer.index(), pack);
-                if (srcPack == null || !pack.id().equals(srcPack.id())) {
+                if (srcPack == null || !pack.id().equals(srcPack.id()) && !destState.selectedPacks().contains(pack)) {
                     newDestSelection.add(pack);
                 }
             }
@@ -330,7 +335,7 @@ public final class Reducer {
         PackListState newSrcState = srcState == PackListState.empty() ? srcHeadList : updateHeadList(
                 srcHeadList,
                 transfer.srcList().depth(),
-                srcState.with(newSrcPacks, newSrcSelection, state.profiles(), state.devMode()),
+                srcState.with(List.copyOf(newSrcPacks), newSrcSelection, state.profiles(), state.devMode()),
                 state.profiles(),
                 state.devMode()
         );
@@ -411,38 +416,38 @@ public final class Reducer {
 
                 yield state.withEnabled(newEnabledState, draggingAction.src()).withAction(draggingAction);
             }
-            case PackListMutation.Dropped(PackListKey srcList, PackListKey dest, int index) -> {
+            case PackListMutation.Dropped dropped -> {
                 ActiveAction.Dragging dragging = state.dragging();
                 if (dragging == null) yield state;
 
+                PackListKey dest = dropped.targetList();
                 PackedPacksState newState = state.withAction(null);
                 if (dest == null) yield newState;
 
                 PackListState destListState = newState.getList(dest);
                 if (destListState == null) yield newState;
 
+                PackListKey srcList = dropped.srcList();
                 PackListState srcListState = newState.getList(srcList);
                 if (srcListState == null) yield newState;
 
+                int index = dropped.index();
                 if (!canDrop(dragging, dest, destListState, index, state.profiles())) {
                     yield newState;
                 }
 
+                SequencedCollection<PackNode> payload = dropped.packs();
                 int position = clampIndex(destListState, getAbsoluteIndex(destListState, index), state.profiles());
                 if (srcList.equals(dest)) {
-                    List<PackNode> packs = new ObjectArrayList<>(dragging.packs().size());
-                    CollectionUtils.addIf(packs, dragging.packs(), p -> canDrag(srcList, srcListState.module(), p, state.profiles()));
+                    List<PackNode> packs = new ObjectArrayList<>(payload.size());
+                    CollectionUtils.addIf(packs, payload, p -> canDrag(srcList, srcListState.module(), p, state.profiles()));
 
                     if (!packs.isEmpty()) {
                         yield reduce(newState, new PackListMutation.Moved(dest, dragging.srcPack(), packs, position));
                     }
                 } else if (canTransfer(srcList, srcListState.module(), dragging.srcPack(), state.profiles())) {
-                    List<PackNode> packs = new ObjectArrayList<>(dragging.packs().size());
-                    CollectionUtils.addIf(
-                            packs,
-                            dragging.packs(),
-                            p -> canTransfer(srcList, false, p, state.profiles())
-                    );
+                    List<PackNode> packs = new ObjectArrayList<>(payload.size());
+                    CollectionUtils.addIf(packs, payload, p -> canTransfer(srcList, false, p, state.profiles()));
 
                     if (!packs.isEmpty()) {
                         yield reduceList(newState, switch (dest.type()) {
