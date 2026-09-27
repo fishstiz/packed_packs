@@ -7,7 +7,6 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.Justification;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
-import io.github.fishstiz.packed_packs.config.FolderPackMeta;
 import io.github.fishstiz.packed_packs.gui.ContainerEventHandlerPatch;
 import io.github.fishstiz.packed_packs.gui.FocusPathProvider;
 import io.github.fishstiz.packed_packs.gui.FocusTarget;
@@ -21,7 +20,6 @@ import io.github.fishstiz.packed_packs.pack.PackIconCache;
 import io.github.fishstiz.packed_packs.gui.screens.PackedPacksContext;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.gui.states.ProfileSelection;
-import io.github.fishstiz.packed_packs.pack.PackResourcesService;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
 import io.github.fishstiz.packed_packs.util.PackUtil;
@@ -60,6 +58,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
     private @Nullable GuiEventListener focused;
     private boolean dragging;
     private List<GuiEventListener> children;
+    private boolean entriesDirty;
 
     private PackListContainer(@Nullable PackListContainer head, PackedPacksContext context, PackListComputed state) {
         super(0, 0, 0, 0, CommonComponents.EMPTY);
@@ -138,8 +137,10 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
         if (this.folder != null && folderState != null) {
             this.folder.onStateChanged(folderState, newProfiles, folderUnlockable && !newState.module());
-        } else if (prev.visiblePacks() != newState.visiblePacks() || prevProfiles != newProfiles) {
+            entriesDirty = entriesDirty || prev.visiblePacks() != newState.visiblePacks() || prevProfiles != newProfiles;
+        } else if (entriesDirty || prev.visiblePacks() != newState.visiblePacks() || prevProfiles != newProfiles) {
             packList.rebuildEntries();
+            entriesDirty = false;
         }
     }
 
@@ -196,13 +197,6 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
     }
 
-    public void visitLists(Consumer<PackList> visitor) {
-        visitor.accept(packList);
-        if (state.state().folder() != null && this.folder != null) {
-            this.folder.listContainer.visitLists(visitor);
-        }
-    }
-
     public void onDrop(ActiveAction.Dragging dragging, int mouseX, int mouseY) {
         if (state.isLocked()) {
             context.dispatch(new PackListIntent.Drop(dragging.src()));
@@ -225,7 +219,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             return;
         }
 
-        context.dispatch(new PackListIntent.Drop(dragging.src(), dropCandidate ? leafContainer.state.key() : state.key(), 0));
+        context.dispatch(new PackListIntent.Drop(dragging.src(), state.key(), 0));
     }
 
     @Override
@@ -484,7 +478,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             if ((prevFolderState.folder() == null) != (folderState.folder() == null)) {
                 updateChildren();
             }
-            if (listContainer.state.state() != folderState || listContainer.state.profiles() != profiles) {
+            if (prevFolderState != folderState || listContainer.state.profiles() != profiles) {
                 listContainer.onStateChanged(folderState, profiles, unlockable);
             }
         }
@@ -492,10 +486,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         private void onClose() {
             this.closed = true;
 
-            listContainer.context.resources().saveFolderMetadata(this.parent, new FolderPackMeta(
-                    folderState.module(),
-                    PackResourcesService.replaceDirsWithRelative(folderState.packs())
-            ));
+            listContainer.context.resources().saveFolderMetadata(this.parent);
 
             if (listContainer.folder != null) {
                 listContainer.folder.onClose();
