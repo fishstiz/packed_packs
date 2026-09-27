@@ -33,6 +33,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class PackNodeRepository {
+    // flags for collecting descendant nodes
+    public static final int INCLUDE_MODULES = 1;
+    public static final int FLATTEN_MODULE_CHILDREN = 1 << 1;
+    public static final int INCLUDE_NON_MODULES = 1 << 2;
+
     private final PackRepository repository;
     private final Config.Packs config;
     private final Path packDir;
@@ -96,21 +101,14 @@ public class PackNodeRepository {
         }
     }
 
-    /**
-     * @param includeModules <ul>
-     *                       <li>{@link TriState#DEFAULT} - includes modules grouped</li>
-     *                       <li>{@link TriState#TRUE} - includes modules and flattens children</li>
-     *                       <li>{@link TriState#FALSE} - excludes modules and flattens children</li>
-     *                       </ul>
-     */
-    public void collectDescendantLeaves(PackNode.Parent current, TriState includeModules, Consumer<PackNode> collector) {
+    public void collectDescendantLeaves(PackNode.Parent current, int flags, Consumer<PackNode> collector) {
         FolderPackMeta meta = Objects.requireNonNullElseGet(folderMeta.get(current.id()), this::createFolderMeta);
         if (meta.module()) {
-            if (includeModules == TriState.DEFAULT) {
+            if ((flags & INCLUDE_MODULES) != 0) {
                 collector.accept(current);
                 return;
             }
-            if (includeModules == TriState.TRUE) {
+            if ((flags & FLATTEN_MODULE_CHILDREN) == 0) {
                 collector.accept(current);
             }
         }
@@ -120,15 +118,20 @@ public class PackNodeRepository {
                 collector.accept(leaf);
             }
             if (child instanceof PackNode.Parent inner) {
-                collectDescendantLeaves(inner, includeModules, collector);
+                collectDescendantLeaves(inner, flags, collector);
             }
         });
+
+        if (!meta.module() && (flags & INCLUDE_NON_MODULES) != 0) { // add last so it doesn't mess up order
+            collector.accept(current);
+        }
     }
 
     public void collectNodes(PackNode pack, Consumer<PackNode> collector) {
         switch (pack) {
             case PackNode.Leaf leaf -> collector.accept(leaf);
-            case PackNode.Parent parent -> collectDescendantLeaves(parent, TriState.TRUE, collector);
+            case PackNode.Parent parent ->
+                    collectDescendantLeaves(parent, INCLUDE_MODULES | FLATTEN_MODULE_CHILDREN, collector);
         }
     }
 
@@ -136,8 +139,18 @@ public class PackNodeRepository {
         switch (pack) {
             case PackNode.Leaf leaf -> collector.accept(leaf.pack());
             case PackNode.Parent parent ->
-                    collectDescendantLeaves(parent, TriState.FALSE, node -> node.visitPacks(collector));
+                    collectDescendantLeaves(parent, FLATTEN_MODULE_CHILDREN, node -> node.visitPacks(collector));
         }
+    }
+
+    public Stream<PackNode> flattenAll(PackNode pack) {
+        Stream.Builder<PackNode> builder = Stream.builder();
+        switch (pack) {
+            case PackNode.Leaf leaf -> builder.add(leaf);
+            case PackNode.Parent parent ->
+                    collectDescendantLeaves(parent, INCLUDE_NON_MODULES | INCLUDE_MODULES | FLATTEN_MODULE_CHILDREN, builder::add);
+        }
+        return builder.build();
     }
 
     public Stream<PackNode> flattenNodes(PackNode pack) {

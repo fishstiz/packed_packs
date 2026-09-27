@@ -233,19 +233,19 @@ public class Store implements FZRef<PackedPacksState> {
         return false;
     }
 
-    private List<PackNode> flatten(PackListType type, Collection<PackNode> packs) {
+    private List<PackNode> flattenForOverrides(PackListType type, Collection<PackNode> packs) {
         if (type.available()) {
             Set<PackNode> enabledPacks = state.enabled().packs().stream()
-                    .flatMap(repository::flattenNodes)
+                    .flatMap(repository::flattenAll)
                     .collect(Collectors.toCollection(ObjectOpenHashSet::new));
 
             return packs.stream()
-                    .flatMap(repository::flattenNodes)
+                    .flatMap(repository::flattenAll)
                     .filter(pack -> !enabledPacks.contains(pack))
                     .toList();
         }
 
-        return packs.stream().flatMap(repository::flattenNodes).toList();
+        return packs.stream().flatMap(repository::flattenAll).toList();
     }
 
     public void dispatch(Intent intent) {
@@ -413,26 +413,26 @@ public class Store implements FZRef<PackedPacksState> {
                     case PackListIntent.OverrideHidden override -> dispatch(new PackListMutation.VisibilityOverridden(
                             override.srcList(),
                             override.srcPack(),
-                            flatten(override.srcList().type(), override.packs()),
+                            flattenForOverrides(override.srcList().type(), override.packs()),
                             override.hidden()
                     ));
                     case PackListIntent.OverridePosition override -> dispatch(new PackListMutation.PositionOverridden(
                             override.srcList(),
                             override.srcPack(),
-                            flatten(override.srcList().type(), override.packs()),
+                            flattenForOverrides(override.srcList().type(), override.packs()),
                             override.position()
                     ));
                     case PackListIntent.OverrideRequirement override ->
                             dispatch(new PackListMutation.RequirementOverridden(
                                     override.srcList(),
                                     override.srcPack(),
-                                    flatten(override.srcList().type(), override.packs()),
+                                    flattenForOverrides(override.srcList().type(), override.packs()),
                                     override.required()
                             ));
                     case PackListIntent.RemoveOverrides remove -> dispatch(new PackListMutation.OverridesRemoved(
                             remove.srcList(),
                             remove.srcPack(),
-                            flatten(remove.srcList().type(), remove.packs())
+                            flattenForOverrides(remove.srcList().type(), remove.packs())
                     ));
                     case PackListIntent.Rename rename -> {
                         dispatch(new Mutation.PackRenaming(true));

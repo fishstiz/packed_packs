@@ -544,7 +544,7 @@ public final class Reducer {
                     yield reduceList(newState, new PackListMutation.Enabled(
                             overridden.srcList(),
                             overridden.srcPack(),
-                            overridden.packs(),
+                            overridden.packs().reversed(),
                             0
                     ));
                 }
