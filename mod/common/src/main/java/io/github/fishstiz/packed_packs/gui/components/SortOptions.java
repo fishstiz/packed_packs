@@ -20,7 +20,7 @@ import java.util.function.Consumer;
 import static io.github.fishstiz.packed_packs.util.GuiUtils.padded16Sprite;
 
 public enum SortOptions implements SortOption {
-    NONE("packed_packs.sort.none", "icon/cross") { // todo create icon
+    NONE("packed_packs.sort.none", "icon/hamburger") { // todo create icon
         @Override
         public boolean canSort() {
             return false;

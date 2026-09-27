@@ -167,7 +167,7 @@ public final class PackListComputedUtils {
         if (srcModule || destState.module()) {
             return src.equals(dest);
         }
-        if (src.depth() > 0 && src.equals(dest)) {
+        if (dest.depth() > 0) {
             return destState.query().sort() == null || !destState.query().sort().canSort();
         }
         if (src.type().enabled() && dest.type().available() && destState.parent() != null) {
@@ -191,7 +191,7 @@ public final class PackListComputedUtils {
         PackNode srcPack = dragging.srcPack();
         SequencedCollection<PackNode> payload = dragging.packs();
 
-        if (dest.type().available() && !destState.module()) {
+        if (dest.type().available() && dest.depth() == 0 && !destState.module()) {
             return !payload.isEmpty()
                    && isDropCandidate(dragging, dest, destState)
                    && canTransfer(src, srcModule, srcPack, profiles);

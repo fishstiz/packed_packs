@@ -29,15 +29,23 @@ public class PackResourcesService {
                !repository.isEnabled(pack.id());
     }
 
+    public boolean setFolderMetadata(PackNode.Parent parent, FolderPackMeta metadata) {
+        return repository.setFolderMetadata(parent.id(), metadata);
+    }
+
     public boolean saveFolderMetadata(Path folderPath, FolderPackMeta metadata) {
         return JsonLoader.saveJson(metadata, folderPath.resolve(FolderPackMeta.FILENAME), false);
     }
 
     public boolean saveFolderMetadata(PackNode.Parent parent, FolderPackMeta metadata) {
-        if (repository.setFolderMetadata(parent.id(), metadata)) {
+        if (setFolderMetadata(parent, metadata)) {
             return saveFolderMetadata(parent.path(), metadata);
         }
         return false;
+    }
+
+    public void saveFolderMetadata(PackNode.Parent parent) {
+        saveFolderMetadata(parent.path(), repository.getFolderMetadata(parent));
     }
 
     public boolean renamePack(PackNode pack, ProfileSelection profiles, String name) {
