@@ -7,7 +7,7 @@ import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.WatchEvent;
 import io.github.fishstiz.packed_packs.config.*;
-import io.github.fishstiz.packed_packs.gui.components.SortOptions;
+import io.github.fishstiz.packed_packs.gui.components.SortOption;
 import io.github.fishstiz.packed_packs.gui.states.PackListKey;
 import io.github.fishstiz.packed_packs.gui.states.PackListType;
 import io.github.fishstiz.packed_packs.gui.states.Query;
@@ -49,6 +49,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Store implements FZRef<PackedPacksState> {
     private final Minecraft minecraft;
@@ -103,7 +104,7 @@ public class Store implements FZRef<PackedPacksState> {
         this.effectHandler = effectHandler;
     }
 
-    private PackedPacksState selectNewPacks(PackListKey prevTailKey, PackListState prevTail, PackedPacksState newState) {
+    private static PackedPacksState selectNewPacks(PackListKey prevTailKey, PackListState prevTail, PackedPacksState newState) {
         PackListKey newTailKey = newState.getTailKey(prevTailKey.type());
         if (prevTailKey.depth() != newTailKey.depth()) {
             return newState;
@@ -126,7 +127,7 @@ public class Store implements FZRef<PackedPacksState> {
         return Reducer.reduce(newState, new PackListMutation.SelectedMultiple(newTailKey, newSelected));
     }
 
-    private PackedPacksState normalize(PackedPacksState prevState, PackedPacksState newState, @Nullable Mutation mutation) {
+    private PackedPacksState validateWithRepository(PackedPacksState prevState, PackedPacksState newState, @Nullable Mutation mutation) {
         boolean forceNormalize = mutation instanceof PackListMutation.ModuleUpdated;
 
         PackListKey newDisabledTailKey = newState.getTailKey(PackListType.AVAILABLE);
@@ -146,15 +147,12 @@ public class Store implements FZRef<PackedPacksState> {
         PackedPacksState enabled = normalized;
         PackListKey actionSrc = normalized.lastTarget();
 
-        if (mutation instanceof PackListMutation.Disabled
-            || (mutation instanceof PackListMutation.Dropped dropped && dropped.targetList() != null && dropped.targetList().type().available())) {
+        if (PackListMutation.isDisableAction(mutation)) {
             disabled = selectNewPacks(newDisabledTailKey, newDisabledTail, normalized);
             actionSrc = disabled.lastTarget();
         }
 
-        if (mutation instanceof PackListMutation.Enabled
-            || (mutation instanceof PackListMutation.Dropped dropped && dropped.targetList() != null && dropped.targetList().type().enabled())
-            || (mutation instanceof PackListMutation.RequirementOverridden override && Boolean.TRUE.equals(override.required()))) {
+        if (PackListMutation.isEnableAction(mutation)) {
             enabled = selectNewPacks(newEnabledTailKey, newEnabledTail, normalized);
             actionSrc = enabled.lastTarget();
         }
@@ -166,17 +164,58 @@ public class Store implements FZRef<PackedPacksState> {
         return normalized;
     }
 
-    private void replaceState(PackedPacksState newState, boolean normalize) {
+    private PackedPacksState preserveDisabledFolderOrder(PackedPacksState prevState, PackedPacksState newState, Mutation mutation) {
+        if (!PackListMutation.isDisableAction(mutation)) {
+            return newState;
+        }
+
+        if (mutation instanceof PackListMutation.Dropped dropped && dropped.targetList() != null && dropped.targetList().depth() > 0) {
+            return newState;
+        }
+
+        PackListState newTail = newState.getTailList(PackListType.AVAILABLE);
+        if (newTail.parent() == null || newTail.packs() == prevState.getTailList(PackListType.AVAILABLE).packs()) {
+            return newState;
+        }
+
+        List<PackNode> newPacks = new ObjectArrayList<>(newTail.packs().size());
+        Set<String> packs = newTail.packs().stream()
+                .map(PackNode::id)
+                .collect(Collectors.toCollection(ObjectLinkedOpenHashSet::new));
+
+        repository.collectSortedChildren(newTail.parent(), pack -> {
+            if (packs.remove(pack.id())) newPacks.add(pack);
+        });
+
+        for (String leftover : packs) {
+            PackNode pack = repository.getPackById(leftover);
+            if (pack != null) newPacks.add(pack);
+        }
+
+        return newState.withAvailable(
+                newState.available().withTail(
+                        newTail.withPacks(newPacks, newState.profiles(), newState.devMode()),
+                        newState.profiles(),
+                        newState.devMode()
+                ),
+                newState.lastTarget()
+        );
+    }
+
+    private void replaceState(PackedPacksState newState, boolean validate) {
         PackedPacksState prev = this.state;
         if (prev != newState) {
-            this.state = normalize ? normalize(prev, newState, null) : newState;
+            this.state = validate ? validateWithRepository(prev, newState, null) : newState;
             subscribers.values().forEach(Runnable::run);
         }
     }
 
     private boolean dispatch(Mutation mutation) {
         PackedPacksState prevState = this.state;
-        PackedPacksState newState = normalize(prevState, Reducer.reduce(prevState, mutation), mutation);
+        PackedPacksState newState = Reducer.reduce(prevState, mutation);
+        newState = validateWithRepository(prevState, newState, mutation);
+        newState = preserveDisabledFolderOrder(prevState, newState, mutation);
+
         this.state = newState;
 
         if (prevState != newState) {
@@ -187,7 +226,7 @@ public class Store implements FZRef<PackedPacksState> {
             }
 
             subscribers.values().forEach(Runnable::run);
-            onStateChanged(prevState, newState);
+            onStateChanged(prevState, newState, mutation);
             return true;
         }
 
@@ -222,7 +261,15 @@ public class Store implements FZRef<PackedPacksState> {
             case PackListIntent packListIntent -> {
                 switch (packListIntent) {
                     case PackListIntent.Enable enable -> {
-                        if (dispatch(new PackListMutation.Enabled(enable.srcList(), enable.srcPack(), enable.packs(), enable.index()))
+                        SequencedCollection<PackNode> payload = enable.packs();
+
+                        if (enable.srcList().type().available()) {
+                            payload = enable.packs().stream()
+                                    .flatMap(pack -> repository.flattenNodes(pack).toList().reversed().stream())
+                                    .toList();
+                        }
+
+                        if (dispatch(new PackListMutation.Enabled(enable.srcList(), enable.srcPack(), payload, enable.index()))
                             && prevState.enabled() != state.enabled()) {
                             effectHandler.accept(new UiEffect.Focus(PackListType.ENABLED));
                             AbstractWidget.playButtonClickSound(minecraft.getSoundManager());
@@ -237,11 +284,16 @@ public class Store implements FZRef<PackedPacksState> {
                     }
                     case PackListIntent.Recall recall -> {
                         if (state.getList(recall.srcList()) != null) {
-                            dispatch(new PackListMutation.Disabled(
-                                    PackListKey.enabled(),
-                                    recall.parent(),
-                                    recall.parent().stream().toList()
-                            ));
+                            Set<String> descendants = recall.parent().stream()
+                                    .flatMap(repository::flattenNodes)
+                                    .map(PackNode::id)
+                                    .collect(Collectors.toSet());
+
+                            List<PackNode> recallList = state.enabled().packs().stream()
+                                    .filter(pack -> descendants.contains(pack.id()))
+                                    .toList();
+
+                            dispatch(new PackListMutation.Disabled(PackListKey.enabled(), recall.parent(), recallList));
                         }
                     }
                     case PackListIntent.Drag drag -> {
@@ -251,7 +303,18 @@ public class Store implements FZRef<PackedPacksState> {
                         }
                     }
                     case PackListIntent.Drop drop -> {
-                        if (dispatch(new PackListMutation.Dropped(drop.srcList(), drop.targetList(), drop.index()))
+                        ActiveAction.Dragging dragging = state.dragging();
+                        if (dragging == null) return;
+
+                        SequencedCollection<PackNode> payload = dragging.packs();
+
+                        if (drop.targetList() != null
+                            && drop.targetList().type().enabled()
+                            && drop.srcList().type() != drop.targetList().type()) {
+                            payload = dragging.packs().stream().flatMap(repository::flattenNodes).toList();
+                        }
+
+                        if (dispatch(new PackListMutation.Dropped(drop.srcList(), payload, drop.targetList(), drop.index()))
                             && drop.targetList() != null) {
                             if (drop.targetList().equals(drop.srcList())) {
                                 effectHandler.accept(new UiEffect.Focus(drop.targetList().type()));
@@ -314,7 +377,7 @@ public class Store implements FZRef<PackedPacksState> {
                         ActiveAction.EditingAliases aliases = state.editingAliases();
                         if (aliases == null) return;
                         configs.dev().setAliases(aliases.pack().id(), newAliases);
-                        if (dispatch(new PackListMutation.AliasesModalClosed())) {
+                        if (dispatch(new PackListMutation.AliasesModalClosed(aliases.src()))) {
                             effectHandler.accept(new UiEffect.Focus(aliases.src().type(), aliases.pack().id()));
                         }
                     }
@@ -343,7 +406,7 @@ public class Store implements FZRef<PackedPacksState> {
                         }
 
                         FolderPackMeta meta = repository.getFolderMetadata(parent);
-                        if (resources.saveFolderMetadata(lock.pack(), meta.withModule(lock.module()))) {
+                        if (resources.setFolderMetadata(lock.pack(), meta.withModule(lock.module()))) {
                             dispatch(new PackListMutation.ModuleUpdated(lock.srcList(), lock.module()));
                         }
                     }
@@ -491,7 +554,7 @@ public class Store implements FZRef<PackedPacksState> {
         }
     }
 
-    private void onStateChanged(PackedPacksState prev, PackedPacksState current) {
+    private void onStateChanged(PackedPacksState prev, PackedPacksState current, Mutation mutation) {
         if (prev.profiles() != current.profiles()) {
             current.available().packs().forEach(current.profiles()::validate);
             current.enabled().packs().forEach(current.profiles()::validate);
@@ -503,6 +566,35 @@ public class Store implements FZRef<PackedPacksState> {
             saveFolderState(prev.enabled().folder());
             if (previousProfile != null && current.profiles().profiles().contains(previousProfile)) {
                 saveProfileState(previousProfile, prev.enabled().packs());
+            }
+        }
+
+        if (mutation instanceof PackListMutation listMutation && PackListMutation.isMoveAction(listMutation)) {
+            PackListState newListState = current.getList(PackListMutation.getTarget(listMutation));
+            if (newListState != null && newListState.parent() != null) {
+                PackNode.Parent parent = newListState.parent();
+
+                List<String> prevPackIds = repository.getFolderMetadata(parent).packIds();
+                Set<String> visibleIds = newListState.packs().stream()
+                        .flatMap(pack -> Stream.of(pack.id(), PackUtil.replaceDirsWithRelative(pack.id())))
+                        .collect(Collectors.toCollection(ObjectOpenHashSet::new));
+                Set<String> childrenIds = parent.children().stream()
+                        .flatMap(pack -> Stream.of(pack.id(), PackUtil.replaceDirsWithRelative(pack.id())))
+                        .collect(Collectors.toCollection(ObjectOpenHashSet::new));
+                List<String> newPackIds = newListState.packs().stream()
+                        .map(pack -> pack.parentId() == null ? pack.id() : PackUtil.replaceDirsWithRelative(pack.id()))
+                        .collect(Collectors.toCollection(ObjectArrayList::new));
+
+                int insertAt = 0;
+                for (String id : prevPackIds) {
+                    if (!visibleIds.contains(id) && childrenIds.contains(id)) {
+                        newPackIds.add(insertAt, id);
+                    }
+                    insertAt++;
+                    insertAt = Math.min(insertAt, newPackIds.size());
+                }
+
+                resources.setFolderMetadata(parent, repository.getFolderMetadata(parent).withPackIds(newPackIds));
             }
         }
     }
@@ -639,10 +731,7 @@ public class Store implements FZRef<PackedPacksState> {
     private void saveFolderState(@Nullable PackListState folder) {
         if (folder == null || folder.parent() == null) return;
         saveFolderState(folder.folder());
-        resources.saveFolderMetadata(
-                folder.parent(),
-                new FolderPackMeta(folder.module(), PackResourcesService.replaceDirsWithRelative(folder.packs()))
-        );
+        resources.saveFolderMetadata(folder.parent());
     }
 
     private static @Nullable PackListState syncFolderStateWithRepository(
@@ -797,9 +886,19 @@ public class Store implements FZRef<PackedPacksState> {
         saveFolderState(state.available().folder());
         saveFolderState(state.enabled().folder());
 
-        Query query = state.getTailList(PackListType.AVAILABLE).query();
-        Config.get().setSort(query.sort() == null ? SortOptions.VANILLA : query.sort());
+        PackListKey availableKey = state.getTailKey(PackListType.AVAILABLE);
+        PackListState availableState = Objects.requireNonNullElse(state.getList(availableKey), state.available());
+        Query query = availableState.query();
+
+        SortOption sort;
+        do {
+            sort = availableState.query().sort();
+            availableState = state.getList(availableKey.unnest());
+        } while (availableState != null && availableState.parent() != null);
+
+        Config.get().setSort(sort);
         Config.get().setHideIncompatible(query.hideIncompatible());
+
         Config.get().setDevMode(state.devMode());
 
         Profile selectedProfile = state.profiles().selectedProfile();

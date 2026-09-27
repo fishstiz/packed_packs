@@ -75,7 +75,12 @@ public final class Config {
         return SortOptions.getOrDefault(this.sort);
     }
 
-    public void setSort(SortOption sort) {
+    public void setSort(@Nullable SortOption sort) {
+        if (sort == null) {
+            this.sort = SortOptions.VANILLA.name();
+            return;
+        }
+
         if (sort == SortOptions.NONE) {
             return;
         }
