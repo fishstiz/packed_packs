@@ -754,19 +754,14 @@ public class Store implements FZRef<PackedPacksState> {
             return null;
         }
 
-        List<PackNode> newContents = new ObjectArrayList<>(folder.packs().size());
-        Set<String> currentContentIds = new ObjectOpenHashSet<>(folder.packs().size());
+        List<PackNode> sortedChildren = repository.getSortedChildren(canonicalParent);
+        Set<String> currentContentIds = new ObjectOpenHashSet<>(sortedChildren.size());
+        List<PackNode> newContents = new ObjectArrayList<>(sortedChildren.size());
 
-        for (PackNode entry : folder.packs()) {
-            if (canonicalParent.children().contains(entry) && (folder.module() || !enabledIds.contains(entry.id()))) {
-                newContents.add(entry);
-                currentContentIds.add(entry.id());
-            }
-        }
-
-        for (PackNode child : canonicalParent.children()) {
-            if ((folder.module() || !enabledIds.contains(child.id())) && currentContentIds.add(child.id())) {
+        for (PackNode child : sortedChildren) {
+            if (folder.module() || !enabledIds.contains(child.id())) {
                 newContents.add(child);
+                currentContentIds.add(child.id());
             }
         }
 

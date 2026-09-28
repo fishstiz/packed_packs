@@ -72,10 +72,22 @@ public class PackResourcesService {
         if (parentNode != null) {
             FolderPackMeta parentMeta = repository.getFolderMetadata(parentNode.id());
             if (parentMeta != null) {
-                int index = parentMeta.packIds().indexOf(pack.id());
+                boolean matchRelative = false;
+                String oldRelativeId = PackUtil.replaceDirsWithRelative(pack.id());
+                int index = -1;
+
+                for (int i = 0; i < parentMeta.packIds().size(); i++) {
+                    String packId = parentMeta.packIds().get(i);
+                    matchRelative = packId.equals(oldRelativeId);
+                    if (matchRelative || packId.equals(pack.id())) {
+                        index = i;
+                        break;
+                    }
+                }
+
                 if (index != -1) {
                     List<String> packIds = new ArrayList<>(parentMeta.packIds());
-                    packIds.set(index, PackUtil.replaceDirsWithRelative(newId));
+                    packIds.set(index, matchRelative ? PackUtil.replaceDirsWithRelative(newId) : newId);
                     saveFolderMetadata(parentNode, new FolderPackMeta(parentMeta.module(), packIds));
                 }
             }
@@ -83,8 +95,13 @@ public class PackResourcesService {
 
         if (pack instanceof PackNode.Parent parent) {
             FolderPackMeta metadata = repository.getFolderMetadata(pack.id());
+            String regex = "^" + Pattern.quote(pack.id());
+
             if (metadata != null) {
-                saveFolderMetadata(newPath, metadata);
+                saveFolderMetadata(newPath, metadata.withPackIds(metadata.packIds().stream()
+                        .map(id -> id.replaceFirst(regex, newId))
+                        .toList()));
+
                 repository.removeFolderMetadata(pack.id());
             }
 
