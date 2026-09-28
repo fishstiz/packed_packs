@@ -890,11 +890,18 @@ public class Store implements FZRef<PackedPacksState> {
         PackListState availableState = Objects.requireNonNullElse(state.getList(availableKey), state.available());
         Query query = availableState.query();
 
-        SortOption sort;
-        do {
-            sort = availableState.query().sort();
-            availableState = state.getList(availableKey.unnest());
-        } while (availableState != null && availableState.parent() != null);
+        SortOption sort = null;
+        while (availableState != null) {
+            SortOption candidate = availableState.query().sort();
+            if (candidate != null && candidate.canSort()) {
+                sort = candidate;
+                break;
+            }
+
+            if (availableKey.depth() <= 0) break;
+            availableKey = availableKey.unnest();
+            availableState = state.getList(availableKey);
+        }
 
         Config.get().setSort(sort);
         Config.get().setHideIncompatible(query.hideIncompatible());
