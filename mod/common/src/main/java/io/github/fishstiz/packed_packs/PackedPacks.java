@@ -1,6 +1,7 @@
 package io.github.fishstiz.packed_packs;
 
 import com.mojang.blaze3d.Blaze3D;
+import io.github.fishstiz.packed_packs.pack.FolderLocationInfo;
 import io.github.fishstiz.packed_packs.platform.Services;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
@@ -9,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class PackedPacks {
@@ -16,6 +18,7 @@ public class PackedPacks {
     public static final String MOD_NAME = "Packed Packs";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static final boolean DEBUG = System.getProperty("packed_packs.debug") != null;
+    public static final ThreadLocal<Consumer<FolderLocationInfo>> FOLDER_COLLECTOR = new ThreadLocal<>();
 
     private PackedPacks() {
     }
