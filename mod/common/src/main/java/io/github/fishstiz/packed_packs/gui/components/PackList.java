@@ -5,6 +5,7 @@ import io.github.fishstiz.fidgetz.v0.gui.components.events.FZHoverableElement;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.RenderableRectangle;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
+import io.github.fishstiz.fidgetz.v0.utils.NavigationUtils;
 import io.github.fishstiz.packed_packs.api.context.PackContext;
 import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
 import io.github.fishstiz.packed_packs.api.events.InitializePackEntryEvent;
@@ -316,6 +317,14 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     public @Nullable ComponentPath nextFocusPath(FocusNavigationEvent event) {
         if (children().isEmpty()) return null;
 
+        Entry focused = getFocusedOrSelected();
+        if (focused != null && (focused.getFocused() != null || (!NavigationUtils.isUp(event, false) && !NavigationUtils.isDown(event, false)))) {
+            ComponentPath path = focused.nextFocusPath(event);
+            if (path != null) {
+                return ComponentPath.path(this, path);
+            }
+        }
+
         Entry next = switch (event) {
             case FocusNavigationEvent.InitialFocus ignored -> getFocusedOrSelected();
             case FocusNavigationEvent.TabNavigation ignored -> isFocused()
@@ -515,7 +524,6 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             }
         }
 
-        // todo add widgets to navigation path
         @Override
         public void acceptWidget(GuiEventListener widget) {
             if (widget instanceof FZHoverableElement hoverable && widget instanceof AbstractWidget abstractWidget) {
