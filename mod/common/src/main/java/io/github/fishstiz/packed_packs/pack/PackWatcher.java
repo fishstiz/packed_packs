@@ -123,20 +123,17 @@ public class PackWatcher implements AutoCloseable {
 
     private record Filter(Path root) implements FileFilter {
         private static final int DIRECTORY_PACK_DEPTH = 1;
-        private static final int PACK_CONTENTS_DEPTH = 2;
-        private static final int NESTED_PACK_DEPTH = 3;
 
         @Override
         public boolean accept(File pathname) {
             Path path = pathname.toPath();
             int depth = this.root.relativize(path.toAbsolutePath().normalize()).getNameCount();
 
-            return switch (depth) {
-                case 0, DIRECTORY_PACK_DEPTH -> true;
-                case PACK_CONTENTS_DEPTH -> hasMcmeta(path.getParent()) || hasFolderConfig(path.getParent());
-                case NESTED_PACK_DEPTH -> hasFolderConfig(path.getParent().getParent());
-                default -> false;
-            };
+            if (depth == 0 || depth == DIRECTORY_PACK_DEPTH) {
+                return true;
+            }
+
+            return hasMcmeta(path.getParent()) || hasFolderConfig(path.getParent());
         }
     }
 
