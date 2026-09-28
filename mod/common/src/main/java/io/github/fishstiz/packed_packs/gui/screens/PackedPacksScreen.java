@@ -61,6 +61,7 @@ import static io.github.fishstiz.packed_packs.util.InputUtil.*;
 public class PackedPacksScreen extends FZScreen {
     private static final Component DEV_MODE_TEXT = Component.translatable("packed_packs.dev_mode", DEV_MODE_SHORTCUT);
     private static final Component SEARCH_TEXT = Component.translatable("gui.packSelection.search").withStyle(EditBox.SEARCH_HINT_STYLE);
+    private static final Component SORT_TEXT = Component.translatable("packed_packs.sort");
     private final @Nullable Screen parent;
     private final PackSelectionScreenArgs original;
     private final PackedPacksContext context;
@@ -249,25 +250,27 @@ public class PackedPacksScreen extends FZScreen {
                     );
 
                     leftRibbon.child(FZDropdown.bind("AvailableSortDropdown", state()
-                            .map(s -> s.getTailList(PackListType.AVAILABLE).query().sort())
-                            .map(sort -> {
+                            .map(s -> s.getTailList(PackListType.AVAILABLE))
+                            .map(list -> {
+                                SortOption sort = list.query().sort();
                                 boolean active = sort != null && !(sort instanceof SortOption.Locked);
                                 Component valueText = sort != null && active ? sort.text() : CommonComponents.EMPTY;
-                                Component sortText = Component.translatable("packed_packs.sort");
-                                PackListKey key = state().value().getTailKey(PackListType.AVAILABLE);
 
                                 return FZDropdown.builder(this)
                                         .width(40)
                                         .minContainerWidth(175)
                                         .hideMessage(true)
-                                        .message(sortText)
+                                        .message(SORT_TEXT)
                                         .active(active)
-                                        .tooltip(active ? CommonComponents.optionNameValue(sortText, valueText) : sortText)
+                                        .tooltip(active ? CommonComponents.optionNameValue(SORT_TEXT, valueText) : SORT_TEXT)
                                         .leftIcon(sort == null ? null : padded16Sprite(sort.icon()))
                                         .entryDivider(null)
                                         .entries(SortOptions.menuItems(
-                                                key.depth() > 0 && !state().value().getTailList(key.type()).module(),
-                                                option -> context.dispatch(new PackListIntent.Sort(key, option))
+                                                list.parent() != null && !list.module(),
+                                                option -> context.dispatch(new PackListIntent.Sort(
+                                                        state().value().getTailKey(PackListType.AVAILABLE),
+                                                        option
+                                                ))
                                         ))
                                         .toProps();
                             })));
