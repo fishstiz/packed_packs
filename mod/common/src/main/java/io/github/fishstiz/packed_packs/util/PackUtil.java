@@ -161,7 +161,7 @@ public class PackUtil {
     }
 
     public static String getNewIdOnRename(String previousId, String newName) {
-        return previousId.replaceFirst("([^/]+?)(?=\\.[^./]+$|$)", newName);
+        return previousId.replaceFirst("[^/]+?$", newName);
     }
 
     public static PathValidationResults validatePaths(List<Path> packs) {
