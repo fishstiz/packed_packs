@@ -368,6 +368,13 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
     }
 
+    public void rebuildEntries() {
+        packList.rebuildEntries();
+        if (folder != null) {
+            folder.listContainer.rebuildEntries();
+        }
+    }
+
     static class Folder extends AbstractContainerEventHandler implements FocusPathProvider, FZContextMenu.Source, ContainerEventHandlerPatch, Renderable {
         private static final int HEADER_SIZE = 16;
         private static final int LAYOUT_SPACING = SPACING / 2;
