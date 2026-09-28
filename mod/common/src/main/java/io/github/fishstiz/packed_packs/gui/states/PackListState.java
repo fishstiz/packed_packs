@@ -222,7 +222,7 @@ public record PackListState(
         if (query.sort() != null) {
             Comparator<PackNode> comparator = query.sort().comparator(filtered);
             if (comparator != null) {
-                filtered.sort(comparator);
+                filtered.sort(SortOptions.folderFirst(comparator));
             }
         }
         return List.copyOf(filtered);

@@ -5,6 +5,7 @@ import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -27,34 +28,38 @@ public enum SortOptions implements SortOption {
         }
     },
     VANILLA("packed_packs.sort.vanilla", "icon/sort_vanilla") {
+        private static final Comparator<PackNode> COMPARATOR = (first, second) -> {
+            PackSource firstPackSource = first.packSource();
+            PackSource secondPackSource = second.packSource();
+
+            boolean builtInFirst = PackUtil.isBuiltIn(firstPackSource);
+            boolean builtInSecond = PackUtil.isBuiltIn(secondPackSource);
+
+            if (builtInFirst != builtInSecond) return builtInFirst ? 1 : -1;
+
+            boolean featureFirst = PackUtil.isFeature(firstPackSource);
+            boolean featureSecond = PackUtil.isFeature(secondPackSource);
+
+            if (featureFirst != featureSecond) return featureFirst ? 1 : -1;
+
+            return first.title().getString().compareTo(second.title().getString());
+        };
+
         @Override
         public Comparator<PackNode> comparator(SequencedCollection<PackNode> packs) {
-            return folderFirst((first, second) -> {
-                PackSource firstPackSource = first.packSource();
-                PackSource secondPackSource = second.packSource();
-
-                boolean builtInFirst = PackUtil.isBuiltIn(firstPackSource);
-                boolean builtInSecond = PackUtil.isBuiltIn(secondPackSource);
-
-                if (builtInFirst != builtInSecond) return builtInFirst ? 1 : -1;
-
-                boolean featureFirst = PackUtil.isFeature(firstPackSource);
-                boolean featureSecond = PackUtil.isFeature(secondPackSource);
-
-                if (featureFirst != featureSecond) return featureFirst ? 1 : -1;
-
-                return first.title().getString().compareTo(second.title().getString());
-            });
+            return COMPARATOR;
         }
     },
     A_Z("packed_packs.sort.a_z", "icon/sort_a_z") {
+        @SuppressWarnings("NullableProblems")
+        static final Comparator<PackNode> COMPARATOR = Comparator.comparing(
+                pack -> ChatFormatting.stripFormatting(pack.title().getString()),
+                String.CASE_INSENSITIVE_ORDER
+        );
+
         @Override
         public Comparator<PackNode> comparator(SequencedCollection<PackNode> packs) {
-            //noinspection NullableProblems
-            return folderFirst(Comparator.comparing(
-                    pack -> ChatFormatting.stripFormatting(pack.title().getString()),
-                    String.CASE_INSENSITIVE_ORDER
-            ));
+            return COMPARATOR;
         }
     },
     Z_A("packed_packs.sort.z_a", "icon/sort_z_a") {
@@ -66,8 +71,8 @@ public enum SortOptions implements SortOption {
     RECENT("packed_packs.sort.recent", "icon/sort_recent") {
         @Override
         public Comparator<PackNode> comparator(SequencedCollection<PackNode> packs) {
-            Map<PackNode, Long> cache = buildTimestampCache(packs);
-            return folderFirst(Comparator.<PackNode, Long>comparing(cache::get).reversed());
+            Object2LongMap<PackNode> cache = buildTimestampCache(packs);
+            return Comparator.<PackNode, Long>comparing(cache::getLong).reversed();
         }
     },
     OLDEST("packed_packs.sort.oldest", "icon/sort_oldest") {
@@ -93,7 +98,7 @@ public enum SortOptions implements SortOption {
         return Component.translatable(translationKey);
     }
 
-    static Comparator<PackNode> folderFirst(Comparator<PackNode> base) {
+    public static Comparator<PackNode> folderFirst(Comparator<PackNode> base) {
         return Comparator.comparing((PackNode pack) -> !(pack instanceof PackNode.Parent)).thenComparing(base);
     }
 
@@ -123,8 +128,8 @@ public enum SortOptions implements SortOption {
         return items;
     }
 
-    private static Map<PackNode, Long> buildTimestampCache(SequencedCollection<PackNode> packs) {
-        Map<PackNode, Long> cache = new Object2LongLinkedOpenHashMap<>(packs.size());
+    private static Object2LongMap<PackNode> buildTimestampCache(SequencedCollection<PackNode> packs) {
+        Object2LongMap<PackNode> cache = new Object2LongLinkedOpenHashMap<>(packs.size());
         for (PackNode pack : packs) cache.put(pack, getLastUpdatedEpochMs(pack));
         return cache;
     }
