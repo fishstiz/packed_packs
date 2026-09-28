@@ -260,7 +260,14 @@ public class PackNodeRepository {
 
         refreshSelectionModel();
 
-        this.selectionModel.findNewPacks();
+        Map<String, FolderLocationInfo> folderInfoById = new Object2ObjectOpenHashMap<>();
+        try {
+            PackedPacks.FOLDER_COLLECTOR.set(folder -> folderInfoById.putIfAbsent(folder.location().id(), folder));
+            this.selectionModel.findNewPacks();
+        } finally {
+            PackedPacks.FOLDER_COLLECTOR.remove();
+        }
+
         if (PackedPacks.DEBUG) {
             PackedPacks.LOGGER.info("[packed_packs] ======== Pack Repository reloaded in {}ms ========", PackedPacks.duration(start));
         }
@@ -271,7 +278,6 @@ public class PackNodeRepository {
         allPacks.addAll(model.getUnselectedPacks());
 
         Map<String, Pack> leavesById = new Object2ObjectLinkedOpenHashMap<>();
-        Map<String, FolderLocationInfo> folderInfoById = new Object2ObjectOpenHashMap<>();
         Map<String, Set<String>> folderChildIds = new Object2ObjectOpenHashMap<>();
 
         for (Pack pack : allPacks) {

@@ -47,6 +47,9 @@ public abstract class FolderRepositorySourceMixin {
     @Inject(method = "loadPacks", at = @At("RETURN"))
     private void ensureRemoveThreadLocals(Consumer<Pack> result, CallbackInfo ci) {
         PARENT_CONTEXT.remove();
+        if (PackedPacks.FOLDER_COLLECTOR.get() == null) {
+            PackedPacks.FOLDER_COLLECTOR.remove();
+        }
     }
 
     @WrapOperation(method = "discoverPacks", at = @At(
@@ -76,6 +79,9 @@ public abstract class FolderRepositorySourceMixin {
 
             try {
                 FolderLocationInfo parentInfo = FolderLocationInfo.fromPath(path.toAbsolutePath().normalize(), parent);
+                if (PackedPacks.FOLDER_COLLECTOR.get() != null) {
+                    PackedPacks.FOLDER_COLLECTOR.get().accept(parentInfo);
+                }
                 PARENT_CONTEXT.set(parentInfo);
                 discoverPacks(path, validator, output);
             } catch (IOException e) {
