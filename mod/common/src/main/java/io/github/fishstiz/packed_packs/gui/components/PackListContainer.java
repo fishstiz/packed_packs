@@ -413,10 +413,13 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
                     .visible(key.type().available())
                     .onPress(() -> head.context.dispatch(new PackListIntent.Recall(key, this.parent)))
                     .build();
-            this.lockButton = FZIconButton.builder(new WidgetRenderables(
-                            GuiUtils.lazySprite(() -> folderState.module() ? LOCK_SPRITE : UNLOCK_SPRITE),
-                            Renderables.sprite(LOCK_SPRITE_DISABLED),
-                            GuiUtils.lazySprite(() -> folderState.module() ? LOCK_SPRITE_HIGHLIGHTED : UNLOCK_SPRITE_HIGHLIGHTED)
+            this.lockButton = FZIconButton.builder()
+                    .icon(new WidgetElements(
+                            GuiUtils.lazySprite(() -> folderState.module() ? LOCK_SPRITE_SMALL : UNLOCK_SPRITE_SMALL),
+                            Renderables.sprite(LOCK_SPRITE_SMALL),
+                            GuiUtils.lazySprite(() -> folderState.module() ? LOCK_SPRITE_SMALL : UNLOCK_SPRITE_SMALL),
+                            16,
+                            16
                     ))
                     .size(HEADER_SIZE, HEADER_SIZE)
                     .onPress(() -> head.context.dispatch(
