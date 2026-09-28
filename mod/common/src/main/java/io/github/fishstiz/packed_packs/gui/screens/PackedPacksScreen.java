@@ -498,6 +498,8 @@ public class PackedPacksScreen extends FZScreen {
         context.saveState();
         this.initialized = false;
         init();
+        availableList.rebuildEntries();
+        enabledList.rebuildEntries();
         dialogManager.refreshDialogs();
     }
 
