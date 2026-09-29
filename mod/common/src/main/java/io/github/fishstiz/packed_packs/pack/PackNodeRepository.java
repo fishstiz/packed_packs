@@ -17,6 +17,7 @@ import it.unimi.dsi.fastutil.objects.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
+import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
@@ -305,6 +306,59 @@ public class PackNodeRepository {
 
         for (String id : folderInfoById.keySet()) {
             buildNode(id, leavesById, folderInfoById, folderChildIds, newPacks);
+        }
+
+        Map<String, List<PackNode.Leaf>> virtualChildrenByFolder = new Object2ObjectOpenHashMap<>();
+        for (Map.Entry<String, FolderPackMeta> entry : folderMeta.entrySet()) {
+            String folderId = entry.getKey();
+            if (!(newPacks.get(folderId) instanceof PackNode.Parent)) continue;
+
+            List<String> claimedIds = entry.getValue().packIds();
+            List<PackNode.Leaf> virtualChildren = new ObjectArrayList<>(claimedIds.size());
+
+            for (String id : claimedIds) {
+                PackNode candidate = newPacks.get(id);
+                // non file-packs can be added to folders virtually (for adding built-in packs)
+                if (candidate instanceof PackNode.Leaf leaf && leaf.path() == null && leaf.parentId() == null) {
+                    virtualChildren.add(leaf);
+                }
+            }
+
+            if (!virtualChildren.isEmpty()) {
+                virtualChildrenByFolder.put(folderId, virtualChildren);
+            }
+        }
+
+        if (!virtualChildrenByFolder.isEmpty()) {
+            for (Map.Entry<String, List<PackNode.Leaf>> claim : virtualChildrenByFolder.entrySet()) {
+                String folderId = claim.getKey();
+
+                if (!(newPacks.get(folderId) instanceof PackNode.Parent(
+                        String parentId,
+                        Path path,
+                        PackLocationInfo location,
+                        Pack.ResourcesSupplier resourcesSupplier,
+                        List<PackNode> children
+                ))) {
+                    continue;
+                }
+
+                List<PackNode> newChildren = new ObjectArrayList<>(children);
+
+                for (PackNode.Leaf leaf : claim.getValue()) {
+                    PackNode.Leaf reparented = new PackNode.Leaf(leaf.pack(), leaf.path(), folderId);
+                    newChildren.add(reparented);
+                    newPacks.put(reparented.id(), reparented);
+                }
+
+                newPacks.put(folderId, new PackNode.Parent(
+                        parentId,
+                        path,
+                        location,
+                        resourcesSupplier,
+                        newChildren
+                ));
+            }
         }
 
         this.packs = newPacks;
