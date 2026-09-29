@@ -62,6 +62,10 @@ public sealed interface PackListMutation extends Mutation {
     }
 
     record ModuleUpdated(PackListKey srcList, boolean module) implements Cross {
+        @Override
+        public boolean resetHistory() {
+            return true;
+        }
     }
 
     record RenameModalOpened(PackListKey srcList, PackNode pack) implements Cross {
