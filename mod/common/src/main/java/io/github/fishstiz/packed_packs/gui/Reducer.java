@@ -313,10 +313,12 @@ public final class Reducer {
         PackListState srcState = Objects.requireNonNullElse(state.getList(transfer.srcList()), PackListState.empty());
         SequencedSet<PackNode> newSrcPacks = new ObjectLinkedOpenHashSet<>(srcState.packs());
 
+        int clampedIndex = Math.clamp(transfer.index(), 0, newDestPacks.size());
+
         for (PackNode pack : transfer.packs()) {
             newSrcPacks.remove(pack); // do not validate on add using remove as the payload may contain nested packs
             if (newDestIds.add(pack.id())) {
-                newDestPacks.add(transfer.index(), pack);
+                newDestPacks.add(clampedIndex, pack);
                 if (srcPack == null || !pack.id().equals(srcPack.id()) && !destState.selectedPacks().contains(pack)) {
                     newDestSelection.add(pack);
                 }
