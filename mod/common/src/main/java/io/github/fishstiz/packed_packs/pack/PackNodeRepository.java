@@ -262,8 +262,18 @@ public class PackNodeRepository {
         refreshSelectionModel();
 
         Map<String, FolderLocationInfo> folderInfoById = new Object2ObjectOpenHashMap<>();
+        Map<String, Set<String>> folderChildIds = new Object2ObjectOpenHashMap<>();
+
         try {
-            PackedPacks.FOLDER_COLLECTOR.set(folder -> folderInfoById.putIfAbsent(folder.location().id(), folder));
+            PackedPacks.FOLDER_COLLECTOR.set(folder -> {
+                folderInfoById.putIfAbsent(folder.location().id(), folder);
+                if (folder.parent() != null) {
+                    folderChildIds.computeIfAbsent(
+                            folder.parent().location().id(),
+                            ignored -> new ObjectLinkedOpenHashSet<>()
+                    ).add(folder.location().id());
+                }
+            });
             this.selectionModel.findNewPacks();
         } finally {
             PackedPacks.FOLDER_COLLECTOR.remove();
@@ -279,7 +289,6 @@ public class PackNodeRepository {
         allPacks.addAll(model.getUnselectedPacks());
 
         Map<String, Pack> leavesById = new Object2ObjectLinkedOpenHashMap<>();
-        Map<String, Set<String>> folderChildIds = new Object2ObjectOpenHashMap<>();
 
         for (Pack pack : allPacks) {
             String id = pack.getId();
