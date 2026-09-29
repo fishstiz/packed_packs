@@ -202,6 +202,38 @@ public class Store implements FZRef<PackedPacksState> {
         );
     }
 
+    private void saveFolderOrderOnMove(PackedPacksState newState, Mutation mutation) {
+        if (!(mutation instanceof PackListMutation listMutation) || !PackListMutation.isMoveAction(listMutation)) {
+            return;
+        }
+
+        PackListState newListState = newState.getList(PackListMutation.getTarget(listMutation));
+        if (newListState == null || newListState.parent() == null) return;
+
+        PackNode.Parent parent = newListState.parent();
+        List<String> prevPackIds = repository.getFolderMetadata(parent).packIds();
+        Set<String> visibleIds = newListState.packs().stream()
+                .flatMap(pack -> Stream.of(pack.id(), PackUtil.replaceDirsWithRelative(pack.id())))
+                .collect(Collectors.toCollection(ObjectOpenHashSet::new));
+        Set<String> childrenIds = parent.children().stream()
+                .flatMap(pack -> Stream.of(pack.id(), PackUtil.replaceDirsWithRelative(pack.id())))
+                .collect(Collectors.toCollection(ObjectOpenHashSet::new));
+        List<String> newPackIds = newListState.packs().stream()
+                .map(pack -> pack.parentId() == null ? pack.id() : PackUtil.replaceDirsWithRelative(pack.id()))
+                .collect(Collectors.toCollection(ObjectArrayList::new));
+
+        int insertAt = 0;
+        for (String id : prevPackIds) {
+            if (!visibleIds.contains(id) && childrenIds.contains(id)) {
+                newPackIds.add(insertAt, id);
+            }
+            insertAt++;
+            insertAt = Math.min(insertAt, newPackIds.size());
+        }
+
+        resources.setFolderMetadata(parent, repository.getFolderMetadata(parent).withPackIds(newPackIds));
+    }
+
     private void replaceState(PackedPacksState newState, boolean validate) {
         PackedPacksState prev = this.state;
         if (prev != newState) {
@@ -213,6 +245,7 @@ public class Store implements FZRef<PackedPacksState> {
     private boolean dispatch(Mutation mutation) {
         PackedPacksState prevState = this.state;
         PackedPacksState newState = Reducer.reduce(prevState, mutation);
+        saveFolderOrderOnMove(newState, mutation);
         newState = validateWithRepository(prevState, newState, mutation);
         newState = preserveDisabledFolderOrder(prevState, newState, mutation);
 
@@ -226,7 +259,7 @@ public class Store implements FZRef<PackedPacksState> {
             }
 
             subscribers.values().forEach(Runnable::run);
-            onStateChanged(prevState, newState, mutation);
+            onStateChanged(prevState, newState);
             return true;
         }
 
@@ -554,7 +587,7 @@ public class Store implements FZRef<PackedPacksState> {
         }
     }
 
-    private void onStateChanged(PackedPacksState prev, PackedPacksState current, Mutation mutation) {
+    private void onStateChanged(PackedPacksState prev, PackedPacksState current) {
         if (prev.profiles() != current.profiles()) {
             current.available().packs().forEach(current.profiles()::validate);
             current.enabled().packs().forEach(current.profiles()::validate);
@@ -566,35 +599,6 @@ public class Store implements FZRef<PackedPacksState> {
             saveFolderState(prev.enabled().folder());
             if (previousProfile != null && current.profiles().profiles().contains(previousProfile)) {
                 saveProfileState(previousProfile, prev.enabled().packs());
-            }
-        }
-
-        if (mutation instanceof PackListMutation listMutation && PackListMutation.isMoveAction(listMutation)) {
-            PackListState newListState = current.getList(PackListMutation.getTarget(listMutation));
-            if (newListState != null && newListState.parent() != null) {
-                PackNode.Parent parent = newListState.parent();
-
-                List<String> prevPackIds = repository.getFolderMetadata(parent).packIds();
-                Set<String> visibleIds = newListState.packs().stream()
-                        .flatMap(pack -> Stream.of(pack.id(), PackUtil.replaceDirsWithRelative(pack.id())))
-                        .collect(Collectors.toCollection(ObjectOpenHashSet::new));
-                Set<String> childrenIds = parent.children().stream()
-                        .flatMap(pack -> Stream.of(pack.id(), PackUtil.replaceDirsWithRelative(pack.id())))
-                        .collect(Collectors.toCollection(ObjectOpenHashSet::new));
-                List<String> newPackIds = newListState.packs().stream()
-                        .map(pack -> pack.parentId() == null ? pack.id() : PackUtil.replaceDirsWithRelative(pack.id()))
-                        .collect(Collectors.toCollection(ObjectArrayList::new));
-
-                int insertAt = 0;
-                for (String id : prevPackIds) {
-                    if (!visibleIds.contains(id) && childrenIds.contains(id)) {
-                        newPackIds.add(insertAt, id);
-                    }
-                    insertAt++;
-                    insertAt = Math.min(insertAt, newPackIds.size());
-                }
-
-                resources.setFolderMetadata(parent, repository.getFolderMetadata(parent).withPackIds(newPackIds));
             }
         }
     }
