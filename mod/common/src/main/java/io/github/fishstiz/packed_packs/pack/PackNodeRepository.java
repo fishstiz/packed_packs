@@ -317,9 +317,11 @@ public class PackNodeRepository {
         }
 
         Map<String, List<PackNode.Leaf>> virtualChildrenByFolder = new Object2ObjectOpenHashMap<>();
+        Set<String> seenVirtualChildren = new ObjectOpenHashSet<>();
+
         for (Map.Entry<String, FolderPackMeta> entry : folderMeta.entrySet()) {
             String folderId = entry.getKey();
-            if (!(newPacks.get(folderId) instanceof PackNode.Parent)) continue;
+            if (!(newPacks.get(folderId) instanceof PackNode.Parent folder)) continue;
 
             List<String> claimedIds = entry.getValue().packIds();
             List<PackNode.Leaf> virtualChildren = new ObjectArrayList<>(claimedIds.size());
@@ -328,7 +330,15 @@ public class PackNodeRepository {
                 PackNode candidate = newPacks.get(id);
                 // non file-packs can be added to folders virtually (for adding built-in packs)
                 if (candidate instanceof PackNode.Leaf leaf && leaf.path() == null && leaf.parentId() == null) {
-                    virtualChildren.add(leaf);
+                    if (seenVirtualChildren.add(leaf.id())) {
+                        virtualChildren.add(leaf);
+                    } else {
+                        PackedPacks.LOGGER.warn(
+                                "[packed_packs] Skipping duplicate virtually nested pack '{}' found from folder '{}'.",
+                                leaf.id(),
+                                folder.id()
+                        );
+                    }
                 }
             }
 
