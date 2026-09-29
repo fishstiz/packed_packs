@@ -35,14 +35,20 @@ public class PackListComputed {
     private TriState draggingChildCache = TriState.DEFAULT;
     private final Int2BooleanMap canDropCache;
 
-    public PackListComputed(PackListKey key, PackListState initialState, ProfileSelection initialProfiles) {
+    public PackListComputed(PackListKey key) {
         this.key = key;
+        this.state = PackListState.empty();
+        this.profiles = ProfilesState.empty();
+        int dropCacheExpectedSize = key.type().available() && key.depth() == 0 ? 2 : 8;
+        this.canDropCache = new Int2BooleanOpenHashMap(dropCacheExpectedSize, 0.99f);
+    }
+
+    public PackListComputed(PackListKey key, PackListState initialState, ProfileSelection initialProfiles) {
+        this(key);
         this.state = initialState;
         this.profiles = initialProfiles;
         this.selected = initialState.selectedPacks().isEmpty() ? null : initialState.selectedPacks().getLast();
         this.canReorderCache = key.type().enabled() || initialState.query().sort() == null || !initialState.query().sort().canSort();
-        int dropCacheExpectedSize = key.type().available() && key.depth() == 0 ? 2 : 8;
-        this.canDropCache = new Int2BooleanOpenHashMap(dropCacheExpectedSize, 0.99f);
     }
 
     public PackListKey key() {
