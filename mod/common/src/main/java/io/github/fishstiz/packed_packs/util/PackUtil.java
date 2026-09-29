@@ -70,7 +70,16 @@ public class PackUtil {
     }
 
     public static boolean isNonPackDirectory(Path path) {
-        return Files.isDirectory(path) && !hasMcmeta(path);
+        return Files.isDirectory(path) && !hasMcmeta(path) && !isHidden(path);
+    }
+
+    public static boolean isHidden(Path path) {
+        try {
+            return Files.isHidden(path);
+        } catch (IOException e) {
+            PackedPacks.LOGGER.warn("[packed_packs] Failed to check if path is hidden at {}", path, e);
+            return false;
+        }
     }
 
     public static boolean isZipPath(@Nullable Path path) {
