@@ -53,7 +53,7 @@ public class PackWatcher implements AutoCloseable {
     }
 
     private void addDirectory(Path directory) {
-        if (!isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) return;
+        if (!isDirectory(directory)) return;
 
         Path normalizedPath = directory.toAbsolutePath().normalize();
         FileAlterationObserver observer = new FileAlterationObserver(directory.toFile(), new Filter(normalizedPath), IOCase.SENSITIVE);

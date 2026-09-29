@@ -15,7 +15,6 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Objects;
@@ -35,7 +34,7 @@ public record FolderResources(PackLocationInfo location, Path path) implements P
     }
 
     private @Nullable IoSupplier<InputStream> getRootResource(Path path) {
-        return Files.exists(path, LinkOption.NOFOLLOW_LINKS) ? () -> Files.newInputStream(path) : null;
+        return Files.exists(path) ? () -> Files.newInputStream(path) : null;
     }
 
     @Override
