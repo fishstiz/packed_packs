@@ -3,7 +3,6 @@ package io.github.fishstiz.packed_packs.pack;
 import com.google.common.collect.ImmutableList;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
 import io.github.fishstiz.fidgetz.v0.utils.FunctionUtils;
-import io.github.fishstiz.fidgetz.v0.utils.TriState;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.config.FolderPackMeta;
@@ -262,8 +261,18 @@ public class PackNodeRepository {
         refreshSelectionModel();
 
         Map<String, FolderLocationInfo> folderInfoById = new Object2ObjectOpenHashMap<>();
+        Map<String, Set<String>> folderChildIds = new Object2ObjectOpenHashMap<>();
+
         try {
-            PackedPacks.FOLDER_COLLECTOR.set(folder -> folderInfoById.putIfAbsent(folder.location().id(), folder));
+            PackedPacks.FOLDER_COLLECTOR.set(folder -> {
+                folderInfoById.putIfAbsent(folder.location().id(), folder);
+                if (folder.parent() != null) {
+                    folderChildIds.computeIfAbsent(
+                            folder.parent().location().id(),
+                            ignored -> new ObjectLinkedOpenHashSet<>()
+                    ).add(folder.location().id());
+                }
+            });
             this.selectionModel.findNewPacks();
         } finally {
             PackedPacks.FOLDER_COLLECTOR.remove();
@@ -279,7 +288,6 @@ public class PackNodeRepository {
         allPacks.addAll(model.getUnselectedPacks());
 
         Map<String, Pack> leavesById = new Object2ObjectLinkedOpenHashMap<>();
-        Map<String, Set<String>> folderChildIds = new Object2ObjectOpenHashMap<>();
 
         for (Pack pack : allPacks) {
             String id = pack.getId();
