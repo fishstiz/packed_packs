@@ -13,7 +13,6 @@ import org.apache.commons.io.monitor.FileAlterationObserver;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -54,7 +53,7 @@ public class PackWatcher implements AutoCloseable {
     }
 
     private void addDirectory(Path directory) {
-        if (!isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) return;
+        if (!isDirectory(directory)) return;
 
         Path normalizedPath = directory.toAbsolutePath().normalize();
         FileAlterationObserver observer;

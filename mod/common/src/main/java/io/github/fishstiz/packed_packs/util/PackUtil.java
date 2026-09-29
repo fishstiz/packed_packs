@@ -51,11 +51,11 @@ public class PackUtil {
     }
 
     public static boolean hasMcmeta(Path path) {
-        return Files.isRegularFile(path.resolve(PackResources.PACK_META), LinkOption.NOFOLLOW_LINKS);
+        return Files.isRegularFile(path.resolve(PackResources.PACK_META));
     }
 
     public static boolean hasFolderConfig(Path path) {
-        return Files.isRegularFile(path.resolve(FolderPackMeta.FILENAME), LinkOption.NOFOLLOW_LINKS);
+        return Files.isRegularFile(path.resolve(FolderPackMeta.FILENAME));
     }
 
     public static boolean isBuiltIn(PackSource packSource) {
@@ -71,7 +71,7 @@ public class PackUtil {
     }
 
     public static boolean isNonPackDirectory(Path path) {
-        return Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS) && !hasMcmeta(path);
+        return Files.isDirectory(path) && !hasMcmeta(path);
     }
 
     public static boolean isZipPath(@Nullable Path path) {
@@ -87,7 +87,7 @@ public class PackUtil {
 
             try {
                 Path resolved = Paths.get(path);
-                if (Files.isDirectory(resolved, LinkOption.NOFOLLOW_LINKS)) {
+                if (Files.isDirectory(resolved)) {
                     validPaths.add(resolved.toAbsolutePath().normalize());
                 } else {
                     PackedPacks.LOGGER.error("[packed_packs] Path is not a valid directory: '{}', ignoring.", path);
