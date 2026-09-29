@@ -69,8 +69,8 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         this.children = List.of(this.packList);
     }
 
-    private PackListContainer(PackListContainer head, PackListState state, PackListKey key) {
-        this(head, head.context, new PackListComputed(key, state, head.state.profiles()));
+    private PackListContainer(PackListContainer head, PackListKey key) {
+        this(head, head.context, new PackListComputed(key));
     }
 
     public static PackListContainer createHead(PackedPacksContext context, PackListType type) {
@@ -280,7 +280,9 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
     @Override
     public void setHeight(int height) {
         super.setHeight(height);
-        packList.setHeight(height);
+        if (head == null) {
+            packList.setHeight(height);
+        }
         if (folder != null) {
             folder.arrangeElements();
         }
@@ -289,7 +291,9 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
     @Override
     public void setWidth(int width) {
         super.setWidth(width);
-        packList.setWidth(width);
+        if (head == null) {
+            packList.setWidth(width);
+        }
         if (folder != null) {
             folder.arrangeElements();
         }
@@ -298,14 +302,18 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
     @Override
     public void setX(int x) {
         super.setX(x);
-        packList.setX(x);
+        if (head == null) {
+            packList.setX(x);
+        }
         repositionFolder();
     }
 
     @Override
     public void setY(int y) {
         super.setY(y);
-        packList.setY(y);
+        if (head == null) {
+            packList.setY(y);
+        }
         repositionFolder();
     }
 
@@ -321,14 +329,6 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         super.setPosition(x, y);
         setX(x);
         setY(y);
-    }
-
-    @Override
-    public boolean isMouseOver(double mouseX, double mouseY) {
-        if (head != null && state.state().folder() != null && this.folder != null) {
-            return head.isMouseOver(mouseX, mouseY);
-        }
-        return super.isMouseOver(mouseX, mouseY);
     }
 
     @Override
@@ -398,7 +398,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             this.root = head;
             this.folderState = state;
             this.parent = Objects.requireNonNull(state.parent(), "folder parent cannot be null");
-            this.listContainer = new PackListContainer(head, state, key);
+            this.listContainer = new PackListContainer(head, key);
             this.background = FZIcon.builder(Identifier.withDefaultNamespace("popup/background")).build();
             this.closeButton = FZIconButton.builder()
                     .size(HEADER_SIZE, HEADER_SIZE)
@@ -445,7 +445,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
                     header.child(recallButton);
                     header.child(lockButton);
                 }
-                section.child(listContainer, section.flexChildSettings());
+                section.child(listContainer.packList, section.flexChildSettings());
             }
 
             this.layout = FZComposedLayout.compose(section).padding(SPACING).clamp(head::getRectangle);
@@ -488,9 +488,8 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             if ((prevFolderState.folder() == null) != (folderState.folder() == null)) {
                 updateChildren();
             }
-            if (prevFolderState != folderState || listContainer.state.profiles() != profiles) {
-                listContainer.onStateChanged(folderState, profiles, unlockable);
-            }
+
+            listContainer.onStateChanged(folderState, profiles, unlockable);
         }
 
         private void onClose() {
@@ -557,17 +556,23 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
 
         void repositionElements() {
-            layout.setPosition(root.getX(), root.getY());
-            background.setPosition(root.getX(), root.getY());
+            if (root.getX() != 0 && (layout.getX() != root.getX())
+                || root.getY() != 0 && (layout.getY() != root.getY())) {
+                listContainer.setPosition(root.getX(), root.getY());
+                layout.setPosition(root.getX(), root.getY());
+                background.setPosition(root.getX(), root.getY());
+            }
         }
 
         void arrangeElements() {
             if ((root.getWidth() != 0 && layout.getWidth() != root.getWidth())
                 || (root.getHeight() != 0 && layout.getHeight() != root.getHeight())) {
+                listContainer.setSize(root.getWidth(), root.getHeight());
                 layout.fidgetz$setSize(root.getWidth(), root.getHeight());
                 background.setSize(root.getWidth(), root.getHeight());
-                repositionElements();
             }
+
+            repositionElements();
         }
 
         @Override
