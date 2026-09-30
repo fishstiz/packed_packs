@@ -318,11 +318,9 @@ public class PackedPacksScreen extends FZScreen {
                     );
                 }
 
-                ribbon.visitWidgets(widget -> widget.visible = ribbonOpen.value());
-
-                ribbonOpen.subscribe("Ribbon", value -> {
-                    ribbon.visible(value);
-                    ribbon.visitWidgets(widgets -> widgets.visible = value);
+                ribbonOpen.bind("Ribbon", ribbon, (visible, layout) -> {
+                    layout.visible(visible);
+                    layout.visitWidgets(widget -> widget.visible = visible);
                     body.arrangeElements();
                 });
             }
