@@ -50,7 +50,7 @@ public final class Reducer {
                                 state.profiles(),
                                 state.devMode()
                         ),
-                        state.profiles().withSelected(reset.profile()),
+                        state.profiles(),
                         state.lastTarget().head(),
                         null,
                         state.devMode()
