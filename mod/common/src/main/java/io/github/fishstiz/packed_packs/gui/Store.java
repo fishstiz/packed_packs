@@ -307,7 +307,7 @@ public class Store implements FZRef<PackedPacksState> {
                 }
             }
             case Intent.Reset(@Nullable Profile profile) ->
-                    dispatch(new Mutation.Reset(profile == null ? getCurrentPacks() : getPacks(profile)));
+                    dispatch(new Mutation.Reset(profile, profile == null ? getCurrentPacks() : getPacks(profile)));
             case PackListIntent packListIntent -> {
                 switch (packListIntent) {
                     case PackListIntent.Enable enable -> {
