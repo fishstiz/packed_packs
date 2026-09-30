@@ -1,8 +1,6 @@
 package io.github.fishstiz.packed_packs.gui.actions.mutations;
 
-import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.pack.PackSelection;
-import org.jspecify.annotations.Nullable;
 
 public sealed interface Mutation permits
         Mutation.PackRenaming,
@@ -19,7 +17,7 @@ public sealed interface Mutation permits
         return false;
     }
 
-    record Reset(@Nullable Profile profile, PackSelection packs) implements Mutation {
+    record Reset(PackSelection packs) implements Mutation {
         @Override
         public boolean pushState() {
             return false;
