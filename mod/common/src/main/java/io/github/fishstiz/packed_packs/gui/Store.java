@@ -307,7 +307,7 @@ public class Store implements FZRef<PackedPacksState> {
                 }
             }
             case Intent.Reset(@Nullable Profile profile) ->
-                    dispatch(new Mutation.Reset(profile, profile == null ? getCurrentPacks() : getPacks(profile)));
+                    dispatch(new Mutation.Reset(profile == null ? getCurrentPacks() : getPacks(profile)));
             case PackListIntent packListIntent -> {
                 switch (packListIntent) {
                     case PackListIntent.Enable enable -> {
@@ -950,7 +950,15 @@ public class Store implements FZRef<PackedPacksState> {
 
             boolean devMode = Config.get().isDevMode();
             Profile defaultProfile = configs.profiles().getDefault();
-            ProfilesState profileState = new ProfilesState(configs.profiles().getProfiles(), null, defaultProfile);
+            Profile selectedProfile = configs.user().isLastViewedProfileRemembered()
+                    ? configs.profiles().getLastViewed()
+                    : null;
+
+            ProfilesState profileState = new ProfilesState(
+                    configs.profiles().getProfiles(),
+                    selectedProfile,
+                    defaultProfile
+            );
             PackListState availableState = PackListState.empty().withQuery(
                     new Query(Config.get().isHideIncompatible(), Config.get().getSort(), null),
                     profileState,
@@ -966,9 +974,7 @@ public class Store implements FZRef<PackedPacksState> {
                     devMode
             );
 
-            dispatch(new Intent.Reset(
-                    configs.user().isLastViewedProfileRemembered() ? configs.profiles().getLastViewed() : null
-            ));
+            dispatch(new Intent.Reset(selectedProfile));
         } else {
             history.reset(state);
         }
