@@ -62,7 +62,7 @@ public class RespackoptsWidget extends AbstractButton implements FZContextMenu.S
         this.setX((this.container.getX() + this.container.getWidth()) - width - marginRight);
         this.setY(this.container.getY() + (this.container.getHeight() - height) / 2);
 
-        this.wrapped.render(this.model, graphics, this.getX(), this.getY(), isHovered(), partialTick);
+        this.wrapped.render(this.model, graphics, this.getX(), this.getY(), isHoveredOrFocused(), partialTick);
 
         if (Config.get().isDevMode()) {
             PreferenceHelper.extractOverlay(graphics, preference, getX(), getY(), getWidth(), getHeight());
