@@ -15,6 +15,7 @@ resourcify = { module = "maven.modrinth:resourcify", version = "mrfZqvOq" }
 polytone = { module = "maven.modrinth:polytone", version = "4TzQaJSC" }
 respackopts = { module = "maven.modrinth:respackopts", version = "4.13.9+forge" }
 libjf-resourcePackEntryWidgets = { module = "io.gitlab.jfronny.libjf:libjf-resource-pack-entry-widgets-forge", version = "3.17.0-SNAPSHOT" }
+controlify = { module = "dev.isxander:controlify", version = "3.0.0+lts+1.21.11-neoforge" }
 
 [bundles]
 mixin = ["mixin", "mixin-extras"]
