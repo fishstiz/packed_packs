@@ -16,11 +16,13 @@ public class ControlifyIntegration implements ControlifyEntrypoint {
 
     @Override
     public void onControlifyInit(InitContext context) {
+        ScreenProcessorProvider.registerProvider(PackedPacksScreen.class, PackedPacksScreenProcessor::new);
+        ComponentProcessorProvider.REGISTRY.register(PackList.class, PackListProcessor::new);
+        ComponentProcessorProvider.REGISTRY.register(PackList.Entry.class, PackEntryProcessor::new);
+        ComponentProcessorProvider.REGISTRY.register(PackList.LeafEntry.class, PackEntryProcessor::new);
     }
 
     @Override
     public void onControlifyPreInit(PreInitContext context) {
-        ScreenProcessorProvider.registerProvider(PackedPacksScreen.class, PackedPacksScreenProcessor::new);
-        ComponentProcessorProvider.REGISTRY.register(PackList.Entry.class, PackEntryProcessor::new);
     }
 }
