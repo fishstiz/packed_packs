@@ -330,16 +330,23 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             case FocusNavigationEvent.TabNavigation ignored -> isFocused()
                     ? null
                     : Objects.requireNonNullElse(getLastSelected(), children().getFirst());
-            case FocusNavigationEvent.ArrowNavigation(ScreenDirection direction) -> isFocused()
-                    ? getNextEntryAt(direction)
-                    : Objects.requireNonNullElse(getLastSelected(), children().getFirst());
+            case FocusNavigationEvent.ArrowNavigation(ScreenDirection direction) -> {
+                if (isFocused()) {
+                    yield getNextEntryAt(direction);
+                } else {
+                    yield Objects.requireNonNullElse(
+                            getLastSelected(),
+                            direction == ScreenDirection.UP ? children().getLast() : children().getFirst()
+                    );
+                }
+            }
             default -> null;
         };
 
         return next == null ? null : ListPath.path(this, next);
     }
 
-    record ListPath(PackList component, Entry child, boolean scroll, boolean select) implements ComponentPath {
+    public record ListPath(PackList component, Entry child, boolean scroll, boolean select) implements ComponentPath {
         static ListPath path(PackList component, Entry child) {
             return new ListPath(component, child, true, true);
         }
@@ -357,6 +364,30 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             }
             if (this.select && !this.child.state.isSelectedLast()) {
                 this.child.selectPackExclusively();
+            }
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof ListPath listPath)) return false;
+            return child.equals(listPath.child) && component.equals(listPath.component);
+        }
+
+        @Override
+        public int hashCode() {
+            int result = component.hashCode();
+            result = 31 * result + child.hashCode();
+            return result;
+        }
+    }
+
+    public void selectRangeAtDirection(ScreenDirection direction, boolean scroll) {
+        Entry nextEntry = getNextEntryAt(direction);
+        if (nextEntry != null) {
+            context.dispatch(new PackListIntent.SelectRange(key(), nextEntry.pack));
+            setFocused(nextEntry);
+            if (scroll) {
+                scrollToEntry(nextEntry);
             }
         }
     }
@@ -452,7 +483,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         private final List<GuiEventListener> children = new ObjectArrayList<>();
         private final List<Renderable> renderables = new ObjectArrayList<>();
         private List<LayoutElement> rightElements = Collections.emptyList();
-        protected @Nullable PackWidget packWidget;
+        @Nullable PackWidget packWidget;
         private @Nullable AbstractWidget folderWidget;
         private @Nullable PackDevMenu devMenu;
         private boolean initialized;
@@ -587,7 +618,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             }
         }
 
-        protected void movePack(boolean upwards) {
+        public void movePack(boolean upwards) {
             if (!PackList.this.state.isLocked()) {
                 List<PackNode> payload = createPayload();
                 if (!payload.isEmpty()) {
@@ -749,7 +780,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
         private void renderWidgetSprites(GuiGraphics graphics, int top, int left, int mouseX, int mouseY) {
             boolean hovered = isHovered() && fidgetz$getHovered() == null;
-            if ((!hovered && !state.isSelectedLast()) || PackList.this.state.isDragging()) return;
+            if ((!hovered && !isFocused()) || PackList.this.state.isDragging()) return;
 
             int relX = mouseX - left;
             int relY = mouseY - top;
@@ -948,7 +979,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
     }
 
-    class LeafEntry extends Entry implements PackContext {
+    public class LeafEntry extends Entry implements PackContext {
         private final Pack exposed;
 
         LeafEntry(PackListComputed.Entry state, Pack pack, int index) {

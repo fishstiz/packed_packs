@@ -207,7 +207,7 @@ public class PackedPacksScreen extends FZScreen {
                     .tooltip(PROFILE_TITLE_TEXT)
                     .focusOnInteraction(false)
                     .icon(new WidgetElements(HAMBURGER_RECT, 16, 16))
-                    .onPress(() -> sidebarOpen.set(prev -> !prev))
+                    .onPress(this::toggleSidebar)
                     .build());
 
             PreferenceHelper.wrap(Preferences.ACTION_BAR_WIDGET, FZIconButton.builder()
@@ -417,7 +417,7 @@ public class PackedPacksScreen extends FZScreen {
         fidgetz$Dialogs().forEach(FZDialog::repositionElements);
     }
 
-    private void openOptions() {
+    public void openOptions() {
         dialogManager.put(FZModal.builder(this, OptionsLayout.create(this, Config.packs(original.packType())))
                 .id("OptionsModal")
                 .popoverOrder(0)
@@ -428,7 +428,7 @@ public class PackedPacksScreen extends FZScreen {
     }
 
     @Override
-    protected void openContextMenu(double x, double y, boolean focus) {
+    public void openContextMenu(double x, double y, boolean focus) {
         if (fidgetz$Dialogs().stream().noneMatch(dialog -> dialog.isOpen() && dialog.fidgetz$popoverOrder() < 1)) {
             dialogManager.put(FZContextMenu.builder(this)
                     .id(GLOBAL_CONTEXT_MENU_ID)
@@ -565,6 +565,10 @@ public class PackedPacksScreen extends FZScreen {
         context.pollWatcher();
     }
 
+    public void toggleSidebar() {
+        sidebarOpen.set(prev -> !prev);
+    }
+
     private PackListContainer getPackList(PackListType type) {
         return switch (type) {
             case AVAILABLE -> availableList;
@@ -591,6 +595,12 @@ public class PackedPacksScreen extends FZScreen {
         if (path != null) {
             path.applyFocus(false);
         }
+    }
+
+    @Override
+    @SuppressWarnings("UnstableApiUsage")
+    public void changeFocus(ComponentPath componentPath) {
+        super.changeFocus(componentPath);
     }
 
     private void onUiEffect(UiEffect effect) {
@@ -671,7 +681,9 @@ public class PackedPacksScreen extends FZScreen {
         if (state().value().dragging() != null) {
             return true;
         }
-        dialogManager.remove(GLOBAL_CONTEXT_MENU_ID);
+        if (keyCode != KEY_ESCAPE) {
+            dialogManager.remove(GLOBAL_CONTEXT_MENU_ID);
+        }
         if (keyCode == KEY_ESCAPE && dialogManager.dialogs().stream().noneMatch(FZDialog::isOpen)) {
             PackListType type = getClosestListType();
             PackListKey key = null;
@@ -683,6 +695,7 @@ public class PackedPacksScreen extends FZScreen {
             }
 
             if (key.depth() > 0) {
+                dialogManager.remove(GLOBAL_CONTEXT_MENU_ID);
                 context.dispatch(new PackListIntent.CloseFolder(key.unnest()));
                 return true;
             }
@@ -706,7 +719,7 @@ public class PackedPacksScreen extends FZScreen {
             return true;
         }
         if (isOpenProfiles(keyCode, modifiers)) {
-            sidebarOpen.set(prev -> !prev);
+            toggleSidebar();
             return true;
         }
         if (super.keyPressed(keyCode, scanCode, modifiers)) {
