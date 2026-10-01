@@ -407,9 +407,11 @@ public class Store implements FZRef<PackedPacksState> {
                         List<PackNode> children = repository.getSortedChildren(canonical);
 
                         if (open.srcList().type().enabled()) {
-                            PackedPacks.LOGGER.warn(
-                                    "[packed_packs] Opening a non-module folder pack from the enabled list, which should not happen"
-                            );
+                            if (metadata.module()) {
+                                PackedPacks.LOGGER.warn(
+                                        "[packed_packs] Opening a non-module folder pack from the enabled list, which should not happen"
+                                );
+                            }
                         } else if (!metadata.module()) {
                             Set<PackNode> enabledPacks = state.enabled().packs().stream()
                                     .flatMap(repository::flattenNodes)
