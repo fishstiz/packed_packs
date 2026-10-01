@@ -64,7 +64,7 @@ public class VTDEditButtonWidget extends AbstractButton implements FZContextMenu
         float v = 0.0F;
         if (!this.active) {
             v = PENCIL_SIZE;
-        } else if (isHovered()) {
+        } else if (isHoveredOrFocused()) {
             u = PENCIL_SIZE;
         }
 
