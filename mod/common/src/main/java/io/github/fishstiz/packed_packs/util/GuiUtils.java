@@ -7,13 +7,20 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.RenderableRectangle;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.fidgetz.v0.utils.GuiGraphicsUtils;
+import io.github.fishstiz.fidgetz.v0.utils.NavigationUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
+import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.WidgetSprites;
+import net.minecraft.client.gui.components.events.ContainerEventHandler;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import org.apache.commons.lang3.mutable.MutableObject;
+import org.jspecify.annotations.Nullable;
 
+import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -107,6 +114,22 @@ public final class GuiUtils {
         }
 
         graphics.outline(x, y, width, height, DROP_DISABLED_COLOR);
+    }
+
+    public static @Nullable ComponentPath validatePath(@Nullable ComponentPath path) {
+        if (path == null) {
+            return null;
+        }
+
+        MutableObject<@Nullable List<? extends GuiEventListener>> current = new MutableObject<>();
+        return NavigationUtils.takeWhile(path, component -> {
+            List<? extends GuiEventListener> children = current.get();
+            if (children == null || children.contains(component)) {
+                current.setValue(component instanceof ContainerEventHandler subContainer ? subContainer.children() : null);
+                return true;
+            }
+            return false;
+        });
     }
 
     private GuiUtils() {
