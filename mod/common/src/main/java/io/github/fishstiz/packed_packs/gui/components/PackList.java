@@ -413,7 +413,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
     }
 
-    class Entry extends FZAbstractListWidget.Entry<Entry> implements SelectableEntry, ContainerEventHandlerPatch, FZContextMenu.Source, FZComponent, ElementSink {
+    public class Entry extends FZAbstractListWidget.Entry<Entry> implements SelectableEntry, ContainerEventHandlerPatch, FZContextMenu.Source, FZComponent, ElementSink {
         private static final int ICON_SIZE = 32;
         private static final Tooltip FOLDER_OPEN_INFO = Tooltip.create(FOLDER_OPEN_TEXT);
         private static final RenderableRectangle SELECTED_OVERLAY = Renderables.fill(Colors.alpha(Colors.BLUE_500, 0.25f));

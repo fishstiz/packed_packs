@@ -20,6 +20,7 @@ modmenu = { module = "com.terraformersmc:modmenu", version = "11.0.3" }
 resourcify = { module = "maven.modrinth:resourcify", version = "1.7.5" }
 respackopts = { module = "maven.modrinth:respackopts", version = "4.11.3+forge" }
 libjf-resourcePackEntryWidgets = { module = "io.gitlab.jfronny.libjf:libjf-resource-pack-entry-widgets-forge", version = "3.17.0-SNAPSHOT" }
+controlify = { module = "dev.isxander:controlify", version = "3.0.0+lts+1.21.1-neoforge" }
 
 [bundles]
 mixin = ["mixin", "mixin-extras"]

@@ -85,6 +85,9 @@ dependencies {
 
     modCompileOnly libs.resourcify
     modCompileOnly libs.bundles.respackopts
+    compileOnly(libs.controlify) {
+        transitive = false
+    }
 }
 
 publishMods {
