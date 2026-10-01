@@ -58,6 +58,9 @@ dependencies {
     compileOnly libs.resourcify
     compileOnly libs.polytone
     compileOnly libs.bundles.respackopts
+    compileOnly(libs.controlify) {
+        transitive = false
+    }
 }
 
 publishMods {
