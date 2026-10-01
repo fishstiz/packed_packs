@@ -75,6 +75,7 @@ public class PackedPacksScreen extends FZScreen {
     private @Nullable FZLayout layout;
     private @Nullable FZTextField availableSearch;
     private @Nullable FZTextField enabledSearch;
+    private @Nullable ComponentPath lastPathOnClear;
     private boolean initialized = false;
     private boolean preloading;
 
@@ -116,6 +117,11 @@ public class PackedPacksScreen extends FZScreen {
     @Override
     public void added() {
         if (this.initialized) {
+            ComponentPath lastPath = validatePath(this.lastPathOnClear);
+            if (lastPath != null) {
+                lastPath.applyFocus(true);
+            }
+
             context.initializeState();
             context.reload();
             context.startWatcher();
@@ -576,6 +582,15 @@ public class PackedPacksScreen extends FZScreen {
         setFocused(list);
         ComponentPath targetPath = list.getFocusPath(target);
         if (targetPath != null) targetPath.applyFocus(true);
+    }
+
+    @Override
+    public void clearFocus() {
+        ComponentPath path = getCurrentFocusPath();
+        this.lastPathOnClear = path;
+        if (path != null) {
+            path.applyFocus(false);
+        }
     }
 
     private void onUiEffect(UiEffect effect) {

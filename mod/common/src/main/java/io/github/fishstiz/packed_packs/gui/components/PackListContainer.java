@@ -6,6 +6,7 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.Justification;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
+import io.github.fishstiz.fidgetz.v0.utils.NavigationUtils;
 import io.github.fishstiz.packed_packs.gui.FocusPathProvider;
 import io.github.fishstiz.packed_packs.gui.FocusTarget;
 import io.github.fishstiz.packed_packs.gui.states.PackListKey;
@@ -31,7 +32,6 @@ import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.layouts.LayoutElement;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.navigation.FocusNavigationEvent;
-import net.minecraft.client.gui.navigation.ScreenAxis;
 import net.minecraft.client.gui.navigation.ScreenDirection;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.network.chat.CommonComponents;
@@ -45,6 +45,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
+import static net.minecraft.client.gui.navigation.FocusNavigationEvent.*;
 
 public class PackListContainer extends AbstractWidget implements FocusPathProvider, Layout, ContainerEventHandlerPatch {
     private final @Nullable PackListContainer head;
@@ -123,7 +124,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
                 Folder newFolder = new Folder(head == null ? this : head, this.state.key().nest(), folderState);
                 this.folder = newFolder;
                 updateChild(newFolder);
-                ComponentPath path = newFolder.nextFocusPath(new FocusNavigationEvent.InitialFocus());
+                ComponentPath path = newFolder.nextFocusPath(new InitialFocus());
                 if (path != null) path.applyFocus(true);
             } else {
                 this.folder.onClose();
@@ -371,11 +372,10 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         private final PackListContainer root;
         private final FZIcon background;
         private final PackListContainer listContainer;
-        private final FZIconButton closeButton;
-        private final FZIcon folderIcon;
         private final FZText folderTitle;
         private final FZButton recallButton;
         private final FZIconButton lockButton;
+        private final WrappedLayout<FZFlexLayout> header;
         private final FZLayout layout;
         private PackListState folderState;
         private PackNode.Parent parent;
@@ -390,14 +390,14 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             this.parent = Objects.requireNonNull(state.parent(), "folder parent cannot be null");
             this.listContainer = new PackListContainer(head, key);
             this.background = FZIcon.builder(ResourceLocation.withDefaultNamespace("popup/background")).build();
-            this.closeButton = FZIconButton.builder()
+            FZIconButton closeButton = FZIconButton.builder()
                     .size(HEADER_SIZE, HEADER_SIZE)
                     .icon(new WidgetElements(key.depth() > 1 ? ARROW_UP_SPRITE : CROSS_SPRITE, 16, 16))
                     .onPress(() -> head.context.dispatch(new PackListIntent.CloseFolder(key.unnest())))
                     .focusOnInteraction(false)
                     .build();
             PackIconCache iconCache = head.context.iconCache();
-            this.folderIcon = FZIcon.builder(GuiUtils.lazyTexture(() -> iconCache.get(this.parent), 16, 16))
+            FZIcon folderIcon = FZIcon.builder(GuiUtils.lazyTexture(() -> iconCache.get(this.parent), 16, 16))
                     .size(HEADER_SIZE, HEADER_SIZE)
                     .build();
             this.folderTitle = FZText.builder(parent.title())
@@ -428,12 +428,15 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             {
                 FZFlexLayout header = section.child(FZFlexLayout.horizontal(), section.flexChildHorizontalSettings());
                 {
-                    header.spacing(LAYOUT_SPACING).alignContents(Justification.CENTER);
-                    header.child(closeButton);
-                    header.child(folderIcon);
-                    header.child(folderTitle, header.flexChildHorizontalSettings());
-                    header.child(recallButton);
-                    header.child(lockButton);
+                    FZFlexLayout wrapped = FZFlexLayout.horizontal();
+                    wrapped.spacing(LAYOUT_SPACING).alignContents(Justification.CENTER);
+                    wrapped.child(closeButton);
+                    wrapped.child(folderIcon);
+                    wrapped.child(folderTitle, wrapped.flexChildHorizontalSettings());
+                    wrapped.child(recallButton);
+                    wrapped.child(lockButton);
+
+                    this.header = header.child(WrappedLayout.wrap(wrapped), header.flexChildHorizontalSettings());
                 }
                 section.child(listContainer.packList, section.flexChildSettings());
             }
@@ -446,16 +449,8 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
         private void updateChildren() {
             if (folderState.folder() == null) {
-                this.renderables = List.of(
-                        background,
-                        folderIcon,
-                        folderTitle,
-                        closeButton,
-                        recallButton,
-                        lockButton,
-                        listContainer
-                );
-                this.children = List.of(closeButton, recallButton, lockButton, listContainer);
+                this.renderables = List.of(background, header, listContainer);
+                this.children = List.of(header, listContainer);
                 this.childOpened = false;
             } else {
                 this.renderables = List.of(listContainer);
@@ -473,7 +468,7 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
 
             if (prevFolderState.parent() != folderState.parent()) { // I don't think this will ever be true, but just in case
                 this.parent = Objects.requireNonNull(folderState.parent(), "folder parent cannot be null");
-                folderIcon.setMessage(parent.title());
+                folderTitle.setMessage(parent.title());
             }
             if ((prevFolderState.folder() == null) != (folderState.folder() == null)) {
                 updateChildren();
@@ -572,18 +567,50 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
                 return ComponentPath.path(this, listContainer.nextFocusPath(event));
             }
 
-            if (event instanceof FocusNavigationEvent.InitialFocus) {
+            if (event instanceof InitialFocus) {
                 ComponentPath path = listContainer.nextFocusPath(event);
-                return path == null ? ComponentPath.path(closeButton, this) : ComponentPath.path(this, path);
+                return path == null ? ComponentPath.path(this, NavigationUtils.initialFocus(header)) : ComponentPath.path(this, path);
             }
 
-            if (!isFocused() &&
-                event instanceof FocusNavigationEvent.ArrowNavigation(ScreenDirection direction) &&
-                direction.getAxis() == ScreenAxis.HORIZONTAL) {
-                ComponentPath path = listContainer.nextFocusPath(event);
-                if (path != null) {
-                    return ComponentPath.path(this, path);
+            GuiEventListener focused = this.getFocused();
+            if (focused != null) {
+                if (event instanceof ArrowNavigation arrowNavigation && (focused == this.header || focused == this.listContainer)) {
+                    ScreenDirection direction = arrowNavigation.direction();
+                    ComponentPath inner = focused.nextFocusPath(event);
+                    if (inner != null) {
+                        return ComponentPath.path(this, inner);
+                    }
+
+                    if (focused == this.header ? direction == ScreenDirection.DOWN : direction == ScreenDirection.UP) {
+                        GuiEventListener target = focused == this.header ? this.listContainer : this.header;
+                        ComponentPath path = target.nextFocusPath(arrowNavigation);
+                        if (path != null) {
+                            return ComponentPath.path(this, path);
+                        }
+                    }
+
+                    return ComponentPath.path(this, focused.nextFocusPath(event));
+                } else if (event instanceof TabNavigation) {
+                    return super.nextFocusPath(event);
+                } else {
+                    return ComponentPath.path(this, focused.nextFocusPath(event));
                 }
+            }
+
+            if (!(event instanceof ArrowNavigation(ScreenDirection direction))) {
+                return super.nextFocusPath(event);
+            }
+
+            boolean headerFirst = direction == ScreenDirection.DOWN;
+            GuiEventListener first = headerFirst ? this.header : this.listContainer;
+            GuiEventListener second = headerFirst ? this.listContainer : this.header;
+
+            ComponentPath path = first.nextFocusPath(event);
+            if (path == null) {
+                path = second.nextFocusPath(event);
+            }
+            if (path != null) {
+                return ComponentPath.path(this, path);
             }
 
             return super.nextFocusPath(event);

@@ -108,7 +108,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
             addEntry(entry);
             entries.put(entryState.pack().id(), entry);
-            if (previousFocused != null && previousFocused.pack.equals(entryState.pack())) {
+            if (previousFocused != null && previousFocused.pack.id().equals(entryState.pack().id())) {
                 setFocused(entry);
             }
         });
@@ -317,7 +317,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     public @Nullable ComponentPath nextFocusPath(FocusNavigationEvent event) {
         if (children().isEmpty()) return null;
 
-        Entry focused = getFocusedOrSelected();
+        Entry focused = getFocused();
         if (focused != null && (focused.getFocused() != null || (!NavigationUtils.isUp(event, false) && !NavigationUtils.isDown(event, false)))) {
             ComponentPath path = focused.nextFocusPath(event);
             if (path != null) {

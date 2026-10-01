@@ -63,7 +63,7 @@ public class RespackoptsWidget extends AbstractButton implements FZContextMenu.S
         PoseStack poseStack = graphics.pose();
         poseStack.pushPose();
         poseStack.translate(0, 0, 1f);
-        this.wrapped.render(this.model, graphics, this.getX(), this.getY(), isHovered(), partialTick);
+        this.wrapped.render(this.model, graphics, this.getX(), this.getY(), isHoveredOrFocused(), partialTick);
 
         if (Config.get().isDevMode()) {
             PreferenceHelper.extractOverlay(graphics, preference, getX(), getY(), getWidth(), getHeight());
