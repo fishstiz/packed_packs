@@ -17,15 +17,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.gui.screens.packs.PackSelectionModel;
 import net.minecraft.server.packs.PackLocationInfo;
-import net.minecraft.server.packs.PackMetadataResources;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackRepository;
-import net.minecraft.server.packs.resources.IoSupplier;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -81,25 +78,11 @@ public class PackNodeRepository {
             return;
         }
 
-        try (PackMetadataResources resources = parent.open()) {
-            IoSupplier<InputStream> streamSupplier = resources.getRootResource(FolderPackMeta.FILENAME);
-            if (streamSupplier != null) {
-                try (InputStream stream = streamSupplier.get()) {
-                    folderMeta.put(entry.id(), JsonLoader.loadOrDefault(
-                            stream,
-                            FolderPackMeta.class,
-                            this::createFolderMeta
-                    ));
-                    return;
-                } catch (Exception e) {
-                    PackedPacks.LOGGER.error("[packed_packs] Failed to read folder metadata at {}", entry.path(), e);
-                }
-            }
-
-            FolderPackMeta meta = createFolderMeta();
-            folderMeta.put(entry.id(), meta);
-            JsonLoader.saveJson(meta, parent.path().resolve(FolderPackMeta.FILENAME), false);
-        }
+        folderMeta.put(parent.id(), JsonLoader.loadOrCreate(
+                parent.path().resolve(FolderPackMeta.FILENAME),
+                FolderPackMeta.class,
+                this::createFolderMeta
+        ));
     }
 
     public void collectDescendantLeaves(PackNode.Parent current, int flags, Consumer<PackNode> collector) {
