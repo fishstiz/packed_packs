@@ -10,18 +10,10 @@ controls.
 - Save and load custom profiles.
 - Select multiple packs at once.
 - Drag and drop selection between columns.
-- Context Menus.
-- [Additional Folders](#additional-folders).
-- [Folder Packs](#folder-packs).
-- Search by title.
+- Right click context menu for file operations and other options.
+- Search by pack title.
+- Sort packs alphabetically or by date updated.
 - Filter out incompatible packs.
-- Sort alphabetically or by last updated.
-- [Mouse](#mouse-controls) and [keyboard](#keyboard-controls) controls.
-- [Configuration](#configuration).
-- [Developer Mode](#developer-mode).
-- [Java API](#java-api).
-- Explicit [compatibility](#compatibility) with certain mods.
-- History (undo and redo).
 
 <a id="additional-folders"></a>
 <details>
@@ -42,11 +34,29 @@ controls.
 <details>
 <summary><b>📂📦 Folder Packs</b></summary>
 
-- Any folder in the root pack directory containing packs, without a `pack.mcmeta`, will be treated as a folder pack.
-- Folder packs behave like regular packs and can be moved between rows and columns to toggle multiple packs at once.
+- Any folder without a `pack.mcmeta` will be treated as a folder pack.
+- Add a `pack.png` at the folder root to set a custom icon.
+- Folders can be nested.
 - They can be opened to view and reorder their contents. The order is saved to `packed_packs.folderpack.json` in the
   folder root.
-- Add a `pack.png` at the folder root to set a custom icon.
+- Folder packs can be locked to make them behave like regular packs which can be moved between rows and columns. 
+  These are also known as `module`s.
+  - Children cannot be moved outside locked folder packs. Locking a folder pack will automatically recall its children. 
+  - Locked folder packs will also lock all descendants that are folders. 
+  - Newly discovered folders can be made locked by default from the options menu. 
+- Built-in packs can be added inside folder packs when specified in `packed_packs.folderpack.json`.
+  - Example:
+    ```json
+    {
+      "module": false,
+      "packIds": [
+        "continuity:default",
+        "examplenamespace:examplepath"
+      ] 
+    }
+    ```
+  - **Note**: This can only be done outside the Packed Packs screen as the `packed_packs.folderpack.json` 
+    file is only loaded once on enter to prevent overwriting unsaved state.
 
 </details>
 
@@ -54,12 +64,34 @@ controls.
 <details>
 <summary><b>🖱️ Mouse Controls</b></summary>
 
-- Open Context Menu — right click
-- Select range — hold <kbd>Shift</kbd> and click
-- Add/remove from selection — hold <kbd>Ctrl</kbd> and click
-- Transfer single entry quickly — double click
-- Undo — click backwards side button
-- Redo — click forwards side button
+<table>
+  <tbody>
+    <tr>
+      <td>Open Context Menu</td>
+      <td>right click</td>
+    </tr>
+    <tr>
+      <td>Select range</td>
+      <td>hold <kbd>Shift</kbd> and click</td>
+    </tr>
+    <tr>
+      <td>Add/remove from selection</td>
+      <td>hold <kbd>Ctrl</kbd> and click</td>
+    </tr>
+    <tr>
+      <td>Quick transfer</td>
+      <td>double click</td>
+    </tr>
+    <tr>
+      <td>Undo</td>
+      <td>click backwards side button</td>
+    </tr>
+    <tr>
+      <td>Redo</td>
+      <td>click forwards side button</td>
+    </tr>
+  </tbody>
+</table>
 
 </details>
 
@@ -67,24 +99,82 @@ controls.
 <details>
 <summary><b>⌨️ Keyboard Controls</b></summary>
 
-- Navigate entries — <kbd>↑</kbd> | <kbd>↓</kbd>
-- Navigate out of entries — <kbd>Tab</kbd>
-- Transfer selection — <kbd>Space</kbd> | <kbd>Enter</kbd>
-- Select range — <kbd>Shift</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd>
-- Select all — <kbd>Ctrl</kbd> + <kbd>A</kbd>
-- Move selection — <kbd>Ctrl</kbd> / <kbd>Alt</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd>
-- Undo — <kbd>Ctrl</kbd> + <kbd>Z</kbd>
-- Redo — <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> | <kbd>Ctrl</kbd> + <kbd>Y</kbd>
-- Open folder pack — <kbd>Enter</kbd>
-- Close folder pack — <kbd>Escape</kbd>
-- Delete file — <kbd>Delete</kbd>
-- Rename file — <kbd>Ctrl</kbd> + <kbd>R</kbd> | <kbd>F2</kbd> (if not bound to screenshot)
-- Open file — <kbd>Ctrl</kbd> + <kbd>Enter</kbd>
-- Show in file manager — <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd>
-- Toggle profiles sidebar — <kbd>Ctrl</kbd> + <kbd>`</kbd>
-- Switch between default and no profile — <kbd>F1</kbd>
-- Refresh packs — <kbd>F5</kbd>
-- Focus search bar — <kbd>Ctrl</kbd> + <kbd>F</kbd> | <kbd>Ctrl</kbd> + <kbd>K</kbd>
+<table>
+  <tbody>
+    <tr>
+      <td>Navigate entries</td>
+      <td><kbd>↑</kbd>, <kbd>↓</kbd></td>
+    </tr>
+    <tr>
+      <td>Navigate out of entries</td>
+      <td><kbd>Tab</kbd></td>
+    </tr>
+    <tr>
+      <td>Transfer selection</td>
+      <td><kbd>Space</kbd>, <kbd>Enter</kbd></td>
+    </tr>
+    <tr>
+      <td>Select range</td>
+      <td><kbd>Shift</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd></td>
+    </tr>
+    <tr>
+      <td>Select all</td>
+      <td><kbd>Ctrl</kbd> + <kbd>A</kbd></td>
+    </tr>
+    <tr>
+      <td>Move selection</td>
+      <td><kbd>Ctrl</kbd> / <kbd>Alt</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd></td>
+    </tr>
+    <tr>
+      <td>Undo</td>
+      <td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td>
+    </tr>
+    <tr>
+      <td>Redo</td>
+      <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>, <kbd>Ctrl</kbd> + <kbd>Y</kbd></td>
+    </tr>
+    <tr>
+      <td>Open folder pack</td>
+      <td><kbd>Enter</kbd></td>
+    </tr>
+    <tr>
+      <td>Close folder pack</td>
+      <td><kbd>Escape</kbd></td>
+    </tr>
+    <tr>
+      <td>Delete file</td>
+      <td><kbd>Delete</kbd></td>
+    </tr>
+    <tr>
+      <td>Rename file</td>
+      <td><kbd>Ctrl</kbd> + <kbd>R</kbd>, <kbd>F2</kbd> (if not bound to screenshot)</td>
+    </tr>
+    <tr>
+      <td>Open file</td>
+      <td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td>
+    </tr>
+    <tr>
+      <td>Show in file manager</td>
+      <td><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd></td>
+    </tr>
+    <tr>
+      <td>Toggle profiles sidebar</td>
+      <td><kbd>Ctrl</kbd> + <kbd>`</kbd></td>
+    </tr>
+    <tr>
+      <td>Switch between default and no profile</td>
+      <td><kbd>F1</kbd></td>
+    </tr>
+    <tr>
+      <td>Refresh packs</td>
+      <td><kbd>F5</kbd></td>
+    </tr>
+    <tr>
+      <td>Focus search bar</td>
+      <td><kbd>Ctrl</kbd> + <kbd>F</kbd>, <kbd>Ctrl</kbd> + <kbd>K</kbd></td>
+    </tr>
+  </tbody>
+</table>
 
 </details>
 
@@ -95,6 +185,7 @@ controls.
 - Apply resource packs automatically on close.
 - Replace the default resourcepack & datapack screens.
 - Remove the red background on incompatible packs.
+- Make folder packs locked by default.
 - Remember the last viewed profile when reopening the screen.
 
 </details>
@@ -117,8 +208,7 @@ controls.
       original screen.
     - Enabled packs under the default profile are automatically marked as compatible.
     - Default profiles load automatically in the following cases:
-        - **Resource Packs**:  when the `options.txt`, or in newer versions the `config/packed_packs/__version.json`, is missing.
-          - Users that updated from before the `_version.json` file was added may only load the default profile when the `options.txt` is missing. This can be configured in the right-click context menu of the default profile.
+        - **Resource Packs**:  when the `options.txt` or the `config/packed_packs/__version.json`, is missing.
         - **Data Packs**: when creating a new world.
 - **Copy to Clipboard**: Copy the select pack's ID.
 - **Pack Aliases**: Add aliases to Pack IDs
