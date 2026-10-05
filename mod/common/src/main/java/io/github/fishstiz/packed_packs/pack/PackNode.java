@@ -33,6 +33,12 @@ public sealed interface PackNode {
 
     PackSelectionConfig selectionConfig();
 
+    boolean required();
+
+    boolean fixedPosition();
+
+    Pack.Position defaultPosition();
+
     PackSource packSource();
 
     @Nullable Path path();
@@ -96,6 +102,21 @@ public sealed interface PackNode {
         @Override
         public PackSelectionConfig selectionConfig() {
             return SELECTION_CONFIG;
+        }
+
+        @Override
+        public boolean required() {
+            return selectionConfig().required();
+        }
+
+        @Override
+        public boolean fixedPosition() {
+            return selectionConfig().fixedPosition();
+        }
+
+        @Override
+        public Pack.Position defaultPosition() {
+            return selectionConfig().defaultPosition();
         }
 
         @Override
@@ -177,6 +198,21 @@ public sealed interface PackNode {
         @Override
         public PackSelectionConfig selectionConfig() {
             return ((ConfiguredPack) pack).packed_packs$originalConfig();
+        }
+
+        @Override
+        public boolean required() {
+            return pack.isRequired();
+        }
+
+        @Override
+        public boolean fixedPosition() {
+            return pack.isFixedPosition();
+        }
+
+        @Override
+        public Pack.Position defaultPosition() {
+            return pack.getDefaultPosition();
         }
 
         @Override
