@@ -54,7 +54,7 @@ public interface ProfileSelection {
             return overrides.required();
         }
 
-        return entry.selectionConfig().required();
+        return entry.required();
     }
 
     default boolean isPackFixed(PackNode entry) {
@@ -70,7 +70,7 @@ public interface ProfileSelection {
             return overrides.position().fixed();
         }
 
-        return entry.selectionConfig().fixedPosition();
+        return entry.fixedPosition();
     }
 
     default Pack.Position getPackPosition(PackNode entry) {
@@ -86,7 +86,7 @@ public interface ProfileSelection {
             return overrides.position().override();
         }
 
-        return entry.selectionConfig().defaultPosition();
+        return entry.defaultPosition();
     }
 
     default PackSelectionConfig getPackSelectionConfig(PackNode entry) {
