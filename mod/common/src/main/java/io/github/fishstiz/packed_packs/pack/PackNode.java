@@ -197,7 +197,7 @@ public sealed interface PackNode {
 
         @Override
         public PackSelectionConfig selectionConfig() {
-            return ((ConfiguredPack) pack).packed_packs$originalConfig();
+            return pack.selectionConfig();
         }
 
         @Override
