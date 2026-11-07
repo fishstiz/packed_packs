@@ -2,12 +2,17 @@ package io.github.fishstiz.packed_packs.gui.layouts;
 
 import io.github.fishstiz.fidgetz.v0.gui.components.FZButton;
 import io.github.fishstiz.fidgetz.v0.gui.components.FZText;
-import io.github.fishstiz.fidgetz.v0.gui.layouts.*;
+import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
+import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
+import io.github.fishstiz.fidgetz.v0.gui.layouts.FZScrollableLayout;
+import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.config.Config;
+import io.github.fishstiz.packed_packs.gui.components.SwapFolderAction;
 import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
 import net.minecraft.client.gui.components.events.ContainerEventHandler;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.BooleanSupplier;
 
@@ -18,7 +23,7 @@ public class OptionsLayout extends WrappedLayout {
         super(layout);
     }
 
-    public static OptionsLayout create(ContainerEventHandler container, Config.Packs... configs) {
+    public static OptionsLayout create(@Nullable ScreenContext ctx, ContainerEventHandler container, Config.Packs... configs) {
         FZFlexLayout root = FZFlexLayout.horizontal().spacing(SPACING);
 
         for (Config.Packs config : configs) {
@@ -31,7 +36,7 @@ public class OptionsLayout extends WrappedLayout {
 
                     FZFlexLayout contents = FZFlexLayout.vertical().spacing(SPACING);
                     contents.defaultChildSettings().flexCross();
-                    commonOptions(contents, dataPacks);
+                    commonOptions(ctx, contents, dataPacks);
 
                     body.child(FZScrollableLayout.from(container, contents), body.flexChildSettings()).arrangeElements();
                 }
@@ -40,7 +45,7 @@ public class OptionsLayout extends WrappedLayout {
 
                     FZFlexLayout contents = FZFlexLayout.vertical().spacing(SPACING);
                     contents.defaultChildSettings().flexCross();
-                    commonOptions(contents, resourcePacks);
+                    commonOptions(ctx, contents, resourcePacks);
                     contents.child(toggle(
                             Component.translatable("packed_packs.options.apply_on_close"),
                             resourcePacks::setApplyOnClose,
@@ -56,7 +61,11 @@ public class OptionsLayout extends WrappedLayout {
         return new OptionsLayout(root);
     }
 
-    private static void commonOptions(FZFlexLayout layout, Config.Packs config) {
+    public static OptionsLayout create(ContainerEventHandler container, Config.Packs... configs) {
+        return create(null, container, configs);
+    }
+
+    private static void commonOptions(@Nullable ScreenContext ctx, FZFlexLayout layout, Config.Packs config) {
         layout.child(toggle(
                 Component.translatable("packed_packs.options.replace_screen"),
                 config::setReplaceOriginal,
@@ -75,6 +84,20 @@ public class OptionsLayout extends WrappedLayout {
                 config::areFoldersModuleByDefault
         ).build());
 
+        ;
+
+        layout.child(FZButton.builder()
+                .bigWidth()
+                .message(swapActionMessage(config.shouldSwapFolderActions()))
+                .tooltip(Component.translatable("packed_packs.options.swap_folder_actions.info"))
+                .onPress(e -> {
+                    var options = SwapFolderAction.values();
+                    SwapFolderAction next = options[(config.shouldSwapFolderActions().ordinal() + 1) % options.length];
+                    config.setSwapFolderActions(next);
+                    e.target().setMessage(swapActionMessage(next));
+                })
+                .build());
+
         layout.child(toggle(
                 Component.translatable("packed_packs.options.remember_last_viewed_profile"),
                 config::setRememberLastViewedProfile,
@@ -90,5 +113,17 @@ public class OptionsLayout extends WrappedLayout {
                     setter.accept(!getter.getAsBoolean());
                     e.target().setMessage(CommonComponents.optionStatus(name, getter.getAsBoolean()));
                 });
+    }
+
+    private static Component swapActionMessage(SwapFolderAction action) {
+        Component label = Component.translatable("packed_packs.options.swap_folder_actions");
+        return switch (action) {
+            case NO -> CommonComponents.optionStatus(label, false);
+            case YES -> CommonComponents.optionStatus(label, true);
+            case UNLOCKED_ONLY -> CommonComponents.optionNameValue(
+                    label,
+                    Component.translatable("packed_packs.options.swap_folder_actions.unlocked_only")
+            );
+        };
     }
 }

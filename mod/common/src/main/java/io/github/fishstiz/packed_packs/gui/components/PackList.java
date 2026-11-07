@@ -24,6 +24,7 @@ import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
 import io.github.fishstiz.packed_packs.util.Colors;
+import io.github.fishstiz.packed_packs.util.GuiUtils;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -535,6 +536,19 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             return context.iconCache().get(pack);
         }
 
+        // if true:
+        // SELECT sprite opens the folder
+        // UNSELECT sprite becomes a SELECT sprite
+        // folder widget becomes transfer
+        // need to update active state of folder widget if canEnable()/canDisable()
+        private boolean shouldSwapFolderActions() {
+            return pack instanceof PackNode.Parent parent && switch (context.configs().user().shouldSwapFolderActions()) {
+                case NO -> false;
+                case YES -> true;
+                case UNLOCKED_ONLY -> !context.resources().isModule(parent);
+            };
+        }
+
         protected void buildWidgets() {
             this.packWidget = new PackWidget(this, INNER_ITEM_HEIGHT);
             repositionPackWidget();
@@ -542,10 +556,21 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             if (pack instanceof PackNode.Parent) {
                 PreferenceHelper.wrap(Preferences.FOLDER_PACK_WIDGET, FZIconButton.builder()
                                 .size(INNER_ITEM_HEIGHT / 3, INNER_ITEM_HEIGHT / 3)
-                                .icon(new WidgetElements(HAMBURGER_RECT, 8, 8))
-                                .tooltip(FOLDER_OPEN_INFO)
+                                .icon(new WidgetElements(GuiUtils.lazyRect(() -> {
+                                    RenderableRectangle icon = HAMBURGER_RECT;
+                                    if (shouldSwapFolderActions()) {
+                                        icon = key().type().available() ? ENABLE_ALL_RECT : DISABLE_ALL_RECT;
+                                    }
+                                    return icon;
+                                }), 8, 8))
                                 .focusOnInteraction(false)
-                                .onPress(this::expandFolder)
+                                .onPress(() -> {
+                                    if (shouldSwapFolderActions()) {
+                                        transferPack();
+                                    } else {
+                                        expandFolder();
+                                    }
+                                })
                                 .build())
                         .ifPresent(widget -> {
                             int x = getX() + PackWidget.ICON_SIZE + INNER_ITEM_PADDING * 2;
@@ -696,13 +721,19 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
                 int relativeX = (int) mouseButtonEvent.x() - (getX() + INNER_ITEM_PADDING);
                 int relativeY = (int) mouseButtonEvent.y() - (getY() + INNER_ITEM_PADDING);
 
-                if (state.canEnable() && (PackList.this.state.canReorder()
+                boolean swapFolderActions = shouldSwapFolderActions(); // this is fucked up
+                if ((swapFolderActions || state.canEnable()) && (PackList.this.state.canReorder()
                         ? mouseOverRightHalf(relativeX, relativeY, ICON_SIZE)
                         : mouseOverIcon(relativeX, relativeY, ICON_SIZE))) {
-                    transferPack();
+                    if (swapFolderActions) {
+                        expandFolder();
+                        playClickSound();
+                    } else {
+                        transferPack();
+                    }
                     return false;
                 }
-                if (state.canDisable() && mouseOverLeftHalf(relativeX, relativeY, ICON_SIZE)) {
+                if (!swapFolderActions && state.canDisable() && mouseOverLeftHalf(relativeX, relativeY, ICON_SIZE)) {
                     transferPack();
                     return false;
                 }
@@ -801,26 +832,27 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
             WHITE_OVERLAY.extractRenderState(graphics, left, top, ICON_SIZE, ICON_SIZE, 0, 0, 0);
 
-            if (state.canEnable()) {
+            boolean swapFolderActions = shouldSwapFolderActions();
+
+            if (swapFolderActions || state.canEnable()) {
                 if (PackList.this.state.canReorder()) {
                     renderWidgetSprites(graphics, SELECT_MOVABLE_SPRITES, left, top, hovered && mouseOverRightHalf(relX, relY, ICON_SIZE));
                 } else {
                     renderWidgetSprites(graphics, SELECT_SPRITES, left, top, hovered && mouseOverIcon(relX, relY, ICON_SIZE));
                 }
             }
-            if (state.canDisable()) {
+            if (!swapFolderActions && state.canDisable()) {
                 renderWidgetSprites(graphics, UNSELECT_SPRITES, left, top, hovered && mouseOverLeftHalf(relX, relY, ICON_SIZE));
             }
             if (state.canMoveUp()) {
-                if (state.canEnable()) {
+                if (swapFolderActions || state.canEnable()) {
                     renderWidgetSprites(graphics, MOVE_UP_SELECTABLE_SPRITES, left, top, hovered && mouseOverTopLeftQuarter(relX, relY, ICON_SIZE));
                 } else {
                     renderWidgetSprites(graphics, MOVE_UP_SPRITES, left, top, hovered && mouseOverTopRightQuarter(relX, relY, ICON_SIZE));
                 }
-
             }
             if (state.canMoveDown()) {
-                if (state.canEnable()) {
+                if (swapFolderActions || state.canEnable()) {
                     renderWidgetSprites(graphics, MOVE_DOWN_SELECTABLE_SPRITES, left, top, hovered && mouseOverBottomLeftQuarter(relX, relY, ICON_SIZE));
                 } else {
                     renderWidgetSprites(graphics, MOVE_DOWN_SPRITES, left, top, hovered && mouseOverBottomRightQuarter(relX, relY, ICON_SIZE));
@@ -853,6 +885,16 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
             renderSelection(graphics, top, left, width, height);
             renderWidgetSprites(graphics, innerTop, innerLeft, mouseX, mouseY);
+
+            if (folderWidget != null) {
+                if (shouldSwapFolderActions()) {
+                    folderWidget.active = key().type().available() ? state.canEnable() : state.canDisable();
+                    folderWidget.setTooltip(TRANSFER_ALL_INFO);
+                } else {
+                    folderWidget.active = true;
+                    folderWidget.setTooltip(FOLDER_OPEN_INFO);
+                }
+            }
 
             for (Renderable renderable : this.renderables) {
                 renderable.render(graphics, mouseX, mouseY, partialTick);
