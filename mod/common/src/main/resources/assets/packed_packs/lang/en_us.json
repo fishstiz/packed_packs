@@ -58,6 +58,7 @@
   "packed_packs.resource_packs": "Resource Packs",
   "packed_packs.aliases.edit": "Edit Aliases",
   "packed_packs.options.title": "Packed Packs Options",
+  "packed_packs.options.max_width": "Max Width",
   "packed_packs.options.replace_screen": "Replace Pack Screen",
   "packed_packs.options.apply_on_close": "Apply Packs on Close",
   "packed_packs.options.hide_incompatible_warnings": "Hide Incompatible Warnings",
