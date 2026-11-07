@@ -19,6 +19,7 @@ public final class Config {
     private boolean showActionBar = false;
     private boolean hideIncompatible = false;
     private String sort;
+    private int maxWidth;
     private final ResourcePacks resourcepacks = new ResourcePacks();
     private final DataPacks datapacks = new DataPacks();
 
@@ -94,6 +95,14 @@ public final class Config {
         }
 
         this.sort = sort.name();
+    }
+
+    public void setMaxWidth(int maxWidth) {
+        this.maxWidth = maxWidth;
+    }
+
+    public int getMaxWidth() {
+        return this.maxWidth;
     }
 
     public ResourcePacks getResourcepacks() {
