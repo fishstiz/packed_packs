@@ -13,7 +13,6 @@ import io.github.fishstiz.packed_packs.compat.ModContext;
 import io.github.fishstiz.packed_packs.compat.ModIntegration;
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionScreenAccessor;
 import net.mehvahdjukaar.polytone.Polytone;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
 import net.minecraft.resources.Identifier;
