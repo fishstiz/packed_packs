@@ -9,9 +9,11 @@ import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.fidgetz.v0.utils.GuiGraphicsUtils;
 import io.github.fishstiz.fidgetz.v0.utils.NavigationUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.components.events.ContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -34,6 +36,8 @@ public final class GuiUtils {
             BLACK_OVERLAY.then(Renderables.fill(Colors.alpha(Colors.WHITE, 0.1f)))
     );
     public static final RenderableRectangle HAMBURGER_RECT = Renderables.sprite(PackedPacks.id("icon/hamburger"));
+    public static final RenderableRectangle ENABLE_ALL_RECT = Renderables.text(Component.literal("»"));
+    public static final RenderableRectangle DISABLE_ALL_RECT = Renderables.text(Component.literal("«"));
     public static final Identifier ARROW_UP_SPRITE = PackedPacks.id("icon/arrow_up");
     public static final Identifier CROSS_SPRITE = PackedPacks.id("icon/cross");
     public static final Identifier LOCK_SPRITE = Identifier.withDefaultNamespace("widget/locked_button");
@@ -57,6 +61,7 @@ public final class GuiUtils {
     public static final Component FOLDER_OPEN_TEXT = Component.translatable("packed_packs.folder.open");
     public static final Component PROFILE_TITLE_TEXT = Component.translatable("packed_packs.profile");
     public static final Component NO_PROFILE_TEXT = Component.translatable("packed_packs.profile.none");
+    public static final Tooltip TRANSFER_ALL_INFO = Tooltip.create(Component.translatable("packed_packs.transfer_all.info"));
     public static final int DROP_DISABLED_COLOR = Colors.RED_700;
     public static final int DROP_DISABLED_FILL = Colors.alpha(DROP_DISABLED_COLOR, 0.25f);
     public static final int DROP_ENABLED_COLOR = Colors.GREEN_500;
@@ -87,6 +92,11 @@ public final class GuiUtils {
     public static RenderableRectangle lazyTexture(Supplier<Identifier> textureGetter, int textureWidth, int textureHeight) {
         return (graphics, left, top, width, height, _, _, _) ->
                 GuiGraphicsUtils.texture(graphics, textureGetter.get(), left, top, width, height, textureWidth, textureHeight);
+    }
+
+    public static RenderableRectangle lazyRect(Supplier<RenderableRectangle> delegate) {
+        return (graphics, left, top, width, height, mouseX, mouseY, partialTick) ->
+                delegate.get().extractRenderState(graphics, left, top, width, height, mouseX, mouseY, partialTick);
     }
 
     public static WidgetElements padded16Rect(RenderableRectangle rect) {
@@ -130,6 +140,10 @@ public final class GuiUtils {
             }
             return false;
         });
+    }
+
+    public static void playClickSound() {
+        AbstractWidget.playButtonClickSound(Minecraft.getInstance().getSoundManager());
     }
 
     private GuiUtils() {
