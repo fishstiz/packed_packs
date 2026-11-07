@@ -322,14 +322,14 @@ public class Store implements FZRef<PackedPacksState> {
                         if (dispatch(new PackListMutation.Enabled(enable.srcList(), enable.srcPack(), payload, enable.index()))
                             && prevState.enabled() != state.enabled()) {
                             effectHandler.accept(new UiEffect.Focus(PackListType.ENABLED));
-                            GuiUtils.playButtonClickSound(minecraft.getSoundManager());
+                            GuiUtils.playClickSound(minecraft.getSoundManager());
                         }
                     }
                     case PackListIntent.Disable disable -> {
                         if (dispatch(new PackListMutation.Disabled(disable.srcList(), disable.srcPack(), disable.packs()))
                             && prevState.enabled() != state.enabled()) {
                             effectHandler.accept(new UiEffect.Focus(PackListType.AVAILABLE));
-                            GuiUtils.playButtonClickSound(minecraft.getSoundManager());
+                            GuiUtils.playClickSound(minecraft.getSoundManager());
                         }
                     }
                     case PackListIntent.Recall recall -> {
@@ -388,7 +388,7 @@ public class Store implements FZRef<PackedPacksState> {
                                 moveOnce.upwards()
                         ))) {
                             effectHandler.accept(new UiEffect.Focus(moveOnce.srcList().type(), moveOnce.srcPack().id(), true));
-                            GuiUtils.playButtonClickSound(minecraft.getSoundManager());
+                            GuiUtils.playClickSound(minecraft.getSoundManager());
                         }
                     }
                     case PackListIntent.OpenAliasesModal open -> {
@@ -407,7 +407,7 @@ public class Store implements FZRef<PackedPacksState> {
                         List<PackNode> children = repository.getSortedChildren(canonical);
 
                         if (open.srcList().type().enabled()) {
-                            if (metadata.module()) {
+                            if (!metadata.module()) {
                                 PackedPacks.LOGGER.warn(
                                         "[packed_packs] Opening a non-module folder pack from the enabled list, which should not happen"
                                 );

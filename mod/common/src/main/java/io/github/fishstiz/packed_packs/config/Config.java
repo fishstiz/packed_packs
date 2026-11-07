@@ -3,13 +3,14 @@ package io.github.fishstiz.packed_packs.config;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.gui.components.SortOption;
 import io.github.fishstiz.packed_packs.gui.components.SortOptions;
+import io.github.fishstiz.packed_packs.gui.components.SwapFolderAction;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.packs.PackType;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.Serializable;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.List;
 
 public final class Config {
     private static final String FILENAME = "config.json";
@@ -109,6 +110,7 @@ public final class Config {
         private boolean hideIncompatibleWarnings = false;
         private final List<String> additionalFolders = new ObjectArrayList<>();
         private boolean foldersModuleByDefault = false;
+        private SwapFolderAction swapFolderActions = SwapFolderAction.NO;
         private boolean rememberLastViewedProfile = false;
         private @Nullable String lastViewedProfile = null;
         private List<String> profileOrder = new ObjectArrayList<>();
@@ -165,6 +167,14 @@ public final class Config {
 
         public void setFoldersModuleByDefault(boolean foldersModuleByDefault) {
             this.foldersModuleByDefault = foldersModuleByDefault;
+        }
+
+        public SwapFolderAction shouldSwapFolderActions() {
+            return swapFolderActions;
+        }
+
+        public void setSwapFolderActions(SwapFolderAction swapFolderActions) {
+            this.swapFolderActions = swapFolderActions;
         }
     }
 

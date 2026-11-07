@@ -185,7 +185,7 @@ public class PackedPacksScreen extends FZScreen {
                 )
                 .map(locked -> FZButton.builder()
                         .message(message)
-                        .tooltip(Component.translatable("packed_packs.transfer_all.info"))
+                        .tooltip(TRANSFER_ALL_INFO)
                         .onPress(() -> container.visitLeafList(PackList::transferAll))
                         .square()
                         .active(!locked)
@@ -418,7 +418,7 @@ public class PackedPacksScreen extends FZScreen {
     }
 
     public void openOptions() {
-        dialogManager.put(FZModal.builder(this, OptionsLayout.create(this, Config.packs(original.packType())))
+        dialogManager.put(FZModal.builder(this, OptionsLayout.create(context, this, Config.packs(original.packType())))
                 .id("OptionsModal")
                 .popoverOrder(0)
                 .padding(SPACING, SPACING + 2, SPACING, SPACING)

@@ -29,6 +29,10 @@ public class PackResourcesService {
                !repository.isEnabled(pack.id());
     }
 
+    public boolean isModule(PackNode.Parent parent) {
+        return repository.getFolderMetadata(parent).module();
+    }
+
     public boolean setFolderMetadata(PackNode.Parent parent, FolderPackMeta metadata) {
         return repository.setFolderMetadata(parent.id(), metadata);
     }
