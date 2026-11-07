@@ -8,6 +8,7 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
 import io.github.fishstiz.fidgetz.v0.gui.screens.FZScreen;
 import io.github.fishstiz.fidgetz.v0.gui.state.FZMutableRef;
 import io.github.fishstiz.fidgetz.v0.gui.state.FZRef;
+import io.github.fishstiz.fidgetz.v0.utils.MathUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.Event;
 import io.github.fishstiz.packed_packs.api.Preference;
@@ -400,8 +401,16 @@ public class PackedPacksScreen extends FZScreen {
                 .get();
 
         if (!this.preloading) {
-            layout.arrangeElements();
+            resizeLayout();
             layout.visitWidgets(collector::renderableWidget);
+        }
+    }
+
+    private void resizeLayout() {
+        if (layout != null) {
+            int targetWidth = MathUtils.optionalMin(width, Config.get().getMaxWidth()) + SPACING * 2;
+            layout.fidgetz$setSize(targetWidth, height);
+            layout.arrangeElements();
         }
     }
 
@@ -410,7 +419,7 @@ public class PackedPacksScreen extends FZScreen {
         if (layout == null) {
             super.repositionElements();
         } else {
-            layout.fidgetz$setSize(width, height);
+            resizeLayout();
         }
 
         dialogManager.remove(GLOBAL_CONTEXT_MENU_ID);
@@ -421,7 +430,7 @@ public class PackedPacksScreen extends FZScreen {
         dialogManager.put(FZModal.builder(this, OptionsLayout.create(context, this, Config.packs(original.packType())))
                 .id("OptionsModal")
                 .popoverOrder(0)
-                .padding(SPACING, SPACING + 2, SPACING, SPACING)
+                .padding((int) (SPACING * 1.5))
                 .margin(SPACING)
                 .centered()
                 .buildAndOpen());
@@ -497,6 +506,7 @@ public class PackedPacksScreen extends FZScreen {
     @Override
     public void rebuildWidgets() {
         if (!this.initialized) return;
+        ComponentPath focusPath = getCurrentFocusPath();
         context.cancelReload();
         clearWidgets();
         context.saveState();
@@ -505,6 +515,10 @@ public class PackedPacksScreen extends FZScreen {
         availableList.rebuildEntries();
         enabledList.rebuildEntries();
         dialogManager.refreshDialogs();
+        ComponentPath validPath = validatePath(focusPath);
+        if (validPath != null) {
+            validPath.applyFocus(true);
+        }
     }
 
     @Override

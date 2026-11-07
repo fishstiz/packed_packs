@@ -2,16 +2,22 @@ package io.github.fishstiz.packed_packs.gui.layouts;
 
 import io.github.fishstiz.fidgetz.v0.gui.components.FZButton;
 import io.github.fishstiz.fidgetz.v0.gui.components.FZText;
+import io.github.fishstiz.fidgetz.v0.gui.components.FZTextField;
+import io.github.fishstiz.fidgetz.v0.gui.components.WidgetRenderables;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZScrollableLayout;
+import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.gui.components.SwapFolderAction;
+import io.github.fishstiz.packed_packs.util.Colors;
 import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.components.events.ContainerEventHandler;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import org.jspecify.annotations.Nullable;
 
 import java.util.function.BooleanSupplier;
@@ -19,44 +25,80 @@ import java.util.function.BooleanSupplier;
 import static io.github.fishstiz.packed_packs.util.GuiUtils.SPACING;
 
 public class OptionsLayout extends WrappedLayout {
+    private static final int WIDTH = 250;
+
     private OptionsLayout(FZLayout layout) {
         super(layout);
     }
 
     public static OptionsLayout create(@Nullable ScreenContext ctx, ContainerEventHandler container, Config.Packs... configs) {
-        FZFlexLayout root = FZFlexLayout.horizontal().spacing(SPACING);
+        FZFlexLayout root = FZFlexLayout.horizontal().maxWidth(WIDTH).spacing(SPACING);
+
+        FZFlexLayout body = FZFlexLayout.vertical().spacing(SPACING);
+        body.defaultChildSettings().flexCross().alignHorizontallyCenter();
+
+        category(body, Component.translatable("stat.generalButton"));
+        {
+            FZFlexLayout maxWidthEntry = body.child(FZFlexLayout.horizontal(), body.flexChildHorizontalSettings());
+            maxWidthEntry.defaultChildSettings().alignVerticallyMiddle();
+
+            Component label = CommonComponents.optionNameValue(
+                    Component.translatable("packed_packs.options.max_width"),
+                    CommonComponents.EMPTY
+            );
+            maxWidthEntry.child(
+                    FZButton.builder()
+                            .leftAlignedMessage()
+                            .message(label.plainCopy().withStyle(ChatFormatting.WHITE))
+                            .sprites(new WidgetRenderables(Renderables.fill(Colors.alpha(Colors.BLACK, 0.5f))))
+                            .disableCursorChanges()
+                            .inactive()
+                            .build(),
+                    maxWidthEntry.flexChildHorizontalSettings()
+            );
+
+            maxWidthEntry.child(FZTextField.builder()
+                    .width(44)
+                    .hint(Component.translatable("gui.none"))
+                    .text(String.valueOf(Config.get().getMaxWidth()))
+                    .filter(input -> input.codePoints().allMatch(Character::isDigit))
+                    .maxLength(4)
+                    .onChange(e -> {
+                        String text = e.value();
+                        int maxWidth = text.isEmpty() ? 0 : Integer.parseInt(text);
+                        int previousMaxWidth = Config.get().getMaxWidth();
+                        Config.get().setMaxWidth(maxWidth);
+                        if (maxWidth != previousMaxWidth && ctx != null) {
+                            ctx.rebuild();
+                        }
+                    })
+                    .onBlur(e -> {
+                        if (Config.get().getMaxWidth() <= 0) {
+                            e.target().setValue("");
+                        }
+                    })
+                    .build());
+        }
 
         for (Config.Packs config : configs) {
-            FZFlexLayout body = root.child(FZFlexLayout.vertical().spacing(SPACING), root.flexChildSettings());
-            body.defaultChildSettings().flexCross();
-
             switch (config) {
                 case Config.DataPacks dataPacks -> {
-                    body.child(FZText.builder(Component.translatable("selectWorld.dataPacks")).build());
-
-                    FZFlexLayout contents = FZFlexLayout.vertical().spacing(SPACING);
-                    contents.defaultChildSettings().flexCross();
-                    commonOptions(ctx, contents, dataPacks);
-
-                    body.child(FZScrollableLayout.from(container, contents), body.flexChildSettings()).arrangeElements();
+                    category(body, Component.translatable("selectWorld.dataPacks"));
+                    commonOptions(body, dataPacks);
                 }
                 case Config.ResourcePacks resourcePacks -> {
-                    body.child(FZText.builder(Component.translatable("packed_packs.resource_packs")).build());
-
-                    FZFlexLayout contents = FZFlexLayout.vertical().spacing(SPACING);
-                    contents.defaultChildSettings().flexCross();
-                    commonOptions(ctx, contents, resourcePacks);
-                    contents.child(toggle(
+                    category(body, Component.translatable("packed_packs.resource_packs"));
+                    commonOptions(body, resourcePacks);
+                    body.child(toggle(
                             Component.translatable("packed_packs.options.apply_on_close"),
                             resourcePacks::setApplyOnClose,
                             resourcePacks::isApplyOnClose
                     ).build());
-
-                    contents.arrangeElements();
-                    body.child(FZScrollableLayout.from(container, contents), body.flexChildSettings()).arrangeElements();
                 }
             }
         }
+
+        root.child(FZScrollableLayout.from(container, body), root.flexChildSettings());
 
         return new OptionsLayout(root);
     }
@@ -65,7 +107,11 @@ public class OptionsLayout extends WrappedLayout {
         return create(null, container, configs);
     }
 
-    private static void commonOptions(@Nullable ScreenContext ctx, FZFlexLayout layout, Config.Packs config) {
+    private static void category(FZFlexLayout layout, MutableComponent name) {
+        layout.child(FZText.builder(name.withStyle(ChatFormatting.BOLD)).build());
+    }
+
+    private static void commonOptions(FZFlexLayout layout, Config.Packs config) {
         layout.child(toggle(
                 Component.translatable("packed_packs.options.replace_screen"),
                 config::setReplaceOriginal,
@@ -83,8 +129,6 @@ public class OptionsLayout extends WrappedLayout {
                 config::setFoldersModuleByDefault,
                 config::areFoldersModuleByDefault
         ).build());
-
-        ;
 
         layout.child(FZButton.builder()
                 .bigWidth()
