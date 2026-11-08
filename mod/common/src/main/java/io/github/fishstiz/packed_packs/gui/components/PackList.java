@@ -546,7 +546,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         // UNSELECT sprite becomes a SELECT sprite
         // folder widget becomes transfer
         // need to update active state of folder widget if canEnable()/canDisable()
-        private boolean shouldSwapFolderActions() {
+        protected boolean shouldSwapFolderActions() {
             return pack instanceof PackNode.Parent parent && switch (context.configs().user().shouldSwapFolderActions()) {
                 case NO -> false;
                 case YES -> true;
