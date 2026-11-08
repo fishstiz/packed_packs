@@ -67,7 +67,7 @@
   "packed_packs.options.folders_module_by_default": "Folders Locked by Default",
   "packed_packs.options.swap_folder_actions": "Swap Folder Actions",
   "packed_packs.options.swap_folder_actions.unlocked_only": "Unlocked Folders Only",
-  "packed_packs.options.swap_folder_actions.info": "Swap actions with the show packs button and the select/unselect sprite.",
+  "packed_packs.options.swap_folder_actions.info": "Swap actions with the show packs button and the quick transfer or transfer sprite.",
   "packed_packs.preferences": "Preferences",
   "packed_packs.preferences.reset": "Reset Preferences",
   "packed_packs.preferences.widgets.original_screen": "Go to Original Screen",
