@@ -38,7 +38,11 @@ class MouseStateHandler {
             return false;
         }
         if (!isRangeModifierActive() && !isSelectModifierActive() && updateDoubleClick()) {
-            entry.transferPack();
+            if (entry.shouldSwapFolderActions()) {
+                entry.expandFolder();
+            } else {
+                entry.transferPack();
+            }
             return false; // do not take focus
         }
         if (isRangeModifierActive()) {
