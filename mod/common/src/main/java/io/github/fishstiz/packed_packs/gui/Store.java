@@ -589,6 +589,14 @@ public class Store implements FZRef<PackedPacksState> {
                     case ProfileIntent.ToggleLock(Profile profile) ->
                             dispatch(new ProfileMutation.LockToggled(profile));
                     case ProfileIntent.ToggleRenaming() -> dispatch(new ProfileMutation.RenamingToggled());
+                    case ProfileIntent.Move move -> {
+                        List<Profile> newOrder = new ObjectArrayList<>(state.profiles().profiles());
+                        int from = newOrder.indexOf(move.profile());
+                        if (from != -1 && from != move.index()) {
+                            newOrder.add(move.index(), newOrder.remove(from));
+                            replaceState(state.withProfiles(state.profiles().withProfiles(newOrder)), false);
+                        }
+                    }
                 }
             }
         }
