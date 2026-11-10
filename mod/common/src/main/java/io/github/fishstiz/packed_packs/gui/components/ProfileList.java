@@ -3,7 +3,10 @@ package io.github.fishstiz.packed_packs.gui.components;
 import io.github.fishstiz.fidgetz.v0.gui.components.*;
 import io.github.fishstiz.fidgetz.v0.gui.components.events.FZHoverableElement;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
+import io.github.fishstiz.fidgetz.v0.gui.renderables.RenderableRectangle;
+import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.packed_packs.PackedPacks;
+import io.github.fishstiz.packed_packs.compat.minecraftcursor.MinecraftCursor;
 import io.github.fishstiz.packed_packs.config.DevConfig;
 import io.github.fishstiz.packed_packs.config.DevConfig.ResourcePacks.LoadDefaultCondition;
 import io.github.fishstiz.packed_packs.config.Profile;
@@ -25,10 +28,12 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.layouts.LayoutElement;
+import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackType;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +50,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
     private final PackType packType;
     private ProfilesState state = ProfilesState.empty();
     private boolean devMode;
+    private @Nullable Entry dragged;
 
     public ProfileList(PackedPacksContext context) {
         this.dispatcher = context::dispatch;
@@ -77,6 +83,12 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
                 entry.onStateChanged(devModeChanged);
             }
         }
+    }
+
+    @Override
+    protected void clearEntries() {
+        this.dragged = null;
+        super.clearEntries();
     }
 
     private void rebuildEntries() {
@@ -130,9 +142,88 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         }
     }
 
+    private int draggedTop(Entry entry, int mouseY) {
+        int height = entry.getHeight();
+        return Math.clamp(mouseY - height / 2, getY(), getBottom() - height);
+    }
+
+    private int dropIndex(Entry entry, int mouseY) {
+        Entry first = children().getFirst();
+        int height = entry.getHeight();
+        int dropIndex = Math.floorDiv(draggedTop(entry, mouseY) + height / 2 - first.getY(), height);
+        return Math.clamp(dropIndex, first.isDefault() ? 1 : 0, children().size() - 1);
+    }
+
+    private void drop(Entry dragged, int mouseY) {
+        this.dragged = null;
+        int index = dropIndex(dragged, mouseY);
+
+        List<Entry> entries = children();
+        if (index < 0 || index >= entries.size()) {
+            return;
+        }
+
+        int from = dragged.getIndex();
+        int to = state.profiles().indexOf(entries.get(index).profile);
+        if (to == -1 || from == to) {
+            return;
+        }
+
+        dispatcher.accept(new ProfileIntent.Move(dragged.profile, index));
+    }
+
+    private void extractDraggedRenderState(Entry dragged, GuiGraphics graphics, int mouseY, float partialTick) {
+        int from = dragged.getIndex();
+        int height = dragged.getHeight();
+
+        if (mouseY < getY() + height / 2) {
+            scroll(-scrollRate() * partialTick);
+        } else if (mouseY > getBottom() - height / 2) {
+            scroll(scrollRate() * partialTick);
+        }
+
+        int dropIndex = dropIndex(dragged, mouseY);
+        int start = dropIndex < from ? dropIndex : from + 1;
+        int end = dropIndex < from ? from : dropIndex + 1;
+        int shift = dropIndex < from ? height : -height;
+
+        List<Entry> entries = children();
+        ScreenRectangle bounds = getRectangle();
+
+        for (int i = 0; i < entries.size(); i++) {
+            Entry entry = entries.get(i);
+            if (entry != dragged && (i < start || i >= end) && entry.getRectangle().overlaps(bounds)) {
+                entry.render(graphics, -1, -1, partialTick);
+            }
+        }
+
+        ScreenRectangle shiftedBounds = new ScreenRectangle(bounds.left(), bounds.top() - shift, bounds.width(), bounds.height());
+        graphics.pose().pushPose();
+        graphics.pose().translate(0, shift, 0);
+        for (int i = start; i < end; i++) {
+            Entry entry = entries.get(i);
+            if (entry.getRectangle().overlaps(shiftedBounds)) {
+                entry.render(graphics, -1, -1, partialTick);
+            }
+        }
+        graphics.pose().popPose();
+
+        graphics.pose().pushPose();
+        graphics.pose().translate(0, draggedTop(dragged, mouseY) - dragged.getY(), 1f);
+        dragged.render(graphics, -1, -1, partialTick);
+        graphics.pose().popPose();
+
+        MinecraftCursor.get().setResizeNS();
+    }
+
     @Override
     protected void extractEntriesRenderState(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        super.extractEntriesRenderState(graphics, mouseX, mouseY, partialTick);
+        if (dragged != null && getFocused() == dragged) {
+            setHovered(null);
+            extractDraggedRenderState(dragged, graphics, mouseY, partialTick);
+        } else {
+            super.extractEntriesRenderState(graphics, mouseX, mouseY, partialTick);
+        }
 
         if (children().isEmpty()) {
             renderScrollingString(
@@ -163,11 +254,14 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
     }
 
     protected final class Entry extends FZAbstractListWidget.Entry<Entry> implements FZContextMenu.Source {
+        private static final RenderableRectangle HANDLE_SPRITE = Renderables.sprite(PackedPacks.id("icon/ellipsis_vertical"));
+        private static final RenderableRectangle INACTIVE_HANDLE_SPRITE = Renderables.sprite(PackedPacks.id("icon/ellipsis_vertical_inactve"));
         private static final ResourceLocation STAR_OUTLINE_SPRITE = PackedPacks.id("icon/star_outline");
         private final List<AbstractWidget> children = new ArrayList<>();
         private final FZFlexLayout layout;
         private final Profile profile;
         private final int index;
+        private FZIconButton dragHandle;
         private FZButton selectButton;
         private boolean prevDefault;
         private boolean prevLocked;
@@ -206,14 +300,11 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
         private void buildWidgets(boolean isDefault, boolean isLocked) {
             boolean deleteActive = !isLocked && !isDefault;
 
-            addChild(layout.child(FZIconButton.builder()
-                    .square()
-                    .id("DeleteButton")
-                    .message(Component.translatable("packed_packs.profile.delete"))
-                    .tooltip(deleteActive ? Component.translatable("packed_packs.profile.delete.info") : null)
-                    .icon(getDeleteIcon(isDefault, isLocked))
-                    .onPress(() -> dispatcher.accept(new ProfileIntent.Delete(profile)))
-                    .active(deleteActive)
+            this.dragHandle = addChild(layout.child(FZIconButton.builder()
+                    .size(16, 20)
+                    .id("DragHandle")
+                    .icon(new WidgetElements(isDefault ? INACTIVE_HANDLE_SPRITE : HANDLE_SPRITE, 16, 16))
+                    .active(!isDefault)
                     .build()));
 
             this.selectButton = addChild(layout.child(FZButton.builder()
@@ -243,6 +334,16 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
                         )))
                         .build()));
             }
+
+            addChild(layout.child(FZIconButton.builder()
+                    .square()
+                    .id("DeleteButton")
+                    .message(Component.translatable("packed_packs.profile.delete"))
+                    .tooltip(deleteActive ? Component.translatable("packed_packs.profile.delete.info") : null)
+                    .icon(getDeleteIcon(isDefault, isLocked))
+                    .onPress(() -> dispatcher.accept(new ProfileIntent.Delete(profile)))
+                    .active(deleteActive)
+                    .build()));
 
             if (devMode) {
                 addChild(layout.child(FZIconButton.builder()
@@ -340,6 +441,10 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
             for (AbstractWidget child : children) {
                 child.render(graphics, mouseX, mouseY, partialTick);
             }
+
+            if (this.dragHandle.isActive() && this.dragHandle.isHovered()) {
+                MinecraftCursor.get().setResizeNS();
+            }
         }
 
         private static WidgetElements createIcon(Supplier<ResourceLocation> sprite) {
@@ -389,6 +494,25 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
                     .build());
 
             collector.addEntry(loadConditionEntry.build());
+        }
+
+        @Override
+        public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+            if (getFocused() == this.dragHandle) {
+                dragged = this;
+                return true;
+            }
+
+            return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+        }
+
+        @Override
+        public boolean mouseReleased(double mouseX, double mouseY, int button) {
+            if (getFocused() == this.dragHandle) {
+                drop(this, (int) mouseY);
+            }
+
+            return super.mouseReleased(mouseX, mouseY, button);
         }
 
         @Override

@@ -17,6 +17,9 @@ public class MinecraftCursor {
     public void setGrabbing() {
     }
 
+    public void setResizeNS() {
+    }
+
     public void setNotAllowed() {
     }
 
@@ -30,6 +33,11 @@ public class MinecraftCursor {
         @Override
         public void setGrabbing() {
             CursorController.getInstance().setSingleCycleCursor(CursorType.GRABBING);
+        }
+
+        @Override
+        public void setResizeNS() {
+            CursorController.getInstance().setSingleCycleCursor(CursorType.RESIZE_NS);
         }
 
         @Override

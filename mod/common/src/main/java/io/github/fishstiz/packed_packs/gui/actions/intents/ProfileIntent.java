@@ -27,4 +27,7 @@ public sealed interface ProfileIntent extends Intent {
 
     record ToggleLock(Profile profile) implements ProfileIntent {
     }
+
+    record Move(Profile profile, int index) implements ProfileIntent {
+    }
 }
