@@ -7,35 +7,24 @@ import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.context.ScreenContext;
 import io.github.fishstiz.packed_packs.api.events.WatchEvent;
 import io.github.fishstiz.packed_packs.config.*;
-import io.github.fishstiz.packed_packs.gui.components.SortOption;
-import io.github.fishstiz.packed_packs.gui.states.PackListKey;
-import io.github.fishstiz.packed_packs.gui.states.PackListType;
-import io.github.fishstiz.packed_packs.gui.states.Query;
-import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
-import io.github.fishstiz.packed_packs.gui.states.PackListState;
-import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
 import io.github.fishstiz.packed_packs.gui.actions.intents.Intent;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
 import io.github.fishstiz.packed_packs.gui.actions.intents.ProfileIntent;
 import io.github.fishstiz.packed_packs.gui.actions.mutations.Mutation;
-import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
 import io.github.fishstiz.packed_packs.gui.actions.mutations.PackListMutation;
 import io.github.fishstiz.packed_packs.gui.actions.mutations.ProfileMutation;
-import io.github.fishstiz.packed_packs.pack.PackIconCache;
-import io.github.fishstiz.packed_packs.pack.PackNodeRepository;
-import io.github.fishstiz.packed_packs.pack.PackResourcesService;
-import io.github.fishstiz.packed_packs.util.PackSelectionResolver;
+import io.github.fishstiz.packed_packs.gui.components.SortOption;
+import io.github.fishstiz.packed_packs.gui.states.*;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
-import io.github.fishstiz.packed_packs.pack.PackNode;
-import io.github.fishstiz.packed_packs.pack.PackSelection;
-import io.github.fishstiz.packed_packs.pack.PackWatcher;
+import io.github.fishstiz.packed_packs.pack.*;
+import io.github.fishstiz.packed_packs.util.GuiUtils;
+import io.github.fishstiz.packed_packs.util.PackSelectionResolver;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import io.github.fishstiz.packed_packs.util.ToastUtil;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.locale.Language;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.util.Util;
@@ -59,7 +48,7 @@ public class Store implements FZRef<PackedPacksState> {
     private final PackResourcesService resources;
     private final HistoryManager<PackedPacksState> history;
     private final ConcurrentHashMap<String, Runnable> subscribers = new ConcurrentHashMap<>();
-    private Consumer<UiEffect> effectHandler = FunctionUtils.nopConsumer();
+    private final Consumer<UiEffect> effectHandler;
     private PackedPacksState state = PackedPacksState.empty();
     private @Nullable CompletableFuture<Void> refreshFuture;
     private @Nullable CompletableFuture<Void> initialStateFuture;
@@ -70,7 +59,8 @@ public class Store implements FZRef<PackedPacksState> {
             PackConfigs configs,
             PackIconCache iconCache,
             PackResourcesService resources,
-            PackNodeRepository repository
+            PackNodeRepository repository,
+            Consumer<UiEffect> effectHandler
     ) {
         this.minecraft = minecraft;
         this.configs = configs;
@@ -79,6 +69,7 @@ public class Store implements FZRef<PackedPacksState> {
         this.initialStateFuture = CompletableFuture.runAsync(repository::refreshSources, Util.backgroundExecutor());
         this.iconCache = iconCache;
         this.resources = resources;
+        this.effectHandler = effectHandler;
     }
 
     @Override
@@ -98,10 +89,6 @@ public class Store implements FZRef<PackedPacksState> {
         };
         subscribers.put(key, listener);
         return () -> subscribers.remove(key);
-    }
-
-    public void setEffectHandler(Consumer<UiEffect> effectHandler) {
-        this.effectHandler = effectHandler;
     }
 
     private static PackedPacksState selectNewPacks(PackListKey prevTailKey, PackListState prevTail, PackedPacksState newState) {
@@ -322,14 +309,14 @@ public class Store implements FZRef<PackedPacksState> {
                         if (dispatch(new PackListMutation.Enabled(enable.srcList(), enable.srcPack(), payload, enable.index()))
                             && prevState.enabled() != state.enabled()) {
                             effectHandler.accept(new UiEffect.Focus(PackListType.ENABLED));
-                            AbstractWidget.playButtonClickSound(minecraft.getSoundManager());
+                            GuiUtils.playClickSound();
                         }
                     }
                     case PackListIntent.Disable disable -> {
                         if (dispatch(new PackListMutation.Disabled(disable.srcList(), disable.srcPack(), disable.packs()))
                             && prevState.enabled() != state.enabled()) {
                             effectHandler.accept(new UiEffect.Focus(PackListType.AVAILABLE));
-                            AbstractWidget.playButtonClickSound(minecraft.getSoundManager());
+                            GuiUtils.playClickSound();
                         }
                     }
                     case PackListIntent.Recall recall -> {
@@ -388,7 +375,7 @@ public class Store implements FZRef<PackedPacksState> {
                                 moveOnce.upwards()
                         ))) {
                             effectHandler.accept(new UiEffect.Focus(moveOnce.srcList().type(), moveOnce.srcPack().id(), true));
-                            AbstractWidget.playButtonClickSound(minecraft.getSoundManager());
+                            GuiUtils.playClickSound();
                         }
                     }
                     case PackListIntent.OpenAliasesModal open -> {
@@ -569,8 +556,9 @@ public class Store implements FZRef<PackedPacksState> {
                             }
                         }
                     }
-                    case ProfileIntent.Rename(Profile profile, String name) -> {
+                    case ProfileIntent.Rename(Profile profile, String name, String description) -> {
                         configs.profiles().rename(profile, name);
+                        configs.profiles().setDescription(profile, description);
                         dispatch(new ProfileMutation.Renamed(profile, profile.getName()));
                     }
                     case ProfileIntent.Select(@Nullable Profile profile) -> {
