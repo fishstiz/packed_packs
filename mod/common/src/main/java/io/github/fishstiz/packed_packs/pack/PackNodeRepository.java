@@ -337,8 +337,9 @@ public class PackNodeRepository {
 
             for (String id : claimedIds) {
                 PackNode candidate = newPacks.get(id);
-                // non file-packs can be added to folders virtually (for adding built-in packs)
-                if (candidate instanceof PackNode.Leaf leaf && leaf.path() == null && leaf.parentId() == null) {
+                // non-file packs and packs under root can be added to folders virtually
+                // see https://github.com/fishstiz/packed_packs/issues/81
+                if (candidate instanceof PackNode.Leaf leaf && leaf.parentId() == null) {
                     if (seenVirtualChildren.add(leaf.id())) {
                         virtualChildren.add(leaf);
                     } else {
