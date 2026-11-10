@@ -237,6 +237,16 @@ public final class ProfileManager {
 
     public void setOrder(List<Profile> profiles) {
         Config.packs(this.packType).setProfileOrder(CollectionUtils.map(profiles, Profile::getId));
+        if (this.profiles != null) {
+            SortedMap<String, Profile> profileMap = new Object2ObjectLinkedOpenHashMap<>(profiles.size());
+            for (Profile profile : profiles) {
+                Profile existing = this.profiles.get(profile.getId());
+                if (existing != null) {
+                    profileMap.put(existing.getId(), existing);
+                }
+            }
+            this.profiles = profileMap;
+        }
     }
 
     public void setDefault(@Nullable Profile profile) {
