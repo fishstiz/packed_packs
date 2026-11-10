@@ -2,13 +2,15 @@ package io.github.fishstiz.packed_packs.gui.layouts;
 
 import io.github.fishstiz.fidgetz.v0.gui.components.*;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
+import io.github.fishstiz.fidgetz.v0.gui.state.FZMutableRef;
 import io.github.fishstiz.fidgetz.v0.gui.state.FZRef;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.Profile;
 import io.github.fishstiz.packed_packs.config.ProfileManager;
 import io.github.fishstiz.packed_packs.gui.actions.intents.Intent;
-import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
 import io.github.fishstiz.packed_packs.gui.actions.intents.ProfileIntent;
+import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentUtils;
@@ -103,5 +105,77 @@ public class ProfileTitleLayout {
         }
 
         return new WidgetElements(LOCK_SPRITE_DISABLED, 20, 20);
+    }
+
+    public static FZFlexLayout createForm(Profile profile, Consumer<? super Intent> dispatcher, Runnable closer) {
+        FZMutableRef<ProfileIntent.Rename> draft = new FZMutableRef<>(new ProfileIntent.Rename(
+                profile,
+                profile.getName(),
+                profile.getDescription()
+        ));
+
+        Runnable handleSubmit = () -> {
+            dispatcher.accept(draft.value());
+            closer.run();
+        };
+
+        FZFlexLayout layout = FZFlexLayout.vertical().maxWidth(300).spacing(SPACING);
+        layout.defaultChildSettings().flexCross();
+
+        FZFlexLayout header = layout.child(FZFlexLayout.horizontal().spacing(SPACING));
+        header.defaultChildSettings().alignVerticallyMiddle();
+        header.child(
+                FZText.builder(Component.translatable("packed_packs.profile.dialog.edit").withStyle(ChatFormatting.BOLD))
+                        .build(),
+                header.flexChildSettings()
+        );
+        header.child(FZIconButton.builder()
+                .square()
+                .icon(new WidgetElements(CROSS_SPRITE, 16, 16))
+                .onPress(closer)
+                .build());
+
+        Component nameMessage = Component.translatable("packed_packs.profile.dialog.name");
+        layout.child(FZTextField.bind("Name", draft.map(ProfileIntent.Rename::name).map(value ->
+                FZTextField.builder()
+                        .text(value)
+                        .message(nameMessage)
+                        .hint(nameMessage)
+                        .maxLength(ProfileManager.getNameMaxLength())
+                        .onChange(e -> draft.set(prev -> new ProfileIntent.Rename(prev.profile(), e.value(), prev.description())))
+                        .onConfirm(e -> {
+                            handleSubmit.run();
+                            e.confirm();
+                        })
+                        .toProps()
+        )));
+
+        Component descMessage = Component.translatable("packed_packs.profile.dialog.description");
+        layout.child(FZTextField.bind("Description", draft.map(ProfileIntent.Rename::description).map(value ->
+                FZTextField.builder()
+                        .text(value)
+                        .message(descMessage)
+                        .hint(descMessage)
+                        .maxLength(ProfileManager.getDescMaxLength())
+                        .onChange(e -> draft.set(prev -> new ProfileIntent.Rename(prev.profile(), prev.name(), e.value())))
+                        .onConfirm(e -> {
+                            handleSubmit.run();
+                            e.confirm();
+                        })
+                        .toProps()
+        )));
+
+        FZFlexLayout footer = layout.child(FZFlexLayout.horizontal().spacing(SPACING));
+        footer.defaultChildSettings().flexMain();
+        footer.child(FZButton.builder()
+                .message(CommonComponents.GUI_DONE)
+                .onPress(handleSubmit)
+                .build());
+        footer.child(FZButton.builder()
+                .message(CommonComponents.GUI_CANCEL)
+                .onPress(closer)
+                .build());
+
+        return layout;
     }
 }

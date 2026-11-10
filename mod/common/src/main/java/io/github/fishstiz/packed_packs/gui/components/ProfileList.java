@@ -3,18 +3,21 @@ package io.github.fishstiz.packed_packs.gui.components;
 import io.github.fishstiz.fidgetz.v0.gui.components.*;
 import io.github.fishstiz.fidgetz.v0.gui.components.events.FZHoverableElement;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
-import io.github.fishstiz.fidgetz.v0.gui.state.FZRef;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.config.DevConfig;
 import io.github.fishstiz.packed_packs.config.DevConfig.ResourcePacks.LoadDefaultCondition;
 import io.github.fishstiz.packed_packs.config.Profile;
+import io.github.fishstiz.packed_packs.gui.UiEffect;
 import io.github.fishstiz.packed_packs.gui.actions.intents.Intent;
+import io.github.fishstiz.packed_packs.gui.actions.intents.ProfileIntent;
+import io.github.fishstiz.packed_packs.gui.layouts.ProfileTitleLayout;
+import io.github.fishstiz.packed_packs.gui.screens.PackedPacksContext;
 import io.github.fishstiz.packed_packs.gui.states.PackedPacksState;
 import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
-import io.github.fishstiz.packed_packs.gui.actions.intents.ProfileIntent;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
 import net.minecraft.client.Minecraft;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -22,6 +25,7 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.client.gui.layouts.LayoutElement;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackType;
@@ -37,15 +41,17 @@ import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
 public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> implements Layout {
     private static final Component EMPTY_TEXT = Component.translatable("packed_packs.profile.empty");
     private final Consumer<? super Intent> dispatcher;
+    private final Consumer<UiEffect> effectDispatcher;
     private final PackType packType;
     private ProfilesState state = ProfilesState.empty();
     private boolean devMode;
 
-    public ProfileList(FZRef<PackedPacksState> state, Consumer<? super Intent> dispatcher, PackType packType) {
-        this.dispatcher = dispatcher;
-        this.packType = packType;
-        onStateChanged(state.value());
-        state.subscribe("ProfileList", this::onStateChanged);
+    public ProfileList(PackedPacksContext context) {
+        this.dispatcher = context::dispatch;
+        this.effectDispatcher = context::dispatch;
+        this.packType = context.packType();
+        onStateChanged(context.state().value());
+        context.state().subscribe("ProfileList", this::onStateChanged);
     }
 
     @Override
@@ -184,6 +190,19 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
             return widget;
         }
 
+        private void updateTooltip() {
+            String desc = profile.getDescription();
+            if (desc.isEmpty()) {
+                selectButton.setTooltip(null);
+            } else {
+                selectButton.setTooltip(Tooltip.create(Component.empty()
+                        .append(Component.literal(profile.getName()).withStyle(ChatFormatting.BOLD))
+                        .append(CommonComponents.NEW_LINE)
+                        .append(Component.literal(desc))
+                ));
+            }
+        }
+
         private void buildWidgets(boolean isDefault, boolean isLocked) {
             boolean deleteActive = !isLocked && !isDefault;
 
@@ -203,6 +222,27 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
                     .onPress(() -> dispatcher.accept(new ProfileIntent.Select(profile)))
                     .active(state.selectedProfile() != profile)
                     .build(), layout.flexChildHorizontalSettings()));
+            updateTooltip();
+
+            if (!isLocked) {
+                addChild(layout.child(FZIconButton.builder()
+                        .id("EditButton")
+                        .square()
+                        .icon(new WidgetElements(PackedPacks.id("icon/edit"), 16, 16))
+                        .onPress(() -> effectDispatcher.accept(new UiEffect.OpenDialog((container, closer) ->
+                                FZModal.builder(container, ProfileTitleLayout.createForm(profile, dispatcher, () -> {
+                                            updateTooltip();
+                                            closer.run();
+                                        }))
+                                        .id("ProfileEditDialog")
+                                        .margin(SPACING)
+                                        .padding((int) (SPACING * 1.5))
+                                        .captureClick()
+                                        .captureFocus()
+                                        .buildAndOpen()
+                        )))
+                        .build()));
+            }
 
             if (devMode) {
                 addChild(layout.child(FZIconButton.builder()

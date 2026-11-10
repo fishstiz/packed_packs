@@ -52,13 +52,15 @@ public final class PackedPacksContext implements ScreenContext {
     private final PackResourcesService resources;
     private final PackIconCache iconCache;
     private final Store store;
+    private final Consumer<UiEffect> effectHandler;
     private @Nullable List<Path> otherDirectories = null;
 
     public PackedPacksContext(
             Minecraft minecraft,
             @Nullable Screen previousScreen,
-            PackedPacksScreen screen,
-            PackSelectionScreenArgs args
+            Screen screen,
+            PackSelectionScreenArgs args,
+            Consumer<UiEffect> effectHandler
     ) {
         this.minecraft = minecraft;
         this.previousScreen = previousScreen;
@@ -71,7 +73,8 @@ public final class PackedPacksContext implements ScreenContext {
         this.nodeRepository = new PackNodeRepository(packRepository, configs.user(), packDir);
         this.resources = new PackResourcesService(packType, nodeRepository);
         this.iconCache = new PackIconCache(minecraft, minecraft.getTextureManager());
-        this.store = new Store(minecraft, configs, iconCache, resources(), nodeRepository);
+        this.effectHandler = effectHandler;
+        this.store = new Store(minecraft, configs, iconCache, resources, nodeRepository, this::dispatch);
     }
 
     public FZRef<PackedPacksState> state() {
@@ -80,6 +83,10 @@ public final class PackedPacksContext implements ScreenContext {
 
     public void dispatch(Intent intent) {
         store.dispatch(intent);
+    }
+
+    public void dispatch(UiEffect effect) {
+        effectHandler.accept(effect);
     }
 
     void initializeState() {
@@ -98,10 +105,6 @@ public final class PackedPacksContext implements ScreenContext {
             this.otherDirectories = List.copyOf(additionalFolders);
         }
         return this.otherDirectories;
-    }
-
-    void setEffectHandler(Consumer<UiEffect> effect) {
-        store.setEffectHandler(effect);
     }
 
     @Override

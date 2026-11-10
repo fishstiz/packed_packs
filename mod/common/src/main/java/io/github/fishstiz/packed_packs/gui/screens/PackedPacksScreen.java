@@ -21,12 +21,12 @@ import io.github.fishstiz.packed_packs.config.Config;
 import io.github.fishstiz.packed_packs.config.Preferences;
 import io.github.fishstiz.packed_packs.gui.FocusTarget;
 import io.github.fishstiz.packed_packs.gui.UiEffect;
-import io.github.fishstiz.packed_packs.gui.components.*;
-import io.github.fishstiz.packed_packs.gui.layouts.*;
-import io.github.fishstiz.packed_packs.gui.states.*;
 import io.github.fishstiz.packed_packs.gui.actions.intents.Intent;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
 import io.github.fishstiz.packed_packs.gui.actions.intents.ProfileIntent;
+import io.github.fishstiz.packed_packs.gui.components.*;
+import io.github.fishstiz.packed_packs.gui.layouts.*;
+import io.github.fishstiz.packed_packs.gui.states.*;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionModelAccessor;
@@ -34,6 +34,7 @@ import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionScreenAccess
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import net.minecraft.ChatFormatting;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphics;
@@ -47,11 +48,13 @@ import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 import static com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE;
@@ -86,13 +89,12 @@ public class PackedPacksScreen extends FZScreen {
         this.parent = parent;
         this.original = args;
 
-        this.context = new PackedPacksContext(minecraft, parent, this, args);
+        this.context = new PackedPacksContext(minecraft, parent, this, args, this::onUiEffect);
 
         this.availableList = PackListContainer.createHead(context, PackListType.AVAILABLE);
         this.enabledList = PackListContainer.createHead(context, PackListType.ENABLED);
         this.dragActionRenderer = new DragActionRenderer(context.iconCache(), 100.0f, minecraft.font, availableList, enabledList);
 
-        context.setEffectHandler(this::onUiEffect);
         context.state().subscribe("RenameModal", PackedPacksState::renamingPack, this::initRenameModal);
         context.state().subscribe("AliasModal", PackedPacksState::editingAliases, this::initAliasModal);
         sidebarOpen.subscribe("ProfilesSidebar", this::initSidebar);
@@ -489,7 +491,7 @@ public class PackedPacksScreen extends FZScreen {
     }
 
     private void initSidebar() {
-        SidebarLayout sidebar = SidebarLayout.create(state(), context::dispatch, context.packType(), () -> sidebarOpen.set(false));
+        SidebarLayout sidebar = SidebarLayout.create(context, () -> sidebarOpen.set(false));
         dialogManager.put(FZModal.bind("ProfilesSidebar", sidebarOpen.map(open -> FZModal.builder(this, sidebar)
                 .id("ProfilesSidebar")
                 .popoverOrder(5)
@@ -618,7 +620,19 @@ public class PackedPacksScreen extends FZScreen {
     }
 
     private void onUiEffect(UiEffect effect) {
+        if (!this.initialized) return;
         switch (effect) {
+            case UiEffect.OpenDialog openDialog -> {
+                MutableObject<String> id = new MutableObject<>();
+                dialogManager.put(Util.make(() -> {
+                    FZDialog dialog = openDialog.factory().apply(
+                            this,
+                            () -> dialogManager.remove(id.getValue())
+                    );
+                    id.setValue(Objects.requireNonNull(dialog.fidgetz$componentId(), "dialog id cannot be null"));
+                    return dialog;
+                }));
+            }
             case UiEffect.ScrollToTop(PackListType type) -> visitDeepestList(type, PackList::scrollToTop);
             case UiEffect.ScrollToLastSelected(PackListType type) ->
                     visitDeepestList(type, PackList::scrollToLastSelected);

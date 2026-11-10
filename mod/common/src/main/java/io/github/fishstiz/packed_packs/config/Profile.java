@@ -15,11 +15,19 @@ import java.util.function.Function;
 public final class Profile {
     private boolean locked = false;
     private String name;
+    private String description = "";
     private Map<String, PackOverride> overrides = new Object2ObjectOpenHashMap<>();
     private Set<String> packIds = new ObjectLinkedOpenHashSet<>();
     transient String id;
     transient boolean temp = false;
     transient int overrideGen;
+
+    @SuppressWarnings("unused")
+    private Profile() {
+        this.id = "";
+        this.name = "";
+        this.description = "";
+    }
 
     Profile(String id) {
         this.id = id;
@@ -69,6 +77,14 @@ public final class Profile {
 
     void setName(String name) {
         this.name = name;
+    }
+
+    public String getDescription() {
+        return this.description;
+    }
+
+    void setDescription(String description) {
+        this.description = description;
     }
 
     public boolean includes(String packId) {
