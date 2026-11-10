@@ -10,7 +10,10 @@ public sealed interface ProfileIntent extends Intent {
     record ToggleRenaming() implements ProfileIntent {
     }
 
-    record Rename(Profile profile, String name) implements ProfileIntent {
+    record Rename(Profile profile, String name, String description) implements ProfileIntent {
+        public Rename(Profile profile, String name) {
+            this(profile, name, profile.getDescription());
+        }
     }
 
     record Delete(Profile profile) implements ProfileIntent {
