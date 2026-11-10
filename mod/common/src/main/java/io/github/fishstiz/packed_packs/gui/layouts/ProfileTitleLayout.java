@@ -11,7 +11,9 @@ import io.github.fishstiz.packed_packs.gui.actions.intents.Intent;
 import io.github.fishstiz.packed_packs.gui.actions.intents.ProfileIntent;
 import io.github.fishstiz.packed_packs.gui.states.ProfilesState;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.MultiLineEditBox;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.Nullable;
@@ -149,21 +151,19 @@ public class ProfileTitleLayout {
         )));
 
         Component descMessage = Component.translatable("packed_packs.profile.dialog.description");
-        layout.child(FZTextField.bind("Description", draft.map(ProfileIntent.Rename::description).map(value ->
-                FZTextField.builder()
-                        .text(value)
-                        .message(descMessage)
-                        .hint(descMessage)
-                        .maxLength(ProfileManager.getDescMaxLength())
-                        .onChange(e -> draft.set(prev -> new ProfileIntent.Rename(prev.profile(), prev.name(), e.value())))
-                        .onConfirm(e -> {
-                            handleSubmit.run();
-                            e.confirm();
-                        })
-                        .toProps()
-        )));
+        MultiLineEditBox descBox = layout.child(MultiLineEditBox.builder()
+                .setPlaceholder(descMessage)
+                .build(Minecraft.getInstance().font, 300, 60, descMessage));
+        descBox.setCharacterLimit(ProfileManager.getDescMaxLength());
+        descBox.setLineLimit(10);
+        descBox.setValue(draft.value().description());
+        descBox.setValueListener(value -> draft.set(prev -> new ProfileIntent.Rename(prev.profile(), prev.name(), value)));
 
-        FZFlexLayout footer = layout.child(FZFlexLayout.horizontal().spacing(SPACING));
+        FZFlexLayout footer = layout.child(
+                FZFlexLayout.horizontal().spacing(SPACING),
+                layout.newChildSettings().paddingTop(SPACING)
+        );
+
         footer.defaultChildSettings().flexMain();
         footer.child(FZButton.builder()
                 .message(CommonComponents.GUI_DONE)
