@@ -191,6 +191,33 @@ public class PackNodeRepository {
         List<String> orderedIds = meta.packIds();
         Set<String> seen = new ObjectOpenHashSet<>();
 
+        Set<String> orderedIdSet = new ObjectOpenHashSet<>();
+        for (String id : orderedIds) {
+            orderedIdSet.add(id.startsWith("relative/") ? id.replaceFirst("^relative", parent.id()) : id);
+        }
+
+        List<PackNode.Parent> newParents = new ObjectArrayList<>();
+        List<PackNode> newNodes = new ObjectArrayList<>();
+
+        for (String id : children) {
+            PackNode newNode = packs.get(id);
+            if (newNode != null && !orderedIdSet.contains(newNode.id())) {
+                if (newNode instanceof PackNode.Parent newParent) {
+                    newParents.add(newParent);
+                } else {
+                    newNodes.add(newNode);
+                }
+            }
+        }
+
+        // put new folders to top because users don't realize the order inside any folder is actually saved,
+        // which is intentional for transferring all
+        for (PackNode pack : newParents) {
+            if (seen.add(pack.id())) {
+                collector.accept(pack);
+            }
+        }
+
         for (String id : orderedIds) {
             PackNode pack = packs.get(id.startsWith("relative/") ? id.replaceFirst("^relative", parent.id()) : id);
             if (pack != null && children.contains(pack.id()) && seen.add(pack.id())) {
@@ -198,9 +225,8 @@ public class PackNodeRepository {
             }
         }
 
-        for (String id : children) {
-            PackNode pack = packs.get(id);
-            if (pack != null && seen.add(pack.id())) {
+        for (PackNode pack : newNodes) {
+            if (seen.add(pack.id())) {
                 collector.accept(pack);
             }
         }
