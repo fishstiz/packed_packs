@@ -35,7 +35,7 @@ public final class ProfileManager {
     private static final String RESOURCE_PACK_DIR = "resourcepacks";
     private static final String DATA_PACK_DIR = "datapacks";
     private static final int NAME_MAX_LENGTH = 32;
-    private static final int DESC_MAX_LENGTH = 80;
+    private static final int DESC_MAX_LENGTH = 255;
     private final PackType packType;
     private SequencedMap<String, Profile> profiles;
     private Profile defaultProfile;
