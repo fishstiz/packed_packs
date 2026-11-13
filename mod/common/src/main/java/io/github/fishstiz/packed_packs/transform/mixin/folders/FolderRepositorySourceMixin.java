@@ -72,7 +72,6 @@ public abstract class FolderRepositorySourceMixin {
                 }
                 PARENT_CONTEXT.set(parentInfo);
                 discoverPacks(path, validator, output);
-                return null;
             } catch (IOException e) {
                 PackedPacks.LOGGER.warn("[packed_packs] Failed to list packs in {}", path, e);
             } finally {
@@ -82,6 +81,8 @@ public abstract class FolderRepositorySourceMixin {
                     PARENT_CONTEXT.set(parent);
                 }
             }
+
+            return null;
         }
 
         return original.call(instance, path, list);
