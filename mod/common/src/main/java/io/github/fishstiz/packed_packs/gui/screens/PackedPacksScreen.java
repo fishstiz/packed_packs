@@ -9,6 +9,7 @@ import io.github.fishstiz.fidgetz.v0.gui.screens.FZScreen;
 import io.github.fishstiz.fidgetz.v0.gui.state.FZMutableRef;
 import io.github.fishstiz.fidgetz.v0.gui.state.FZRef;
 import io.github.fishstiz.fidgetz.v0.utils.MathUtils;
+import io.github.fishstiz.fidgetz.v0.utils.NavigationUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import io.github.fishstiz.packed_packs.api.Event;
 import io.github.fishstiz.packed_packs.api.Preference;
@@ -34,7 +35,6 @@ import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionScreenAccess
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.PackUtil;
 import net.minecraft.ChatFormatting;
-import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphics;
@@ -120,7 +120,7 @@ public class PackedPacksScreen extends FZScreen {
     @Override
     public void added() {
         if (this.initialized) {
-            ComponentPath lastPath = validatePath(this.lastPathOnClear);
+            ComponentPath lastPath = NavigationUtils.validatePath(this.lastPathOnClear);
             if (lastPath != null) {
                 lastPath.applyFocus(true);
             }
@@ -517,7 +517,7 @@ public class PackedPacksScreen extends FZScreen {
         availableList.rebuildEntries();
         enabledList.rebuildEntries();
         dialogManager.refreshDialogs();
-        ComponentPath validPath = validatePath(focusPath);
+        ComponentPath validPath = NavigationUtils.validatePath(focusPath);
         if (validPath != null) {
             validPath.applyFocus(true);
         }
@@ -624,14 +624,12 @@ public class PackedPacksScreen extends FZScreen {
         switch (effect) {
             case UiEffect.OpenDialog openDialog -> {
                 MutableObject<String> id = new MutableObject<>();
-                dialogManager.put(Util.make(() -> {
-                    FZDialog dialog = openDialog.factory().apply(
-                            this,
-                            () -> dialogManager.remove(id.getValue())
-                    );
-                    id.setValue(Objects.requireNonNull(dialog.fidgetz$componentId(), "dialog id cannot be null"));
-                    return dialog;
-                }));
+                FZDialog dialog = openDialog.factory().apply(
+                        this,
+                        () -> dialogManager.remove(id.getValue())
+                );
+                id.setValue(Objects.requireNonNull(dialog.fidgetz$componentId(), "dialog id cannot be null"));
+                dialogManager.put(dialog);
             }
             case UiEffect.ScrollToTop(PackListType type) -> visitDeepestList(type, PackList::scrollToTop);
             case UiEffect.ScrollToLastSelected(PackListType type) ->
