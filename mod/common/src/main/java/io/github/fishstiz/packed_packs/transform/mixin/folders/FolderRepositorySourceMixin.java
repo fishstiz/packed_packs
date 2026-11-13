@@ -33,10 +33,6 @@ import java.util.function.Consumer;
 
 @Mixin(FolderRepositorySource.class)
 public abstract class FolderRepositorySourceMixin {
-    @Shadow
-    @Final
-    private static Logger LOGGER;
-
     @Unique
     private static final ThreadLocal<@Nullable FolderLocationInfo> PARENT_CONTEXT = new ThreadLocal<>();
 
@@ -56,7 +52,7 @@ public abstract class FolderRepositorySourceMixin {
             value = "INVOKE",
             target = "Lnet/minecraft/server/packs/repository/FolderRepositorySource$FolderPackDetector;detectPackResources(Ljava/nio/file/Path;Ljava/util/List;)Ljava/lang/Object;"
     ))
-    private static Object discoverNestedPacks(
+    private static @Nullable Object discoverNestedPacks(
             @Coerce PackDetector<Pack.ResourcesSupplier> instance,
             Path path,
             List<ForbiddenSymlinkInfo> list,
@@ -65,16 +61,8 @@ public abstract class FolderRepositorySourceMixin {
             @Local(argsOnly = true) BiConsumer<Path, Pack.ResourcesSupplier> output,
             @Share("suppressLog") LocalBooleanRef suppressLogRef
     ) {
-        Pack.ResourcesSupplier resourcesSupplier = null;
-        try {
-            resourcesSupplier = original.call(instance, path, list);
-        } catch (Exception e) {
-            LOGGER.warn("Failed to read properties of '{}', ignoring", path, e);
-        }
-
-        if (resourcesSupplier == null && PackUtil.isNonPackDirectory(path)) {
+        if (PackUtil.isNonPackDirectory(path)) {
             suppressLogRef.set(true);
-
             FolderLocationInfo parent = PARENT_CONTEXT.get();
 
             try {
@@ -84,6 +72,7 @@ public abstract class FolderRepositorySourceMixin {
                 }
                 PARENT_CONTEXT.set(parentInfo);
                 discoverPacks(path, validator, output);
+                return null;
             } catch (IOException e) {
                 PackedPacks.LOGGER.warn("[packed_packs] Failed to list packs in {}", path, e);
             } finally {
@@ -95,7 +84,7 @@ public abstract class FolderRepositorySourceMixin {
             }
         }
 
-        return resourcesSupplier;
+        return original.call(instance, path, list);
     }
 
     @WrapOperation(method = "discoverPacks", at = @At(
@@ -149,10 +138,5 @@ public abstract class FolderRepositorySourceMixin {
     @Shadow
     public static void discoverPacks(Path folder, DirectoryValidator validator, BiConsumer<Path, Pack.ResourcesSupplier> output) throws IOException {
         throw new AssertionError();
-    }
-
-    @Shadow
-    private static String nameFromPath(Path content) {
-        throw new UnsupportedOperationException("Implemented via mixin");
     }
 }
