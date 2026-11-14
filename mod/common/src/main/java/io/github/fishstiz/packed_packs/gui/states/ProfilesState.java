@@ -53,7 +53,7 @@ public final class ProfilesState implements ProfileSelection {
     }
 
     public ProfilesState withDefault(@Nullable Profile defaultProfile) {
-        return new ProfilesState(this.profiles, defaultProfile == null ? this.selectedProfile : defaultProfile, defaultProfile);
+        return new ProfilesState(this.profiles, this.selectedProfile, defaultProfile);
     }
 
     public ProfilesState withRenaming(boolean renaming) {
