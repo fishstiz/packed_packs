@@ -255,7 +255,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
 
     protected final class Entry extends FZAbstractListWidget.Entry<Entry> implements FZContextMenu.Source {
         private static final RenderableRectangle HANDLE_SPRITE = Renderables.sprite(PackedPacks.id("icon/ellipsis_vertical"));
-        private static final RenderableRectangle INACTIVE_HANDLE_SPRITE = Renderables.sprite(PackedPacks.id("icon/ellipsis_vertical_inactve"));
+        private static final RenderableRectangle INACTIVE_HANDLE_SPRITE = Renderables.sprite(PackedPacks.id("icon/ellipsis_vertical_inactive"));
         private static final ResourceLocation STAR_OUTLINE_SPRITE = PackedPacks.id("icon/star_outline");
         private final List<AbstractWidget> children = new ArrayList<>();
         private final FZFlexLayout layout;
