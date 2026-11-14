@@ -270,7 +270,6 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
             this.layout = FZFlexLayout.horizontal();
 
             buildWidgets(state.defaultProfile() == profile, profile.isLocked());
-            updateTooltip();
 
             layout.arrangeElements();
         }
@@ -312,6 +311,7 @@ public class ProfileList extends FZAbstractListWidget<ProfileList.Entry> impleme
                     .onPress(() -> dispatcher.accept(new ProfileIntent.Select(profile)))
                     .active(state.selectedProfile() != profile)
                     .build(), layout.flexChildHorizontalSettings()));
+            updateTooltip();
 
             if (!isLocked) {
                 addChild(layout.child(FZIconButton.builder()
