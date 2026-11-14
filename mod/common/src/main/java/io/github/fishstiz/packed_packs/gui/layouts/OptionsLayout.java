@@ -31,65 +31,29 @@ public class OptionsLayout extends WrappedLayout {
         super(layout);
     }
 
+    @Override
+    public void arrangeElements() {
+        fidgetz$setHeight(0);
+        super.arrangeElements();
+    }
+
     public static OptionsLayout create(@Nullable ScreenContext ctx, ContainerEventHandler container, Config.Packs... configs) {
-        FZFlexLayout root = FZFlexLayout.horizontal().maxWidth(WIDTH).spacing(SPACING);
+        FZFlexLayout layout = FZFlexLayout.vertical().spacing(SPACING).maxWidth(WIDTH);
+        layout.defaultChildSettings().flexCross();
 
-        FZFlexLayout body = FZFlexLayout.vertical().spacing(SPACING);
-        body.defaultChildSettings().flexCross().alignHorizontallyCenter();
-
-        category(body, Component.translatable("stat.generalButton"));
-        {
-            FZFlexLayout maxWidthEntry = body.child(FZFlexLayout.horizontal(), body.flexChildHorizontalSettings());
-            maxWidthEntry.defaultChildSettings().alignVerticallyMiddle();
-
-            Component label = CommonComponents.optionNameValue(
-                    Component.translatable("packed_packs.options.max_width"),
-                    CommonComponents.EMPTY
-            );
-            maxWidthEntry.child(
-                    FZButton.builder()
-                            .leftAlignedMessage()
-                            .message(label.plainCopy().withStyle(ChatFormatting.WHITE))
-                            .sprites(new WidgetRenderables(Renderables.fill(Colors.alpha(Colors.BLACK, 0.5f))))
-                            .disableCursorChanges()
-                            .inactive()
-                            .build(),
-                    maxWidthEntry.flexChildHorizontalSettings()
-            );
-
-            maxWidthEntry.child(FZTextField.builder()
-                    .width(44)
-                    .hint(Component.translatable("gui.none"))
-                    .text(String.valueOf(Config.get().getMaxWidth()))
-                    .filter(input -> input.codePoints().allMatch(Character::isDigit))
-                    .maxLength(4)
-                    .onChange(e -> {
-                        String text = e.value();
-                        int maxWidth = text.isEmpty() ? 0 : Integer.parseInt(text);
-                        int previousMaxWidth = Config.get().getMaxWidth();
-                        Config.get().setMaxWidth(maxWidth);
-                        if (maxWidth != previousMaxWidth && ctx != null) {
-                            ctx.rebuild();
-                        }
-                    })
-                    .onBlur(e -> {
-                        if (Config.get().getMaxWidth() <= 0) {
-                            e.target().setValue("");
-                        }
-                    })
-                    .build());
-        }
+        category(layout, Component.translatable("stat.generalButton"));
+        generalOptions(ctx, layout);
 
         for (Config.Packs config : configs) {
             switch (config) {
                 case Config.DataPacks dataPacks -> {
-                    category(body, Component.translatable("selectWorld.dataPacks"));
-                    commonOptions(body, dataPacks);
+                    category(layout, Component.translatable("selectWorld.dataPacks"));
+                    commonOptions(layout, dataPacks);
                 }
                 case Config.ResourcePacks resourcePacks -> {
-                    category(body, Component.translatable("packed_packs.resource_packs"));
-                    commonOptions(body, resourcePacks);
-                    body.child(toggle(
+                    category(layout, Component.translatable("packed_packs.resource_packs"));
+                    commonOptions(layout, resourcePacks);
+                    layout.child(toggle(
                             Component.translatable("packed_packs.options.apply_on_close"),
                             resourcePacks::setApplyOnClose,
                             resourcePacks::isApplyOnClose
@@ -98,9 +62,7 @@ public class OptionsLayout extends WrappedLayout {
             }
         }
 
-        root.child(FZScrollableLayout.from(container, body), root.flexChildSettings());
-
-        return new OptionsLayout(root);
+        return new OptionsLayout(FZScrollableLayout.from(container, layout));
     }
 
     public static OptionsLayout create(ContainerEventHandler container, Config.Packs... configs) {
@@ -109,6 +71,44 @@ public class OptionsLayout extends WrappedLayout {
 
     private static void category(FZFlexLayout layout, MutableComponent name) {
         layout.child(FZText.builder(name.withStyle(ChatFormatting.BOLD)).build());
+    }
+
+    private static void generalOptions(@Nullable ScreenContext ctx, FZFlexLayout layout) {
+        FZFlexLayout maxWidthEntry = layout.child(FZFlexLayout.horizontal(), layout.flexChildHorizontalSettings());
+        maxWidthEntry.defaultChildSettings().alignVerticallyMiddle();
+
+        maxWidthEntry.child(
+                FZButton.builder()
+                        .leftAlignedMessage()
+                        .message(Component.translatable("packed_packs.options.max_width").withStyle(ChatFormatting.WHITE))
+                        .sprites(new WidgetRenderables(Renderables.fill(Colors.alpha(Colors.BLACK, 0.5f))))
+                        .disableCursorChanges()
+                        .inactive()
+                        .build(),
+                maxWidthEntry.flexChildHorizontalSettings()
+        );
+
+        maxWidthEntry.child(FZTextField.builder()
+                .width(44)
+                .hint(Component.translatable("gui.none"))
+                .text(String.valueOf(Config.get().getMaxWidth()))
+                .filter(input -> input.codePoints().allMatch(Character::isDigit))
+                .maxLength(4)
+                .onChange(e -> {
+                    String text = e.value();
+                    int maxWidth = text.isEmpty() ? 0 : Integer.parseInt(text);
+                    int previousMaxWidth = Config.get().getMaxWidth();
+                    Config.get().setMaxWidth(maxWidth);
+                    if (maxWidth != previousMaxWidth && ctx != null) {
+                        ctx.rebuild();
+                    }
+                })
+                .onBlur(e -> {
+                    if (Config.get().getMaxWidth() <= 0) {
+                        e.target().setValue("");
+                    }
+                })
+                .build());
     }
 
     private static void commonOptions(FZFlexLayout layout, Config.Packs config) {

@@ -4,7 +4,6 @@ import io.github.fishstiz.fidgetz.v0.gui.components.*;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.RenderableRectangle;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
-import io.github.fishstiz.fidgetz.v0.utils.GuiGraphicsUtils;
 import io.github.fishstiz.packed_packs.PackedPacks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -76,18 +75,15 @@ public final class GuiUtils {
     }
 
     public static RenderableRectangle lazySprite(Supplier<Identifier> spriteGetter) {
-        return (graphics, left, top, width, height, ignoredMx, ignoredMy, ignoredD) ->
-                GuiGraphicsUtils.sprite(graphics, spriteGetter.get(), left, top, width, height);
+        return Renderables.sprite(spriteGetter);
     }
 
     public static RenderableRectangle lazyTexture(Supplier<Identifier> textureGetter, int textureWidth, int textureHeight) {
-        return (graphics, left, top, width, height, ignoredMx, ignoredMy, ignoredD) ->
-                GuiGraphicsUtils.texture(graphics, textureGetter.get(), left, top, width, height, textureWidth, textureHeight);
+        return Renderables.texture(textureGetter, textureWidth, textureHeight);
     }
 
     public static RenderableRectangle lazyRect(Supplier<RenderableRectangle> delegate) {
-        return (graphics, left, top, width, height, mouseX, mouseY, partialTick) ->
-                delegate.get().extractRenderState(graphics, left, top, width, height, mouseX, mouseY, partialTick);
+        return Renderables.wrap(delegate);
     }
 
     public static WidgetElements padded16Rect(RenderableRectangle rect) {
