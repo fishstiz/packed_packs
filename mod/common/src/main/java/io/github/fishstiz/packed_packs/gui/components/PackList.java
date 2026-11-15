@@ -550,8 +550,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             return pack instanceof PackNode.Parent parent && switch (context.configs().user().shouldSwapFolderActions()) {
                 case NO -> false;
                 case YES -> true;
-                case UNLOCKED_ONLY -> !context.resources().isModule(parent)
-                                      || (PackList.this.state.state().parent() != null && !PackList.this.state.state().module());
+                case UNLOCKED_ONLY -> !context.resources().isModule(parent) && !PackList.this.state.state().module();
             };
         }
 
@@ -1058,6 +1057,11 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         @Override
         public boolean fileModifiable() {
             return isFileModifiable();
+        }
+
+        @Override
+        protected boolean shouldSwapFolderActions() {
+            return false;
         }
 
         @Override
