@@ -1,16 +1,19 @@
-package io.github.fishstiz.packed_packs.gui.states;
+package io.github.fishstiz.packed_packs.gui.components;
 
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import io.github.fishstiz.fidgetz.v0.utils.GuiGraphicsUtils;
-import io.github.fishstiz.packed_packs.gui.components.PackListContainer;
+import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.pack.PackIconCache;
 import io.github.fishstiz.packed_packs.util.Colors;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import org.jspecify.annotations.Nullable;
 
 public final class DragActionRenderer {
     private static final int OFFSET_Y = 4;
     private static final int ICON_SIZE = 48;
+    private static final int CANDIDATE_BADGE_OFFSET = 8;
+    private static final int CANDIDATE_BADGE_SIZE = 20;
     private static final int NUM_SIZE = 16;
     private static final int ICON_OFFSET_X = ICON_SIZE / 2;
     private static final int ICON_OFFSET_Y = ICON_SIZE - OFFSET_Y;
@@ -33,15 +36,28 @@ public final class DragActionRenderer {
             float partialTick
     ) {
         boolean validDrop = false;
+        DropCandidate hoveredCandidate = null;
+
         for (PackListContainer list : lists) {
-            validDrop |= list.extractDropCandidateRenderState(graphics, dragging, mouseX, mouseY, partialTick);
+            DropCandidate result = list.extractDropCandidateRenderState(graphics, dragging, mouseX, mouseY, partialTick);
+            validDrop |= result.valid();
+            if (list.isHovered() && result.valid()) {
+                hoveredCandidate = result;
+            }
         }
 
-        renderDragging(dragging, graphics, mouseX, mouseY);
+        extractDraggingState(dragging, hoveredCandidate, graphics, mouseX, mouseY, partialTick);
         graphics.requestCursor(validDrop ? CursorTypes.RESIZE_ALL : CursorTypes.NOT_ALLOWED);
     }
 
-    private void renderDragging(ActiveAction.Dragging dragging, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+    private void extractDraggingState(
+            ActiveAction.Dragging dragging,
+            @Nullable DropCandidate hoveredCandidate,
+            GuiGraphicsExtractor graphics,
+            int mouseX,
+            int mouseY,
+            float partialTick
+    ) {
         String sizeString = Integer.toString(dragging.packs().size());
         int sizeStringWidth = this.font.width(sizeString);
         int iconX = mouseX - ICON_OFFSET_X;
@@ -65,5 +81,18 @@ public final class DragActionRenderer {
 
         graphics.outline(iconX, iconY, ICON_SIZE, ICON_SIZE, Colors.WHITE);
         graphics.outline(numX, numY, numWidth, NUM_SIZE, Colors.WHITE);
+
+        if (hoveredCandidate != null) {
+            hoveredCandidate.badge().extractRenderState(
+                    graphics,
+                    iconRight - CANDIDATE_BADGE_OFFSET,
+                    iconY + CANDIDATE_BADGE_OFFSET,
+                    CANDIDATE_BADGE_SIZE,
+                    CANDIDATE_BADGE_SIZE,
+                    mouseX,
+                    mouseY,
+                    partialTick
+            );
+        }
     }
 }

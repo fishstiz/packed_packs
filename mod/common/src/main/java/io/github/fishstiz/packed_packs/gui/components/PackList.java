@@ -7,6 +7,7 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.RenderableRectangle;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
+import io.github.fishstiz.fidgetz.v0.utils.GuiGraphicsUtils;
 import io.github.fishstiz.fidgetz.v0.utils.NavigationUtils;
 import io.github.fishstiz.packed_packs.api.context.PackContext;
 import io.github.fishstiz.packed_packs.api.events.ContextMenuEvent;
@@ -27,6 +28,7 @@ import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
 import io.github.fishstiz.packed_packs.util.PackUtil;
+import io.github.fishstiz.packed_packs.util.TimedProgressCache;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
@@ -242,22 +244,47 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         graphics.outline(x, y, width, height, DROP_ENABLED_COLOR);
     }
 
-    boolean extractDropCandidateRenderState(
+    DropCandidate extractDropCandidateRenderState(
             GuiGraphicsExtractor graphics,
             ActiveAction.Dragging dragging,
             int mouseX,
             int mouseY,
             float partialTick
     ) {
-        if (!state.isLocked() && state.isDropCandidate()) {
-            if (state.canReorder() && (key().type().enabled() || state.state().module() || state.isDraggingChild())) {
-                renderDroppableSlots(graphics, dragging, mouseX, mouseY, partialTick);
-            } else if (state.canDrop(0)) {
-                renderDropToDisabledZone(this, graphics);
+        if (!state.isLocked()) {
+            DropCandidate candidate = DropCandidate.Result.INVALID;
+
+            if (key().type().available()) {
+                Entry hovered = getHovered();
+                if (hovered != null && hovered.isHovered() && hovered.canExpand() && !dragging.packs().contains(hovered.pack)) {
+                    int innerLeft = hovered.getX() + INNER_ITEM_PADDING;
+                    int innerTop = hovered.getY() + INNER_ITEM_PADDING;
+                    if (hovered.mouseOverIcon(mouseX - innerLeft, mouseY - innerTop, Entry.ICON_SIZE)) {
+                        // todo schedule progress instead and render progress of schedule
+                        float progress = hovered.extractExpandingState(graphics, dragging);
+                        candidate = new DropProgressBadge(Renderables.texture(hovered.getPackIcon(), 32, 32), progress);
+                    } else {
+                        hovered.resetActionProgress();
+                    }
+                }
             }
-            return true;
+
+            if (state.isDropCandidate()) {
+                boolean hovered = isHovered();
+
+                if (state.canReorder() && (key().type().enabled() || state.state().module() || state.isDraggingChild())) {
+                    renderDroppableSlots(graphics, dragging, mouseX, mouseY, partialTick);
+                } else if (state.canDrop(0)) {
+                    renderDropToDisabledZone(this, hovered, graphics);
+                }
+
+                return candidate.orElse(DropCandidate.Result.from(hovered));
+            }
+
+            return candidate;
         }
-        return false;
+
+        return DropCandidate.Result.INVALID;
     }
 
     public void onDrop(ActiveAction.Dragging dragging, int mouseX, int mouseY) {
@@ -266,6 +293,27 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             context.dispatch(new PackListIntent.Drop(dragging.src(), key(), index));
         } else {
             context.dispatch(new PackListIntent.Drop(dragging.src(), null, 0));
+        }
+    }
+
+    @Override
+    protected void setHovered(@Nullable Entry newHovered) {
+        if (!state.isDragging()) {
+            super.setHovered(newHovered);
+            return;
+        }
+
+        Entry previousHovered = getHovered();
+        super.setHovered(newHovered);
+        Entry hovered = getHovered();
+
+        if (previousHovered != hovered) {
+            if (previousHovered != null) {
+                previousHovered.resetActionProgress();
+            }
+            if (hovered != null) {
+                hovered.resetActionProgress();
+            }
         }
     }
 
@@ -471,7 +519,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     }
 
     public abstract class Entry extends FZAbstractListWidget.Entry implements SelectableEntry, ContainerEventHandlerPatch, FZContextMenu.Source, ElementSink {
-        private static final int ICON_SIZE = 32;
+        protected static final int ICON_SIZE = 32;
         private static final RenderableRectangle SELECTED_OVERLAY = Renderables.fill(Colors.alpha(Colors.BLUE_500, 0.25f));
         private static final WidgetRenderables SELECT_SPRITES = new WidgetRenderables(
                 Renderables.sprite(Identifier.withDefaultNamespace("transferable_list/select")),
@@ -648,6 +696,9 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
         protected void deletePack() {
             context.dispatch(new PackListIntent.Delete(key(), pack));
+        }
+
+        protected void resetActionProgress() {
         }
 
         protected boolean canExpand() {
@@ -845,6 +896,10 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             }
         }
 
+        protected float extractExpandingState(GuiGraphicsExtractor graphics, ActiveAction.Dragging dragging) {
+            return 0f;
+        }
+
         @Override
         public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
             init();
@@ -988,6 +1043,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         private static final int FOLDER_WIDGETS_PADDING = PackWidget.ICON_SIZE + INNER_ITEM_PADDING * 2;
         private static final int FOLDER_WIDGET_SIZE = INNER_ITEM_HEIGHT / 3;
         private static final Tooltip FOLDER_OPEN_INFO = Tooltip.create(FOLDER_OPEN_TEXT);
+        private final TimedProgressCache expandProgress = new TimedProgressCache(FOLDER_NAVIGATE_DELAY_MS);
         private @Nullable FZFlexLayout folderWidgets;
         private @Nullable AbstractWidget folderWidget;
         private @Nullable AbstractWidget recallWidget;
@@ -1085,6 +1141,29 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         @Override
         protected void expandFolder() {
             context.dispatch(new PackListIntent.OpenFolder(key(), parent));
+        }
+
+        @Override
+        protected void resetActionProgress() {
+            expandProgress.reset();
+        }
+
+        @Override
+        protected float extractExpandingState(GuiGraphicsExtractor graphics, ActiveAction.Dragging dragging) {
+            float progress = expandProgress.getValue(dragging);
+
+            int left = getX() + INNER_ITEM_PADDING;
+            int top = getY() + INNER_ITEM_PADDING;
+            int bottom = top + ICON_SIZE;
+
+            GuiGraphicsUtils.fillFloat(graphics, left, top, left + ICON_SIZE * progress, bottom, NAVIGATE_PROGRESS_COLOR);
+
+            if (progress >= 1.0f) {
+                expandProgress.reset();
+                expandFolder();
+            }
+
+            return progress;
         }
 
         @Override

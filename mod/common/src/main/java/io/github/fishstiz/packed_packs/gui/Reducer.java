@@ -74,11 +74,11 @@ public final class Reducer {
             case PackListMutation packListMutation -> switch (packListMutation) {
                 case PackListMutation.Local local -> switch (local.srcList().type()) {
                     case AVAILABLE -> {
-                        PackListState newAvailable = reduceList(state.available(), 0, local, state.profiles(), state.devMode());
+                        PackListState newAvailable = reduceList(state.available(), 0, local, state.action(), state.profiles(), state.devMode());
                         yield newAvailable == state.available() ? state : state.withAvailable(newAvailable, local.srcList());
                     }
                     case ENABLED -> {
-                        PackListState newEnabled = reduceList(state.enabled(), 0, local, state.profiles(), state.devMode());
+                        PackListState newEnabled = reduceList(state.enabled(), 0, local, state.action(), state.profiles(), state.devMode());
                         yield newEnabled == state.available() ? state : state.withEnabled(newEnabled, local.srcList());
                     }
                 };
@@ -112,22 +112,24 @@ public final class Reducer {
             PackListState state,
             int depth,
             PackListMutation.Local mutation,
+            ActiveAction activeAction,
             ProfileSelection profiles,
             boolean devMode
     ) {
         if (depth == mutation.srcList().depth()) {
-            return reduceList(state, mutation, profiles, devMode);
+            return reduceList(state, mutation, activeAction, profiles, devMode);
         }
         if (state.folder() == null || mutation.srcList().depth() < 0) {
             return state;
         }
-        PackListState newFolder = reduceList(state.folder(), depth + 1, mutation, profiles, devMode);
+        PackListState newFolder = reduceList(state.folder(), depth + 1, mutation, activeAction, profiles, devMode);
         return newFolder == state.folder() ? state : state.withFolder(newFolder, profiles, devMode);
     }
 
     private static PackListState reduceList(
             PackListState state,
             PackListMutation.Local mutation,
+            ActiveAction action,
             ProfileSelection profiles,
             boolean devMode
     ) {
@@ -220,16 +222,24 @@ public final class Reducer {
 
                 yield state.withPacksAndSelectedLast(newPacks, moved.srcPack(), profiles, devMode);
             }
-            case PackListMutation.FolderOpened opened -> state.withFolder(
-                    PackListState.folder(opened.pack(), opened.locked(), state.query().withSort(SortOptions.NONE))
-                            .withPacks(opened.children(), profiles, devMode),
-                    profiles,
-                    devMode
-            );
+            case PackListMutation.FolderOpened opened -> {
+                PackListState folder = PackListState.folder(opened.pack(), opened.locked(), state.query().withSort(SortOptions.NONE))
+                        .withPacks(opened.children(), profiles, devMode);
+
+                if (opened.srcList().type().available() &&
+                    action instanceof ActiveAction.Dragging dragging && dragging.src().equals(opened.srcList().nest())) {
+                    ObjectLinkedOpenHashSet<PackNode> newSelection = new ObjectLinkedOpenHashSet<>(dragging.packs());
+                    if (newSelection.contains(dragging.srcPack())) {
+                        newSelection.addAndMoveToLast(dragging.srcPack());
+                    }
+                    folder = folder.withSelection(newSelection);
+                }
+
+                yield state.withFolder(folder, profiles, devMode);
+            }
             case PackListMutation.FolderClosed ignored -> state.withFolder(null, profiles, devMode);
         };
     }
-
 
     private static List<PackNode> movePacks(
             PackListState state,

@@ -28,7 +28,7 @@ public record PackedPacksState(
     }
 
     public PackedPacksState withAvailable(PackListState newAvailable, PackListKey target) {
-        return new PackedPacksState(newAvailable, enabled, profiles, target, null, devMode);
+        return new PackedPacksState(newAvailable, enabled, profiles, target, action instanceof ActiveAction.Dragging ? action : null, devMode);
     }
 
     public PackedPacksState withEnabled(PackListState newEnabled, PackListKey target) {

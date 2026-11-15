@@ -7,6 +7,7 @@ import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.FZLayout;
 import io.github.fishstiz.fidgetz.v0.gui.layouts.Justification;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
+import io.github.fishstiz.fidgetz.v0.utils.GuiGraphicsUtils;
 import io.github.fishstiz.fidgetz.v0.utils.NavigationUtils;
 import io.github.fishstiz.packed_packs.gui.ContainerEventHandlerPatch;
 import io.github.fishstiz.packed_packs.gui.FocusPathProvider;
@@ -24,6 +25,7 @@ import io.github.fishstiz.packed_packs.gui.states.ProfileSelection;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
 import io.github.fishstiz.packed_packs.util.PackUtil;
+import io.github.fishstiz.packed_packs.util.TimedProgressCache;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -149,32 +151,42 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         }
     }
 
-    public boolean extractDropCandidateRenderState(
+    DropCandidate extractDropCandidateRenderState(
             GuiGraphicsExtractor graphics,
             ActiveAction.Dragging dragging,
             int mouseX,
             int mouseY,
             float partialTick
     ) {
-        PackListContainer leafContainer = this;
+        PackListContainer tailContainer = this;
+        PackListContainer.Folder tailFolder = null;
 
-        while (leafContainer.folder != null) {
-            leafContainer = leafContainer.folder.listContainer;
+        while (tailContainer.folder != null) {
+            tailFolder = tailContainer.folder;
+            tailContainer = tailFolder.listContainer;
         }
 
-        if ((leafContainer.packList.extractDropCandidateRenderState(graphics, dragging, mouseX, mouseY, partialTick)
-             || dragging.src().equals(leafContainer.state.key()))
-            && leafContainer.packList.isHovered()) {
-            return true;
+        DropCandidate candidate = DropCandidate.Result.INVALID;
+
+        if (tailFolder != null) {
+            candidate = tailFolder.extractCollapsingState(graphics, dragging);
         }
 
-        PackListContainer root = this.head == null ? this : this.head;
-        if (state.key().type().available() && !state.isLocked() && state.canDrop(0)) {
-            renderDropToDisabledZone(root, graphics);
-            return root.isHovered();
+        candidate = tailContainer.packList.extractDropCandidateRenderState(graphics, dragging, mouseX, mouseY, partialTick).orElse(candidate);
+
+        if (tailContainer.folder == null) {
+            if (dragging.src().equals(tailContainer.state.key()) && tailContainer.packList.isHovered()) {
+                candidate = candidate.orElse(DropCandidate.Result.VALID);
+            }
+
+            PackListContainer root = this.head == null ? this : this.head;
+            if (state.key().type().available() && !state.isLocked() && state.canDrop(0)) {
+                renderDropToDisabledZone(root, root.isHovered() && (!candidate.valid() || !tailContainer.isHovered()), graphics);
+                candidate = candidate.orElse(DropCandidate.Result.from(root.isHovered()));
+            }
         }
 
-        return false;
+        return candidate;
     }
 
     @Override
@@ -386,11 +398,13 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
         private final PackListContainer root;
         private final FZIcon background;
         private final PackListContainer listContainer;
+        private final FZIconButton closeButton;
         private final FZText folderTitle;
         private final FZButton recallButton;
         private final FZIconButton lockButton;
         private final WrappedLayout<FZFlexLayout> header;
         private final FZLayout layout;
+        private final TimedProgressCache collapseProgress = new TimedProgressCache(FOLDER_NAVIGATE_DELAY_MS);
         private PackListState folderState;
         private PackNode.Parent parent;
         private List<GuiEventListener> children = Collections.emptyList();
@@ -404,10 +418,10 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             this.parent = Objects.requireNonNull(state.parent(), "folder parent cannot be null");
             this.listContainer = new PackListContainer(head, key);
             this.background = FZIcon.builder(Identifier.withDefaultNamespace("popup/background")).build();
-            FZIconButton closeButton = FZIconButton.builder()
+            this.closeButton = FZIconButton.builder()
                     .size(HEADER_SIZE, HEADER_SIZE)
                     .icon(new WidgetElements(key.depth() > 1 ? ARROW_UP_SPRITE : CROSS_SPRITE, 16, 16))
-                    .onPress(() -> head.context.dispatch(new PackListIntent.CloseFolder(key.unnest())))
+                    .onPress(this::closeFolder)
                     .focusOnInteraction(false)
                     .build();
             PackIconCache iconCache = head.context.iconCache();
@@ -473,6 +487,10 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             }
         }
 
+        private void closeFolder() {
+            listContainer.context.dispatch(new PackListIntent.CloseFolder(listContainer.state.key().unnest()));
+        }
+
         private void onStateChanged(PackListState folderState, ProfileSelection profiles, boolean unlockable) {
             PackListState prevFolderState = this.folderState;
             this.folderState = folderState;
@@ -509,6 +527,33 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             for (Renderable renderable : this.renderables) {
                 renderable.extractRenderState(graphics, mouseX, mouseY, partialTick);
             }
+        }
+
+        protected DropCandidate extractCollapsingState(GuiGraphicsExtractor graphics, ActiveAction.Dragging dragging) {
+            if (!closeButton.isHovered()) {
+                collapseProgress.reset();
+                return DropCandidate.Result.INVALID;
+            }
+
+            // this should probably not be determined in extraction
+            float progress = collapseProgress.getValue(dragging);
+            ScreenRectangle bounds = closeButton.getRectangle();
+            GuiGraphicsUtils.fillFloat(
+                    graphics,
+                    bounds.left(),
+                    bounds.top(),
+                    bounds.left() + bounds.width() * progress,
+                    bounds.bottom(),
+                    NAVIGATE_PROGRESS_COLOR
+            );
+
+            // todo schedule progress instead and render progress of schedule
+            if (progress >= 1.0f) {
+                collapseProgress.reset();
+                closeFolder();
+            }
+
+            return new DropProgressBadge(Renderables.sprite(listContainer.state.key().depth() > 1 ? ARROW_UP_SPRITE : CROSS_SPRITE), progress);
         }
 
         @Override

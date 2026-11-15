@@ -59,6 +59,8 @@ public final class GuiUtils {
     public static final int DROP_ENABLED_COLOR = Colors.GREEN_500;
     public static final int DROP_ENABLED_FROM_COLOR = Colors.alpha(DROP_ENABLED_COLOR, 0.75f);
     public static final int DROP_ENABLED_TO_COLOR = Colors.alpha(DROP_ENABLED_COLOR, 0);
+    public static final int NAVIGATE_PROGRESS_COLOR = Colors.alpha(Colors.GREEN_500, 0.5f);
+    public static final int FOLDER_NAVIGATE_DELAY_MS = 800;
 
     public static FZFlexLayout vertical() {
         return FZFlexLayout.vertical().spacing(SPACING);
@@ -100,7 +102,7 @@ public final class GuiUtils {
         return new WidgetElements(lazySprite(() -> toggleIcon(toggled.getAsBoolean())), 8, 8);
     }
 
-    public static void renderDropToDisabledZone(AbstractWidget widget, GuiGraphicsExtractor graphics) {
+    public static void renderDropToDisabledZone(AbstractWidget widget, boolean fill, GuiGraphicsExtractor graphics) {
         int x = widget.getX();
         int y = widget.getY();
         int width = widget.getWidth();
@@ -108,7 +110,7 @@ public final class GuiUtils {
         int right = widget.getRight();
         int bottom = widget.getBottom();
 
-        if (widget.isHovered()) {
+        if (fill) {
             graphics.fill(x, y, right, bottom, DROP_DISABLED_FILL);
         }
 

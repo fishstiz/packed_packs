@@ -1,16 +1,16 @@
 package io.github.fishstiz.packed_packs.gui.states;
 
 import io.github.fishstiz.packed_packs.gui.components.SortOption;
-import io.github.fishstiz.packed_packs.util.PackListComputedUtils;
 import io.github.fishstiz.packed_packs.pack.PackNode;
+import io.github.fishstiz.packed_packs.util.PackListComputedUtils;
 import it.unimi.dsi.fastutil.ints.Int2BooleanMap;
 import it.unimi.dsi.fastutil.ints.Int2BooleanOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectIntBiConsumer;
-import net.minecraft.util.TriState;
 import org.jspecify.annotations.Nullable;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static io.github.fishstiz.packed_packs.util.PackListComputedUtils.*;
@@ -31,8 +31,8 @@ public class PackListComputed {
     private int moveDownGen = 0;
     private int canDragGen = 0;
     private boolean canReorderCache;
-    private TriState dropCandidateCache = TriState.DEFAULT;
-    private TriState draggingChildCache = TriState.DEFAULT;
+    private @Nullable Boolean dropCandidateCache = null;
+    private @Nullable Boolean draggingChildCache = null;
     private final Int2BooleanMap canDropCache;
 
     public PackListComputed(PackListKey key) {
@@ -77,7 +77,7 @@ public class PackListComputed {
 
         if (packsChanged) {
             entriesDirty = true;
-            draggingChildCache = TriState.DEFAULT;
+            draggingChildCache = null;
         }
         if (prev.query().sort() != newState.query().sort()) {
             SortOption newSort = state.query().sort();
@@ -107,8 +107,8 @@ public class PackListComputed {
         if (this.dragging != dragging) {
             this.dragging = dragging;
             this.canDropCache.clear();
-            this.draggingChildCache = TriState.DEFAULT;
-            this.dropCandidateCache = TriState.DEFAULT;
+            this.draggingChildCache = null;
+            this.dropCandidateCache = null;
         }
     }
 
@@ -155,21 +155,21 @@ public class PackListComputed {
     }
 
     public boolean isDraggingChild() {
-        if (draggingChildCache == TriState.DEFAULT) {
-            draggingChildCache = TriState.from(dragging != null && (
+        if (draggingChildCache == null) {
+            draggingChildCache = dragging != null && (
                     dragging.src().equals(key) || (state.parent() != null && state.parent().children().contains(dragging.srcPack()))
-            ));
+            );
         }
 
-        return draggingChildCache == TriState.TRUE;
+        return draggingChildCache;
     }
 
     public boolean isDropCandidate() {
-        if (dropCandidateCache == TriState.DEFAULT) {
-            dropCandidateCache = TriState.from(dragging != null && PackListComputedUtils.isDropCandidate(dragging, key, state));
+        if (dropCandidateCache == null) {
+            dropCandidateCache = dragging != null && PackListComputedUtils.isDropCandidate(dragging, key, state);
         }
 
-        return dropCandidateCache == TriState.TRUE;
+        return dropCandidateCache;
     }
 
     public class Entry {
