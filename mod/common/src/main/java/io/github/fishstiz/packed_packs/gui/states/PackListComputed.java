@@ -103,7 +103,7 @@ public class PackListComputed {
         }
     }
 
-    public void onDrag(ActiveAction.@Nullable Dragging dragging) {
+    public void onDragChanged(ActiveAction.@Nullable Dragging dragging) {
         if (this.dragging != dragging) {
             this.dragging = dragging;
             this.canDropCache.clear();

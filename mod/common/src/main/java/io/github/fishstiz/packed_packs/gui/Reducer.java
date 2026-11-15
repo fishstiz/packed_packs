@@ -22,7 +22,6 @@ import io.github.fishstiz.packed_packs.util.ToIntTriFunction;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -428,7 +427,7 @@ public final class Reducer {
 
                 yield state.withEnabled(newEnabledState, draggingAction.src()).withAction(draggingAction);
             }
-            case PackListMutation.Dropped dropped -> {
+            case PackListMutation.Dropped dropped -> { // todo remove and compute in intent validation phase
                 ActiveAction.Dragging dragging = state.dragging();
                 if (dragging == null) yield state;
 
@@ -440,6 +439,7 @@ public final class Reducer {
                 if (destListState == null) yield newState;
 
                 PackListKey srcList = dropped.srcList();
+                // not possible when dragging pack from folder and went up, need to get actual module state
                 PackListState srcListState = newState.getList(srcList);
                 if (srcListState == null) yield newState;
 
@@ -649,7 +649,7 @@ public final class Reducer {
                 );
             }
             case ProfileMutation.DefaultRemoved() -> state.withProfiles(state.profiles().withDefault(null));
-            case ProfileMutation.DefaultChanged(Profile profile, @Nullable PackSelection packs) -> {
+            case ProfileMutation.DefaultChanged(Profile profile, PackSelection packs) -> {
                 PackedPacksState newState = state.withProfiles(
                         updateProfileState(state.profiles().withDefault(profile), profile)
                 );

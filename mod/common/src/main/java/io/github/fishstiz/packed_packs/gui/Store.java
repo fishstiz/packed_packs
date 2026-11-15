@@ -293,7 +293,7 @@ public class Store implements FZRef<PackedPacksState> {
                     ToastUtil.onDevModeToggleToast(state.devMode());
                 }
             }
-            case Intent.Reset(@Nullable Profile profile) ->
+            case Intent.Reset(Profile profile) ->
                     dispatch(new Mutation.Reset(profile == null ? getCurrentPacks() : getPacks(profile)));
             case PackListIntent packListIntent -> {
                 switch (packListIntent) {
@@ -561,7 +561,7 @@ public class Store implements FZRef<PackedPacksState> {
                         configs.profiles().setDescription(profile, description);
                         dispatch(new ProfileMutation.Renamed(profile, profile.getName()));
                     }
-                    case ProfileIntent.Select(@Nullable Profile profile) -> {
+                    case ProfileIntent.Select(Profile profile) -> {
                         Profile selectedProfile = state.profiles().selectedProfile();
                         if (selectedProfile != null) {
                             configs.profiles().save(selectedProfile);
@@ -574,7 +574,7 @@ public class Store implements FZRef<PackedPacksState> {
                             effectHandler.accept(new UiEffect.ScrollToTop(PackListType.ENABLED));
                         }
                     }
-                    case ProfileIntent.SetDefault(@Nullable Profile profile) -> {
+                    case ProfileIntent.SetDefault(Profile profile) -> {
                         configs.profiles().setDefault(profile);
 
                         if (profile == null) {

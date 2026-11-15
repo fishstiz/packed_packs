@@ -171,7 +171,7 @@ public final class PackListComputedUtils {
             return !destState.query().hasQuery() && destState.parent().children().contains(dragging.srcPack());
         }
         if (src.type().available()) {
-            return dest.type().enabled();
+            return !src.equals(dest);
         }
         return src.type().enabled();
     }

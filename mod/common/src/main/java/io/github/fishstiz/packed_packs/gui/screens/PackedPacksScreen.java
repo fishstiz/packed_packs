@@ -34,6 +34,7 @@ import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionModelAccesso
 import io.github.fishstiz.packed_packs.transform.mixin.PackSelectionScreenAccessor;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.PackUtil;
+import io.github.fishstiz.packed_packs.util.ScheduledAction;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -78,6 +79,7 @@ public class PackedPacksScreen extends FZScreen {
     private @Nullable FZTextField availableSearch;
     private @Nullable FZTextField enabledSearch;
     private @Nullable ComponentPath lastPathOnClear;
+    private @Nullable ScheduledAction onDragAction;
     private boolean initialized = false;
     private boolean preloading;
 
@@ -92,6 +94,7 @@ public class PackedPacksScreen extends FZScreen {
         this.enabledList = PackListContainer.createHead(context, PackListType.ENABLED);
         this.dragActionRenderer = new DragActionRenderer(context.iconCache(), font, availableList, enabledList);
 
+        context.state().subscribe("DragActionScheduler", state -> state.dragging() == null, () -> scheduleOnDragAction(null));
         context.state().subscribe("RenameModal", PackedPacksState::renamingPack, this::initRenameModal);
         context.state().subscribe("AliasModal", PackedPacksState::editingAliases, this::initAliasModal);
         sidebarOpen.subscribe("ProfilesSidebar", this::initSidebar);
@@ -570,6 +573,9 @@ public class PackedPacksScreen extends FZScreen {
     @Override
     public void tick() {
         context.pollWatcher();
+        if (state().value().dragging() != null && onDragAction != null) {
+            onDragAction.poll();
+        }
     }
 
     public void toggleSidebar() {
@@ -630,6 +636,16 @@ public class PackedPacksScreen extends FZScreen {
                     applyFocusTarget(type, new FocusTarget.LastSelected(scroll));
             case UiEffect.Focus(PackListType type, String packId, boolean scroll) ->
                     applyFocusTarget(type, new FocusTarget.PackEntry(packId, scroll));
+        }
+    }
+
+    private void scheduleOnDragAction(@Nullable ScheduledAction scheduledAction) {
+        if (this.onDragAction != scheduledAction) {
+            if (this.onDragAction != null) {
+                this.onDragAction.cancel();
+            }
+
+            this.onDragAction = scheduledAction;
         }
     }
 
@@ -872,6 +888,20 @@ public class PackedPacksScreen extends FZScreen {
     }
 
     @Override
+    public void mouseMoved(double x, double y) {
+        ActiveAction.Dragging dragging = state().value().dragging();
+        if (dragging != null) {
+            getChildAt(x, y)
+                    .filter(PackListContainer.class::isInstance)
+                    .map(PackListContainer.class::cast)
+                    .ifPresentOrElse(
+                            container -> container.onDrag(dragging, this::scheduleOnDragAction, x, y),
+                            () -> scheduleOnDragAction(null)
+                    );
+        }
+    }
+
+    @Override
     public boolean mouseDragged(MouseButtonEvent mouseButtonEvent, double dragX, double dragY) {
         return state().value().dragging() != null || super.mouseDragged(mouseButtonEvent, dragX, dragY);
     }
@@ -879,11 +909,13 @@ public class PackedPacksScreen extends FZScreen {
     @Override
     public boolean mouseReleased(MouseButtonEvent mouseButtonEvent) {
         ActiveAction.Dragging dragged = state().value().dragging();
+        scheduleOnDragAction(null);
+
         if (isLeftClick(mouseButtonEvent) && dragged != null) {
             if (availableList.isHovered()) {
-                availableList.onDrop(dragged, (int) mouseButtonEvent.x(), (int) mouseButtonEvent.y());
+                availableList.onDrop(dragged, mouseButtonEvent.x(), mouseButtonEvent.y());
             } else if (enabledList.isHovered()) {
-                enabledList.onDrop(dragged, (int) mouseButtonEvent.x(), (int) mouseButtonEvent.y());
+                enabledList.onDrop(dragged, mouseButtonEvent.x(), mouseButtonEvent.y());
             } else {
                 context.dispatch(new PackListIntent.Drop(dragged.src(), null, 0));
             }
