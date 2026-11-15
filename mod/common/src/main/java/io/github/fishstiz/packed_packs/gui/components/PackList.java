@@ -3,6 +3,7 @@ package io.github.fishstiz.packed_packs.gui.components;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import io.github.fishstiz.fidgetz.v0.gui.components.*;
 import io.github.fishstiz.fidgetz.v0.gui.components.events.FZHoverableElement;
+import io.github.fishstiz.fidgetz.v0.gui.layouts.FZFlexLayout;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.RenderableRectangle;
 import io.github.fishstiz.fidgetz.v0.gui.renderables.Renderables;
 import io.github.fishstiz.fidgetz.v0.utils.CollectionUtils;
@@ -15,14 +16,14 @@ import io.github.fishstiz.packed_packs.config.Preferences;
 import io.github.fishstiz.packed_packs.gui.ContainerEventHandlerPatch;
 import io.github.fishstiz.packed_packs.gui.FocusPathProvider;
 import io.github.fishstiz.packed_packs.gui.FocusTarget;
-import io.github.fishstiz.packed_packs.gui.states.PackListKey;
-import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
 import io.github.fishstiz.packed_packs.gui.actions.intents.PackListIntent;
-import io.github.fishstiz.packed_packs.gui.states.PackListComputed;
 import io.github.fishstiz.packed_packs.gui.screens.PackedPacksContext;
-import io.github.fishstiz.packed_packs.pack.PackNode;
+import io.github.fishstiz.packed_packs.gui.states.ActiveAction;
+import io.github.fishstiz.packed_packs.gui.states.PackListComputed;
+import io.github.fishstiz.packed_packs.gui.states.PackListKey;
 import io.github.fishstiz.packed_packs.impl.PackedPacksApiImpl;
 import io.github.fishstiz.packed_packs.impl.events.ContextMenuEventImpl;
+import io.github.fishstiz.packed_packs.pack.PackNode;
 import io.github.fishstiz.packed_packs.util.Colors;
 import io.github.fishstiz.packed_packs.util.GuiUtils;
 import io.github.fishstiz.packed_packs.util.PackUtil;
@@ -52,9 +53,9 @@ import java.util.*;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
-import static io.github.fishstiz.packed_packs.util.PackListComputedUtils.sortByOrderOf;
 import static io.github.fishstiz.packed_packs.util.GuiUtils.*;
 import static io.github.fishstiz.packed_packs.util.InputUtil.*;
+import static io.github.fishstiz.packed_packs.util.PackListComputedUtils.sortByOrderOf;
 
 public class PackList extends FZAbstractListWidget<PackList.Entry> implements FocusPathProvider, ContainerEventHandlerPatch {
     private static final int INNER_ITEM_PADDING = 2;
@@ -111,9 +112,10 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         entries.clear();
 
         state.forEachEntry((entryState, i) -> {
-            Entry entry = entryState.pack() instanceof PackNode.Leaf leaf
-                    ? new LeafEntry(entryState, leaf.pack(), i)
-                    : new Entry(entryState, i);
+            Entry entry = switch (entryState.pack()) {
+                case PackNode.Parent parent -> new ParentEntry(parent, entryState, i);
+                case PackNode.Leaf leaf -> new LeafEntry(entryState, leaf.pack(), i);
+            };
 
             addEntry(entry);
             entries.put(entryState.pack().id(), entry);
@@ -270,6 +272,10 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
     @Override
     public void setFocused(@Nullable GuiEventListener focused) {
         Entry previous = getFocused();
+        if (focused instanceof Entry entry) {
+            focused = entries.get(entry.pack.id());
+        }
+
         if (previous != focused) {
             super.setFocused(focused);
             if (previous != null && previous.packWidget != null) {
@@ -291,7 +297,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         return focused == null ? getSelected() : focused;
     }
 
-    private @Nullable Entry getEntry(String packId) {
+    @Nullable Entry getEntry(String packId) {
         return entries.get(packId);
     }
 
@@ -464,9 +470,8 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
     }
 
-    public class Entry extends FZAbstractListWidget.Entry implements SelectableEntry, ContainerEventHandlerPatch, FZContextMenu.Source, ElementSink {
+    public abstract class Entry extends FZAbstractListWidget.Entry implements SelectableEntry, ContainerEventHandlerPatch, FZContextMenu.Source, ElementSink {
         private static final int ICON_SIZE = 32;
-        private static final Tooltip FOLDER_OPEN_INFO = Tooltip.create(FOLDER_OPEN_TEXT);
         private static final RenderableRectangle SELECTED_OVERLAY = Renderables.fill(Colors.alpha(Colors.BLUE_500, 0.25f));
         private static final WidgetRenderables SELECT_SPRITES = new WidgetRenderables(
                 Renderables.sprite(Identifier.withDefaultNamespace("transferable_list/select")),
@@ -504,7 +509,6 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         private final List<Renderable> renderables = new ObjectArrayList<>();
         private List<LayoutElement> rightElements = Collections.emptyList();
         @Nullable PackWidget packWidget;
-        private @Nullable AbstractWidget folderWidget;
         private @Nullable PackDevMenu devMenu;
         private boolean initialized;
 
@@ -547,52 +551,19 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         // folder widget becomes transfer
         // need to update active state of folder widget if canEnable()/canDisable()
         protected boolean shouldSwapFolderActions() {
-            return pack instanceof PackNode.Parent parent && switch (context.configs().user().shouldSwapFolderActions()) {
-                case NO -> false;
-                case YES -> true;
-                case UNLOCKED_ONLY -> !context.resources().isModule(parent) && !PackList.this.state.state().module();
-            };
+            return false;
         }
 
         protected void buildWidgets() {
             this.packWidget = new PackWidget(this, INNER_ITEM_HEIGHT);
             repositionPackWidget();
 
-            if (pack instanceof PackNode.Parent) {
-                PreferenceHelper.wrap(Preferences.FOLDER_PACK_WIDGET, FZIconButton.builder()
-                                .size(INNER_ITEM_HEIGHT / 3, INNER_ITEM_HEIGHT / 3)
-                                .icon(new WidgetElements(GuiUtils.lazyRect(() -> {
-                                    RenderableRectangle icon = HAMBURGER_RECT;
-                                    if (shouldSwapFolderActions()) {
-                                        icon = key().type().available() ? ENABLE_ALL_RECT : DISABLE_ALL_RECT;
-                                    }
-                                    return icon;
-                                }), 8, 8))
-                                .focusOnInteraction(false)
-                                .onPress(() -> {
-                                    if (shouldSwapFolderActions()) {
-                                        transferPack();
-                                    } else {
-                                        expandFolder();
-                                    }
-                                })
-                                .build())
-                        .ifPresent(widget -> {
-                            int x = getX() + PackWidget.ICON_SIZE + INNER_ITEM_PADDING * 2;
-                            int y = getY() + getHeight() - widget.getHeight() - INNER_ITEM_PADDING;
-                            widget.setPosition(x, y);
-                            acceptWidget(widget);
-                            acceptRenderable(widget);
-                            this.folderWidget = widget;
-                        });
-            }
-
             if (context.devMode()) {
                 this.devMenu = new PackDevMenu(context, PackList.this.state.profiles(), this);
             }
         }
 
-        private void init() {
+        protected void init() {
             if (!this.initialized) {
                 this.initialized = true;
                 buildWidgets();
@@ -679,10 +650,11 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             context.dispatch(new PackListIntent.Delete(key(), pack));
         }
 
+        protected boolean canExpand() {
+            return false;
+        }
+
         protected void expandFolder() {
-            if (pack instanceof PackNode.Parent parent) {
-                context.dispatch(new PackListIntent.OpenFolder(key(), parent));
-            }
         }
 
         protected void dragPack() {
@@ -774,7 +746,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             if (super.keyPressed(keyEvent)) {
                 return true;
             }
-            if (isExpandFolder(keyEvent) && pack instanceof PackNode.Parent && state.isSelectedExclusively()) {
+            if (isExpandFolder(keyEvent) && canExpand() && state.isSelectedExclusively()) {
                 expandFolder();
                 return true;
             }
@@ -891,16 +863,6 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             renderSelection(graphics, top, left, width, height);
             renderWidgetSprites(graphics, innerTop, innerLeft, mouseX, mouseY);
 
-            if (folderWidget != null) {
-                if (shouldSwapFolderActions()) {
-                    folderWidget.active = key().type().available() ? state.canEnable() : state.canDisable();
-                    folderWidget.setTooltip(TRANSFER_ALL_INFO);
-                } else {
-                    folderWidget.active = true;
-                    folderWidget.setTooltip(FOLDER_OPEN_INFO);
-                }
-            }
-
             for (Renderable renderable : this.renderables) {
                 renderable.extractRenderState(graphics, mouseX, mouseY, partialTick);
             }
@@ -911,10 +873,10 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
 
         protected void updateContextEntries(
-                Function<ContextMenuEvent.PackEntry.Pos, Collection<FZPopoverMenuItem>> entryFactory,
                 FZContextMenu.Collector collector,
                 double x,
-                double y
+                double y,
+                Function<ContextMenuEvent.PackEntry.Pos, Collection<FZPopoverMenuItem>> entryFactory
         ) {
             entryFactory.apply(ContextMenuEvent.PackEntry.Pos.BEFORE_HEADER).forEach(collector::addEntry);
 
@@ -940,13 +902,6 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
 
             entryFactory.apply(ContextMenuEvent.PackEntry.Pos.AFTER_DEV).forEach(collector::addEntry);
 
-            if (pack instanceof PackNode.Parent) {
-                collector.addEntry(builder -> builder
-                        .message(FOLDER_OPEN_TEXT)
-                        .onPress(this::expandFolder));
-                collector.nextSection();
-            }
-
             if (isFileModifiable()) {
                 collector.addEntry(builder -> builder
                         .message(RENAME_FILE_TEXT)
@@ -968,9 +923,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
             FZContextMenu.Source.super.fidgetz$updateContextEntries(x, y, collector);
         }
 
-        protected void updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
-            updateContextEntries(ignored -> Collections.emptyList(), collector, x, y);
-        }
+        protected abstract void updateContextEntries(double x, double y, FZContextMenu.Collector collector);
 
         @Override
         public final void fidgetz$updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
@@ -999,7 +952,6 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         @Override
         public void setX(int x) {
             rightElements.forEach(child -> child.setX(child.getX() + x - getX()));
-            if (folderWidget != null) folderWidget.setX(folderWidget.getX() + x - getX());
             super.setX(x);
             repositionPackWidget();
         }
@@ -1007,7 +959,6 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         @Override
         public void setY(int y) {
             rightElements.forEach(child -> child.setY(child.getY() + y - getY()));
-            if (folderWidget != null) folderWidget.setY(folderWidget.getY() + y - getY());
             super.setY(y);
             repositionPackWidget();
         }
@@ -1028,11 +979,163 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         @Override
         protected void setBounds(int x, int y, int width, int height) {
             rightElements.forEach(child -> child.setPosition((child.getX() + x - getX()) + width - getWidth(), child.getY() + y - getY()));
-            if (folderWidget != null) {
-                folderWidget.setPosition(folderWidget.getX() + x - getX(), folderWidget.getY() + y - getY());
-            }
             super.setBounds(x, y, width, height);
             repositionPackWidget();
+        }
+    }
+
+    public class ParentEntry extends Entry {
+        private static final int FOLDER_WIDGETS_PADDING = PackWidget.ICON_SIZE + INNER_ITEM_PADDING * 2;
+        private static final int FOLDER_WIDGET_SIZE = INNER_ITEM_HEIGHT / 3;
+        private static final Tooltip FOLDER_OPEN_INFO = Tooltip.create(FOLDER_OPEN_TEXT);
+        private @Nullable FZFlexLayout folderWidgets;
+        private @Nullable AbstractWidget folderWidget;
+        private @Nullable AbstractWidget recallWidget;
+        private final PackNode.Parent parent;
+
+        ParentEntry(PackNode.Parent parent, PackListComputed.Entry state, int index) {
+            super(state, index);
+            this.parent = parent;
+        }
+
+        private boolean isUnlocked() {
+            return !context.resources().isModule(parent) && !PackList.this.state.state().module();
+        }
+
+        @Override
+        protected boolean shouldSwapFolderActions() {
+            return switch (context.configs().user().shouldSwapFolderActions()) {
+                case NO -> false;
+                case YES -> true;
+                case UNLOCKED_ONLY -> isUnlocked();
+            };
+        }
+
+        @Override
+        protected void buildWidgets() {
+            super.buildWidgets();
+
+            if (Preferences.FOLDER_PACK_WIDGET.get() || context.devMode()) {
+                FZFlexLayout layout = FZFlexLayout.horizontal().spacing(INNER_ITEM_PADDING);
+
+                this.folderWidget = layout.child(PreferenceHelper.wrapNonNull(Preferences.FOLDER_PACK_WIDGET, FZIconButton.builder()
+                        .size(FOLDER_WIDGET_SIZE, FOLDER_WIDGET_SIZE)
+                        .icon(new WidgetElements(GuiUtils.lazyRect(() -> {
+                            RenderableRectangle icon = HAMBURGER_RECT;
+                            if (shouldSwapFolderActions()) {
+                                icon = key().type().available() ? ENABLE_ALL_RECT : DISABLE_ALL_RECT;
+                            }
+                            return icon;
+                        }), 8, 8))
+                        .onPress(() -> {
+                            if (shouldSwapFolderActions()) {
+                                transferPack();
+                            } else {
+                                expandFolder();
+                            }
+                        })
+                        .build()));
+
+                if (key().type().available()) {
+                    this.recallWidget = layout.child(PreferenceHelper.wrapNonNull(Preferences.FOLDER_PACK_WIDGET, FZIconButton.builder()
+                            .size(FOLDER_WIDGET_SIZE, FOLDER_WIDGET_SIZE)
+                            .icon(new WidgetElements(DISABLE_ALL_RECT, 8, 8))
+                            .tooltip(Component.translatable("packed_packs.folder.recall"))
+                            .onPress(() -> context.dispatch(new PackListIntent.Recall(key(), parent)))
+                            .build()));
+                }
+
+                int x = getX() + FOLDER_WIDGETS_PADDING;
+                int y = getY() + getHeight() - folderWidget.getHeight() - INNER_ITEM_PADDING;
+
+                layout.maxWidth(getWidth() - FOLDER_WIDGETS_PADDING - INNER_ITEM_PADDING);
+                layout.setPosition(x, y);
+                layout.arrangeElements();
+                layout.visitWidgets(widget -> {
+                    acceptWidget(widget);
+                    acceptRenderable(widget);
+                });
+
+                this.folderWidgets = layout;
+            }
+        }
+
+        @Override
+        protected void init() {
+            super.init();
+            if (folderWidget != null) {
+                if (shouldSwapFolderActions()) {
+                    folderWidget.active = key().type().available() ? state.canEnable() : state.canDisable();
+                    folderWidget.setTooltip(TRANSFER_ALL_INFO);
+                } else {
+                    folderWidget.active = true;
+                    folderWidget.setTooltip(FOLDER_OPEN_INFO);
+                }
+            }
+            if (recallWidget != null) {
+                recallWidget.visible = isUnlocked();
+            }
+        }
+
+        @Override
+        protected boolean canExpand() {
+            return true;
+        }
+
+        @Override
+        protected void expandFolder() {
+            context.dispatch(new PackListIntent.OpenFolder(key(), parent));
+        }
+
+        @Override
+        protected void updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
+            updateContextEntries(collector, x, y, position -> {
+                if (position == ContextMenuEvent.PackEntry.Pos.AFTER_DEV) {
+                    return List.of(
+                            FZPopoverMenuItem.builder()
+                                    .message(FOLDER_OPEN_TEXT)
+                                    .onPress(this::expandFolder)
+                                    .build(),
+                            FZPopoverMenuItem.divider()
+                    );
+                }
+
+                return Collections.emptyList();
+            });
+        }
+
+        @Override
+        public void setX(int x) {
+            if (folderWidgets != null) folderWidgets.setX(folderWidgets.getX() + x - getX());
+            super.setX(x);
+        }
+
+        @Override
+        public void setY(int y) {
+            if (folderWidgets != null) folderWidgets.setY(folderWidgets.getY() + y - getY());
+            super.setY(y);
+        }
+
+        @Override
+        protected void setWidth(int width) {
+            if (folderWidgets != null) {
+                folderWidgets.fidgetz$setWidth(width - FOLDER_WIDGETS_PADDING - INNER_ITEM_PADDING);
+            }
+            super.setWidth(width);
+        }
+
+        @Override
+        protected void setBounds(int x, int y, int width, int height) {
+            if (folderWidgets != null) {
+                folderWidgets.setPosition(folderWidgets.getX() + x - getX(), folderWidgets.getY() + y - getY());
+                folderWidgets.fidgetz$setWidth(width - FOLDER_WIDGETS_PADDING - INNER_ITEM_PADDING);
+            }
+            super.setBounds(x, y, width, height);
+        }
+
+        @Override
+        public boolean shouldTakeFocusAfterInteraction() {
+            return super.shouldTakeFocusAfterInteraction() && entries.containsKey(pack.id());
         }
     }
 
@@ -1060,11 +1163,6 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         }
 
         @Override
-        protected boolean shouldSwapFolderActions() {
-            return false;
-        }
-
-        @Override
         protected void buildWidgets() {
             super.buildWidgets();
 
@@ -1079,7 +1177,7 @@ public class PackList extends FZAbstractListWidget<PackList.Entry> implements Fo
         @Override
         public void updateContextEntries(double x, double y, FZContextMenu.Collector collector) {
             var extensions = ContextMenuEventImpl.postPackEntry(context, this);
-            updateContextEntries(extensions::entries, collector, x, y);
+            updateContextEntries(collector, x, y, extensions::entries);
         }
 
         // PackSelectionModel.Entry overrides

@@ -137,12 +137,15 @@ public class PackListContainer extends AbstractWidget implements FocusPathProvid
             }
         }
 
+        this.entriesDirty = this.entriesDirty
+                            || prevProfiles != newProfiles
+                            || !prev.visiblePacks().equals(newState.visiblePacks());
+
         if (this.folder != null && folderState != null) {
             this.folder.onStateChanged(folderState, newProfiles, folderUnlockable && !newState.module());
-            entriesDirty = entriesDirty || prev.visiblePacks() != newState.visiblePacks() || prevProfiles != newProfiles;
-        } else if (entriesDirty || prev.visiblePacks() != newState.visiblePacks() || prevProfiles != newProfiles) {
+        } else if (this.entriesDirty) {
             packList.rebuildEntries();
-            entriesDirty = false;
+            this.entriesDirty = false;
         }
     }
 
